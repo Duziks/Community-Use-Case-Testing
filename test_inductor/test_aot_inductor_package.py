@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import copy
 import functools
@@ -14,7 +22,6 @@ from pathlib import Path
 
 from parameterized import parameterized_class
 
-import torch
 import torch._inductor.config
 from torch._inductor.codecache import get_kernel_bin_format, WritableTempFile
 from torch._inductor.package import load_package, package_aoti
@@ -30,6 +37,7 @@ from torch.export.pt2_archive._package import (
 from torch.testing._internal.common_cuda import _get_torch_cuda_version
 from torch.testing._internal.common_utils import IS_FBCODE, skipIfXpu, TEST_CUDA
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU
+import torch_npu._inductor
 
 
 def skipif(predicate: Callable[[str, bool], bool], reason: str):
@@ -1073,5 +1081,4 @@ class TestAOTInductorPackage(TestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_GPU or sys.platform == "darwin":
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

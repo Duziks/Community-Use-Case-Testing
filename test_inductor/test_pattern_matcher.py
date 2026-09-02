@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import copy
 import itertools
@@ -6,7 +14,6 @@ import unittest
 from collections.abc import Callable
 from typing import Optional
 
-import torch
 import torch._dynamo.config as dynamo_config
 import torch._inductor.config as inductor_config
 import torch._inductor.fx_passes.post_grad
@@ -44,6 +51,7 @@ from torch.testing._internal.common_utils import (
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU, IS_BIG_GPU
 from torch.testing._internal.logging_utils import LoggingTestCase, make_logging_test
 from torch.utils import _pytree as pytree
+import torch_npu._inductor
 
 
 aten = torch.ops.aten
@@ -2085,5 +2093,4 @@ class TestPatternMatcherLogging(LoggingTestCase):
 
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_GPU:
-        run_tests()
+    run_tests()

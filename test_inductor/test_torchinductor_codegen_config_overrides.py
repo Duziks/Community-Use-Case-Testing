@@ -1,10 +1,17 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import importlib
 from collections.abc import Callable
 from typing import Any, Optional
 from unittest import skipIf
 
-import torch
 import torch.utils._pytree as pytree
 from torch._inductor import config
 from torch._inductor.test_case import TestCase as InductorTestCase
@@ -19,6 +26,7 @@ from torch.testing._internal.inductor_utils import (
     HAS_GPU,
     requires_gpu,
 )
+import torch_npu._inductor
 
 
 importlib.import_module("filelock")
@@ -119,7 +127,6 @@ class CodegenInductorTest(InductorTestCase):
         self.count_code("= tl.make_block_ptr(in_ptr", code, 2)
         self.count_code("= tl.load(block_ptr", code, 2)
 
-    @requires_gpu()
     @skipIf(GPU_TYPE == "mps", "Triton is not available for MPS")
     def test_kernel_fusion_thresholds(self):
         def func(a, b):
@@ -149,5 +156,4 @@ class CodegenInductorTest(InductorTestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_GPU or HAS_CPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

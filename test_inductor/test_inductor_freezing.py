@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import contextlib
 import copy
@@ -9,7 +17,6 @@ import sys
 import unittest
 import weakref
 
-import torch
 from torch import nn
 from torch._dynamo.utils import counters
 from torch._inductor import config
@@ -46,6 +53,7 @@ from torch.testing._internal.inductor_utils import (
     HAS_GPU,
     requires_gpu,
 )
+import torch_npu._inductor
 
 
 aten = torch.ops.aten
@@ -436,7 +444,6 @@ class OptimizeForInferenceTemplate(TestCase):
             torch._dynamo.mark_dynamic(inp2, 1)
             self.assertEqual(fn(inp2), fn_opt(inp2))
 
-    @requires_gpu()
     def test_conv_multiple_uses(self):
         from torch import nn
 
@@ -1020,5 +1027,4 @@ del OptimizeForInferenceTemplate
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_CPU or HAS_GPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

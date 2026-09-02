@@ -1,9 +1,16 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
 from functools import partial
 from unittest import skipIf
 
-import torch
 from torch._inductor import config
 from torch._inductor.ir import Pointwise
 from torch._inductor.lowering import make_fallback, make_pointwise, register_lowering
@@ -16,6 +23,7 @@ from torch.testing._internal.inductor_utils import (
     HAS_GPU,
     requires_gpu,
 )
+import torch_npu._inductor
 
 
 # These tests check issues for lowerings that aren't in the main pytorch repo
@@ -159,7 +167,6 @@ class TestCustomLowering(InductorTestCase):
         assert torch.ops.helion_test.foo in custom_lowering_dict
         assert torch.ops.helion_test.foo not in torch._inductor.lowering.lowerings
 
-    @requires_gpu()
     @skipIf(GPU_TYPE == "mps", "Not applicable to MPS")
     def test_jagged_to_padded_dense_sanity_cuda(self):
         def fn(inp, offsets, max_seq_len):
@@ -185,7 +192,6 @@ class TestCustomLowering(InductorTestCase):
             fn(inp, offsets, max_seq_len), fn_opt(inp, offsets, max_seq_len)
         )
 
-    @requires_gpu()
     @skipIf(GPU_TYPE == "mps", "Not applicable to MPS")
     def test_jagged_to_padded_dense_zero_size(self):
         # Previously, the masking was being completely stripped for the
@@ -207,7 +213,6 @@ class TestCustomLowering(InductorTestCase):
             fn(inp, offsets, max_seq_len), fn_opt(inp, offsets, max_seq_len)
         )
 
-    @requires_gpu()
     @skipIfRocm
     @skipIfXpu(msg="`tl.inline_asm_elementwise` is not yet supported on Intel GPUs")
     @skipIf(GPU_TYPE == "mps", "Not applicable to MPS")
@@ -222,7 +227,6 @@ class TestCustomLowering(InductorTestCase):
         b = fn_opt(inp)
         self.assertEqual(a, b)
 
-    @requires_gpu()
     @skipIfRocm
     @skipIfXpu(msg="`tl.inline_asm_elementwise` is not yet supported on Intel GPUs")
     @skipIf(GPU_TYPE == "mps", "Not applicable to MPS")
@@ -253,5 +257,4 @@ class TestCustomLowering(InductorTestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_CPU or HAS_GPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

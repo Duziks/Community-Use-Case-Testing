@@ -1,11 +1,17 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
-import torch
 import torch._inductor
 from torch._dynamo.utils import counters
 from torch._inductor.test_case import run_tests, TestCase
 from torch.testing._internal.inductor_utils import GPU_TYPE
-from torch.testing._internal.triton_utils import requires_gpu_and_triton
 
 
 try:
@@ -15,6 +21,7 @@ try:
     has_fbgemm = True
 except Exception:
     has_fbgemm = False
+import torch_npu._inductor
 
 
 class TestSplitCat(torch.nn.Module):
@@ -248,7 +255,6 @@ class TestSplitCatAten(TestCase):
             self.compare_dict_tensors(ref_grad, res_grad, rtol=rtol, atol=atol)
         )
 
-    @requires_gpu_and_triton
     @torch._inductor.config.patch(
         pre_grad_fusion_options={},
         post_grad_fusion_options={
@@ -291,7 +297,6 @@ class TestSplitCatAten(TestCase):
         self.compare_parameters(module, traced, rtol=1e-8, atol=1e-8)
         counters.clear()
 
-    @requires_gpu_and_triton
     @torch._inductor.config.patch(
         pre_grad_fusion_options={},
         post_grad_fusion_options={
@@ -317,7 +322,6 @@ class TestSplitCatAten(TestCase):
         self.compare_parameters(module, traced, rtol=1e-8, atol=1e-8)
         counters.clear()
 
-    @requires_gpu_and_triton
     @torch._inductor.config.patch(
         pre_grad_fusion_options={},
         post_grad_fusion_options={
@@ -342,7 +346,6 @@ class TestSplitCatAten(TestCase):
         self.compare_parameters(module, traced, rtol=1e-8, atol=1e-8)
         counters.clear()
 
-    @requires_gpu_and_triton
     @torch._inductor.config.patch(
         pre_grad_fusion_options={},
         post_grad_fusion_options={

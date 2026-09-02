@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
 import contextlib
@@ -13,7 +21,6 @@ import unittest
 import zipfile
 from pathlib import Path
 
-import torch
 from torch._C import FileCheck
 from torch._dynamo.utils import detect_fake_mode
 from torch._inductor import config
@@ -43,6 +50,7 @@ except ImportError:
     from test_torchinductor import (
         copy_tests,  # @manual=fbcode//caffe2/test/inductor:test_inductor-library
     )
+import torch_npu._inductor
 
 
 trace_log = logging.getLogger("torch.__trace")

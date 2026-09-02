@@ -1,10 +1,17 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
 import functools
 import unittest
 from typing import Union
 
-import torch
 from torch import Tensor
 from torch._C import FileCheck
 from torch._inductor import config, utils
@@ -33,6 +40,7 @@ from torch.testing._internal.inductor_utils import (
     HAS_CUDA_AND_TRITON,
 )
 from torch.utils._triton import has_triton_tma_device
+import torch_npu._inductor
 
 
 torch.set_float32_matmul_precision("high")
@@ -1423,5 +1431,4 @@ instantiate_device_type_tests(TestFP8Lowering, globals(), allow_xpu=True)
 
 
 if __name__ == "__main__":
-    if HAS_CUDA_AND_TRITON or HAS_CPU:
-        run_tests()
+    run_tests()

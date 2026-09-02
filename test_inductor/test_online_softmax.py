@@ -1,9 +1,16 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
 import math
 import os
 
-import torch
 import torch._inductor.config as inductor_config
 import torch.nn.functional as F
 from torch._dynamo.utils import rmse, same
@@ -15,6 +22,7 @@ from torch.testing._internal.common_utils import (
     parametrize,
 )
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_CUDA_AND_TRITON
+import torch_npu._inductor
 
 
 DO_PERF_TEST = os.environ.get("DO_PERF_TEST") == "1"
@@ -310,5 +318,4 @@ class TestOnlineSoftmax(TestCase):
 instantiate_parametrized_tests(TestOnlineSoftmax)
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_CUDA_AND_TRITON:
-        run_tests()
+    run_tests()

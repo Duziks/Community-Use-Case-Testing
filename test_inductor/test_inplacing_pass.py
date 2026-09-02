@@ -1,6 +1,13 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
-import torch
 import torch._inductor.config as inductor_config
 from functorch import make_fx
 from torch import Tensor
@@ -19,6 +26,7 @@ from torch.testing._internal.common_utils import (
 )
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU
 from torch.testing._internal.logging_utils import logs_to_string
+import torch_npu._inductor
 
 
 aten = torch.ops.aten
@@ -481,5 +489,5 @@ instantiate_parametrized_tests(TestReinplacingPassCorrectness)
 
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_GPU:
-        run_tests(needs="filelock")
+
+    run_tests(needs="filelock")

@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 # flake8: noqa: B950
 
@@ -10,7 +18,6 @@ from typing import Optional, Union
 from unittest import expectedFailure
 from unittest.mock import patch
 
-import torch
 from torch._inductor.test_case import TestCase as InductorTestCase
 from torch._inductor.utils import run_and_get_code
 from torch.nn.attention.experimental._paged_attention import PagedAttention
@@ -32,6 +39,7 @@ from torch.testing._internal.common_device_type import (
 )
 from torch.testing._internal.common_utils import IS_CI, IS_WINDOWS
 from torch.utils._triton import has_triton_tma_device
+import torch_npu._inductor
 
 
 if IS_WINDOWS and IS_CI:

@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
 import sys
@@ -15,13 +23,13 @@ if IS_WINDOWS and IS_CI:
         sys.exit(0)
     raise unittest.SkipTest("requires sympy/functorch/filelock")  # noqa: F821
 
-import torch
 from torch._C import FileCheck
 from torch._dynamo.utils import same
 from torch._inductor import config
 from torch._inductor.test_case import run_tests, TestCase
 from torch._inductor.utils import run_and_get_cpp_code
 from torch.export import Dim
+import torch_npu._inductor
 
 
 try:
@@ -32,7 +40,6 @@ except ImportError:
     )
 
 
-@requires_gpu()
 @config.patch(memory_planning=True)
 class TestMemoryPlanning(TestCase):
     device = GPU_TYPE
@@ -153,5 +160,4 @@ class TestMemoryPlanning(TestCase):
 
 
 if __name__ == "__main__":
-    if HAS_GPU:
-        run_tests()
+    run_tests()

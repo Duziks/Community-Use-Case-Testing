@@ -1,10 +1,17 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import unittest
 from typing import Any
 
 import sympy
 
-import torch
 import torch._inductor
 from torch._inductor import config
 from torch._inductor.choices import InductorChoices
@@ -19,6 +26,7 @@ from torch.testing._internal.common_utils import (
     parametrize,
 )
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU
+import torch_npu._inductor
 
 
 class TestingHeuristics(InductorChoices):
@@ -381,5 +389,4 @@ class TestFixedConfigs(TestCase):
 if __name__ == "__main__":
     from torch._dynamo.test_case import run_tests
 
-    if HAS_GPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

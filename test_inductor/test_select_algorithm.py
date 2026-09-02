@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import contextlib
 import functools
@@ -6,7 +14,6 @@ from collections.abc import Callable
 from typing import Any, Optional, Union
 from unittest.mock import patch
 
-import torch
 import torch._dynamo.config as dynamo_config
 import torch._inductor.config as inductor_config
 import torch._inductor.select_algorithm as select_algorithm
@@ -43,6 +50,7 @@ from torch.testing._internal.inductor_utils import (
 
 
 aten = torch.ops.aten
+import torch_npu._inductor
 
 
 def patches(fn):
@@ -811,5 +819,4 @@ class TestTemplateRender(TestCase):
 
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_GPU and is_big_gpu():
-        run_tests()
+    run_tests()

@@ -1,10 +1,17 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["oncall: cpu inductor"]
 import contextlib
 import copy
 import itertools
 import unittest
 
-import torch
 import torch.ao.quantization.quantizer.x86_inductor_quantizer as xiq
 from torch._dynamo import config as dynamo_config
 from torch._dynamo.utils import counters
@@ -46,6 +53,7 @@ from torch.testing._internal.inductor_utils import (
     clone_preserve_strides_offset,
     HAS_CPU,
 )
+import torch_npu._inductor
 
 
 # The dict value is match_nodes(computation_op+unary_op)

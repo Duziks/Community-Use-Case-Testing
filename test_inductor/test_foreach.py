@@ -1,10 +1,17 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
 import sys
 import unittest
 import unittest.mock as mock
 
-import torch
 import torch._inductor
 from torch._higher_order_ops import foreach_map
 from torch._inductor.test_case import TestCase
@@ -34,6 +41,7 @@ except (unittest.SkipTest, ImportError) as e:
     if __name__ == "__main__":
         sys.exit(0)
     raise
+import torch_npu._inductor
 
 
 def foreach_map_wrapper(op):

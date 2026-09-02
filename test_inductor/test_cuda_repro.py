@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 # ruff: noqa: F841
 
@@ -9,7 +17,6 @@ import os
 import sys
 import unittest
 
-import torch
 import torch._dynamo.config as dynamo_config
 import torch.backends.cuda
 import torch.nn.functional as F
@@ -2659,5 +2666,4 @@ if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
     from torch.testing._internal.inductor_utils import HAS_CUDA_AND_TRITON
 
-    if HAS_CUDA_AND_TRITON and not TEST_WITH_ASAN:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

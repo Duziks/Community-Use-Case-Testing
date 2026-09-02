@@ -1,9 +1,16 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import copy
 import os
 import random
 
-import torch
 from torch import nn
 from torch._dynamo.utils import same
 from torch._inductor import config
@@ -11,6 +18,7 @@ from torch._inductor.test_case import run_tests, TestCase
 from torch.testing._internal.common_cuda import tf32_off
 from torch.testing._internal.common_utils import skipIfXpu
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU
+import torch_npu._inductor
 
 
 USE_DDP_WRAPPER = os.environ.get("USE_DDP_WRAPPER", "1") == "1"
@@ -342,5 +350,4 @@ class TestLayoutOptim(TestCase):
 
 
 if __name__ == "__main__":
-    if HAS_GPU:
-        run_tests()
+    run_tests()

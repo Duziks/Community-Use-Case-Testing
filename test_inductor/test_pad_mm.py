@@ -1,7 +1,14 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import unittest
 
-import torch
 import torch._inductor.config as inductor_config
 from torch._dynamo.testing import rand_strided
 from torch._dynamo.utils import counters
@@ -16,6 +23,7 @@ from torch._inductor.test_case import run_tests, TestCase
 from torch._inductor.utils import fresh_cache, is_big_gpu, run_and_get_code
 from torch.testing import FileCheck
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU_AND_TRITON
+import torch_npu._inductor
 
 
 class PadMMTest(TestCase):
@@ -649,5 +657,4 @@ class PadMMTest(TestCase):
 
 
 if __name__ == "__main__":
-    if HAS_GPU_AND_TRITON:
-        run_tests()
+    run_tests()

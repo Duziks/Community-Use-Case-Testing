@@ -1,10 +1,17 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
 import os
 import re
 import unittest
 
-import torch
 from torch import nn
 from torch._dynamo.testing import reset_rng_state
 from torch._inductor import config, test_operators
@@ -25,6 +32,7 @@ from torch.testing._internal.inductor_utils import (
     IS_BIG_GPU,
     requires_triton,
 )
+import torch_npu._inductor
 
 
 class TransformerSnippet(nn.Module):
@@ -374,5 +382,4 @@ class MultiKernelTest(TestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_GPU:
-        run_tests()
+    run_tests()

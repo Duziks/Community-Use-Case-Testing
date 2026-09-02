@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
 # Owner(s): ["module: inductor"]
 # ruff: noqa: F841
 # flake8: noqa: E731
@@ -6,7 +14,6 @@ import functools
 import logging
 import os
 
-import torch
 import torch._dynamo.testing
 import torch._inductor.test_case
 import torch.utils._pytree as pytree
@@ -97,7 +104,6 @@ class KernelTests(torch._inductor.test_case.TestCase):
             return f"launchKernel({kernel_name}" in code
         return f"{kernel_name}.run(" in code
 
-    @requires_gpu
     def test_triton_kernel_with_kernel_param(self):
         @triton.jit
         def pass_kernel(kernel):
@@ -113,7 +119,6 @@ class KernelTests(torch._inductor.test_case.TestCase):
         # No need to assert anything, the goal is to make sure dynamo does
         # not crash
 
-    @requires_gpu
     def test_triton_kernel_higher_order_func(self):
         from torch._higher_order_ops.triton_kernel_wrap import kernel_side_table
 
@@ -164,7 +169,6 @@ class KernelTests(torch._inductor.test_case.TestCase):
         # Make sure it is NOT modified
         self.assertEqual(output, torch.zeros_like(t1))
 
-    @requires_gpu
     def test_triton_kernel_functionalize(self):
         from functorch import make_fx
         from torch._higher_order_ops.triton_kernel_wrap import kernel_side_table
@@ -218,7 +222,6 @@ def forward(self, x_1, output_1):
     return getitem_1""",
         )
 
-    @requires_gpu
     def test_triton_kernel_mutation_type(self):
         from torch._higher_order_ops.triton_kernel_wrap import kernel_side_table
         from torch._subclasses.fake_tensor import FakeTensorMode
@@ -288,7 +291,6 @@ def forward(self, x_1, output_1):
                 torch._functionalize_are_all_mutations_hidden_from_autograd(x_func.elem)
             )
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_with_views(self, dynamic, backend):
@@ -321,7 +323,6 @@ def forward(self, x_1, output_1):
         self.assertEqual(2 * t_view, compiled_func(t).view(16))
         self.assertEqual(2 * t, compiled_func(t))
 
-    @requires_gpu
     def test_no_nan_kernels(self):
         @triton.jit
         def add_one_kernel(
@@ -377,7 +378,6 @@ def forward(self, x_1, output_1):
             self.assertEqual(output_code.count('float("nan")'), 0)
             self.assertEqual(output_code.count("float('nan')"), 0)
 
-    @requires_gpu
     @common_utils.parametrize("grad_fn", [torch.no_grad, torch.enable_grad])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_with_grad_option(self, grad_fn, backend):
@@ -393,7 +393,6 @@ def forward(self, x_1, output_1):
         compiled_func = torch.compile(call_triton, backend=backend, fullgraph=True)
         self.assertEqual(2 * t, compiled_func(t))
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_inner_triton_function(self, backend):
         def f(x: torch.Tensor):
@@ -424,7 +423,6 @@ def forward(self, x_1, output_1):
         # TODO(oulgen): NYI - Support this
         # self.assertEqual(t * t, compiled_func(t))
 
-    @requires_gpu
     @common_utils.parametrize("grad", [False, True])
     @common_utils.parametrize("dynamic", [False, True])
     @inductor_config.patch("implicit_fallbacks", False)
@@ -479,7 +477,6 @@ def forward(self, x_1, output_1):
                 code,
             )
 
-    @requires_gpu
     def test_triton_kernel_caching(self):
         from torch._inductor.utils import run_and_get_code
 
@@ -508,7 +505,6 @@ def forward(self, x_1, output_1):
         self.assertEqual(test, 5 * torch.ones(5, device=GPU_TYPE))
         self.assertTrue("add_kernel_autotuned_1.run" not in code)
 
-    @requires_gpu
     def test_triton_kernel_caching_duplicate(self):
         from torch._inductor.utils import run_and_get_code
 
@@ -557,7 +553,6 @@ def forward(self, x_1, output_1):
         self.assertTrue(self._kernel_launched_in_code("pass_kernel_0", code))
         self.assertTrue(self._kernel_launched_in_code("pass_kernel_1", code))
 
-    @requires_gpu
     def test_triton_kernel_various_args(self):
         @triton.autotune(
             configs=[triton.Config({"BLOCK_SIZE": 128})],
@@ -593,7 +588,6 @@ def forward(self, x_1, output_1):
         # Make sure this does not crash
         call_triton(output)
 
-    @requires_gpu
     def test_triton_kernel_dependancies(self):
         def call_triton(
             x: torch.Tensor,
@@ -614,7 +608,6 @@ def forward(self, x_1, output_1):
         compiled_result = torch.compile(call_triton)(t1, t2)
         self.assertEqual(torch_result, compiled_result)
 
-    @requires_gpu
     def test_triton_kernel_reinplace_inplaceable_pass(self):
         def call_triton(
             x: torch.Tensor,
@@ -633,7 +626,6 @@ def forward(self, x_1, output_1):
         compiled_result = torch.compile(call_triton)(t1, t2)
         self.assertEqual(torch_result, compiled_result)
 
-    @requires_gpu
     @common_utils.parametrize("grad", [False, True])
     def test_triton_kernel_multi_kernel(self, grad):
         @triton.jit
@@ -710,7 +702,6 @@ def forward(self, x_1, output_1):
         self.assertEqual(float_result, result)
         self.assertEqual(int_result, resulti)
 
-    @requires_gpu
     def test_triton_kernel_constants(self):
         @triton.jit
         def mulC_kernel(
@@ -761,7 +752,6 @@ def forward(self, x_1, output_1):
         # reset back
         CONSTANT_C = prev_c
 
-    @requires_gpu
     @common_utils.parametrize("grad", [False, True])
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
@@ -795,7 +785,6 @@ def forward(self, x_1, output_1):
         output2 = torch.zeros_like(t1, requires_grad=grad)
         self.assertEqual(compiled_func(t1, t2, output2), torch_add)
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     @inductor_config.patch("unsafe_ignore_unsupported_triton_autotune_args", True)
     def test_triton_kernel_autotune_with_unsupported_args(self, backend):
@@ -815,7 +804,6 @@ def forward(self, x_1, output_1):
         compiled_add = compiled_func(t1, t2)
         self.assertEqual(compiled_add, torch_add)
 
-    @requires_gpu
     @common_utils.parametrize("grad", [False, True])
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
@@ -860,7 +848,6 @@ def forward(self, x_1, output_1):
         output2 = torch.zeros_like(t1, requires_grad=grad)
         self.assertEqual(compiled_func(t1, t2, output2), torch_result)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     def test_triton_kernel_tracing(self, dynamic):
         def call_triton_add(
@@ -924,7 +911,6 @@ def forward(self, x_1, output_1):
             result = test(t2, t3)
             self.assertEqual(result, torch_add)
 
-    @requires_gpu
     @common_utils.parametrize("grad", [False, True])
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
@@ -986,7 +972,6 @@ def forward(self, x_1, output_1):
         o6 = torch.zeros_like(t1, requires_grad=grad)
         self.assertEqual(compiled_func(t1, t2, o6, 2, 200), torch_add)
 
-    @requires_gpu
     def test_triton_kernel_mutation_not_mark_dirty(self):
         @torch.compile
         def f(x):
@@ -1000,7 +985,6 @@ def forward(self, x_1, output_1):
         f(x_cloned)
         out.sum().backward()
 
-    @requires_gpu
     @inductor_config.patch("allow_buffer_reuse", True)
     def test_triton_kernel_inputs_buffer_reuse(self):
         def _mul2(x):
@@ -1041,7 +1025,6 @@ def forward(self, x_1, output_1):
         )
         self.assertEqual(num_bufs_reused, 3)
 
-    @requires_gpu
     def test_triton_kernel_matmul_tracking(self):
         @triton.jit
         def ones_kernel(x_ptr, n_elements, BLOCK_SIZE: "tl.constexpr"):
@@ -1063,7 +1046,6 @@ def forward(self, x_1, output_1):
         python_out = torch.mm(torch.ones(4, 4, device=GPU_TYPE), x) + 10
         self.assertEqual(torch_out, python_out)
 
-    @requires_gpu
     def test_triton_kernel_strided_input(self):
         def f(inp):
             # left has strides [256, 1]
@@ -1090,7 +1072,6 @@ def forward(self, x_1, output_1):
     @inductor_config.patch(
         triton_kernel_default_layout_constraint="needs_fixed_stride_order"
     )
-    @requires_gpu
     def test_layout_constraint_needs_fixed_stride_order(self):
         # Construct a custom op whose output strides are (1, 2)
         @torch.library.custom_op("mylib::weird_op_with_lowering", mutates_args={})
@@ -1147,7 +1128,6 @@ def forward(self, x_1, output_1):
         compiled_inductor_out = compiled_inductor_f(x)
         self.assertEqual(compiled_inductor_out, eager_out)
 
-    @requires_gpu
     def test_triton_kernel_strided_input_nonzero_offset(self):
         def f(inp):
             # right has strides [256, 1] and storage offset 128
@@ -1171,7 +1151,6 @@ def forward(self, x_1, output_1):
         compiled_out = torch.compile(f)(inp)
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     def test_triton_kernel_slice_and_view_input(self):
         def f(inp):
             # left has strides [256, 1]
@@ -1199,7 +1178,6 @@ def forward(self, x_1, output_1):
         compiled_out = torch.compile(f)(inp)
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     def test_triton_kernel_fallback(self):
         def f(x, y):
             out = torch.zeros_like(x)
@@ -1216,7 +1194,6 @@ def forward(self, x_1, output_1):
         compiled_out = torch.compile(f)(x, y)
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     def test_triton_kernel_to_cpu(self):
         def f(x, y):
             out = torch.zeros_like(x)
@@ -1230,7 +1207,6 @@ def forward(self, x_1, output_1):
         compiled_out = torch.compile(f)(x, y)
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     def test_triton_kernel_out_of_order(self):
         @triton.jit
         def add_kernel(
@@ -1261,7 +1237,6 @@ def forward(self, x_1, output_1):
         compiled_out = torch.compile(f)(x, y)
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     @dynamo_config.patch(capture_dynamic_output_shape_ops=True)
     @dynamo_config.patch(capture_scalar_outputs=True)
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
@@ -1294,7 +1269,6 @@ def forward(self, x_1, output_1):
         compiled_out = torch.compile(f, fullgraph=True, backend=backend)(x)
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     @common_utils.parametrize("dump_launch_params", ["0", "1"])
     @common_utils.parametrize("dynamic", [False, True])
     def test_triton_kernel_equal_to_1_arg(self, dynamic, dump_launch_params):
@@ -1346,7 +1320,6 @@ def forward(self, x_1, output_1):
                 self.assertTrue(_triton_get_ast_equal_to_str((3,)) in sources[0])
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     def test_triton_kernel_equal_to_1_float_arg(self, dynamic):
         def f(x, y):
@@ -1376,7 +1349,6 @@ def forward(self, x_1, output_1):
             self.assertTrue(_triton_get_ast_equal_to_str(()) in sources[0])
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     def test_triton_kernel_with_imported_symbol(self):
         @triton.jit
         def add_kernel_with_imported_symbol(
@@ -1440,7 +1412,6 @@ def forward(self, x_1, output_1):
         self.assertIn("@triton.constexpr_function", triton_code)
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     def test_triton_kernel_with_imported_symbol_with_custom_name(self):
         @triton.jit
         def add_kernel_with_imported_symbol(
@@ -1471,7 +1442,6 @@ def forward(self, x_1, output_1):
 
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     @common_utils.parametrize("size", [4, 16])
     @common_utils.parametrize("dynamic", [False, True])
     def test_triton_kernel_different_shapes(self, size, dynamic):
@@ -1512,7 +1482,6 @@ def forward(self, x_1, output_1):
 
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_triton_dtype(self, dynamic, backend):
@@ -1556,7 +1525,6 @@ def forward(self, x_1, output_1):
             )(*args)
             self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_special_kwargs_with_autotune(self, backend):
         @triton.autotune(
@@ -1601,7 +1569,6 @@ def forward(self, x_1, output_1):
         x = torch.randn(4, device=GPU_TYPE)
         f(x, x)
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_empty_autotune_config_dict(self, backend):
         @triton.autotune(
@@ -1645,7 +1612,6 @@ def forward(self, x_1, output_1):
         x = torch.randn(4, device=GPU_TYPE)
         f(x, x)
 
-    @requires_gpu
     @common_utils.parametrize("autotune", [False, True])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_special_params(self, autotune, backend):
@@ -1712,7 +1678,6 @@ def forward(self, x_1, output_1):
         self.assertEqual(eager_out, expected_out)
         self.assertEqual(compiled_out, expected_out)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("tma_version", ["new", "old"])
     def test_on_device_tma(self, dynamic, tma_version):
@@ -1771,7 +1736,6 @@ def forward(self, x_1, output_1):
         self.assertEqual(eager_out, expected_out)
         self.assertEqual(compiled_out, expected_out)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_multiple_outputs(self, dynamic, backend):
@@ -1812,7 +1776,6 @@ def forward(self, x_1, output_1):
         self.assertEqual(out2, x + y + 1)
         self.assertEqual(out3, z**2)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("tma_version", ["new", "old"])
     def test_tma_capture_and_functionalize(self, dynamic, tma_version):
@@ -1913,7 +1876,6 @@ def forward(self, arg0_1, arg1_1):
     return (getitem,)""",
                 )
 
-    @requires_gpu
     @common_utils.parametrize("after_data_ptr", [False, True])
     @common_utils.parametrize("after_create_desc", [False, True])
     @common_utils.parametrize("tma_version", ["new", "old"])
@@ -1970,7 +1932,6 @@ def forward(self, arg0_1, arg1_1):
         self.assertEqual(eager_out, expected_out)
         self.assertEqual(compiled_out, expected_out)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     @common_utils.parametrize("tma_version", ["new", "old"])
@@ -2023,7 +1984,6 @@ def forward(self, arg0_1, arg1_1):
         self.assertEqual(eager_out, expected_out)
         self.assertEqual(compiled_out, expected_out)
 
-    @requires_gpu
     @common_utils.parametrize("tma_version", ["new", "old"])
     def test_tma_descriptor_dedup(self, tma_version):
         if tma_version == "new" and not has_triton_tensor_descriptor_host_tma():
@@ -2082,7 +2042,6 @@ def forward(self, arg0_1, arg1_1):
         else:
             self.assertEqual(code.count("create_1d_tma_descriptor("), 2)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("backend", ["eager", "aot_eager"])
     @common_utils.parametrize("tma_version", ["new", "old"])
@@ -2140,7 +2099,6 @@ def forward(self, arg0_1, arg1_1):
         self.assertEqual(eager_out, expected_out)
         self.assertEqual(compiled_out, expected_out)
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_num_ctas(self, backend):
         @triton.jit
@@ -2158,7 +2116,6 @@ def forward(self, arg0_1, arg1_1):
             x = torch.randn(4, device=GPU_TYPE)
             f(x)
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_kernel_special_kwargs_without_autotune(self, backend):
         @triton.jit
@@ -2197,7 +2154,6 @@ def forward(self, arg0_1, arg1_1):
         x = torch.randn(4, device=GPU_TYPE)
         f(x, x)
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     @common_utils.parametrize("autotune_at_compile_time", [True, False])
     def test_triton_kernel_restore_value(self, backend, autotune_at_compile_time):
@@ -2244,7 +2200,6 @@ def forward(self, arg0_1, arg1_1):
         # make sure x was restored after autotuning
         torch.testing.assert_close(x, prev + 1)
 
-    @requires_gpu
     @parametrize("dtype", (torch.float16, torch.float32, torch.float64))
     def test_triton_kernel_float64_constant(self, dtype):
         def f(x):
@@ -2302,7 +2257,6 @@ def forward(self, arg0_1, arg1_1):
             self.assertEqual(out_e[1], out_c[1])
 
     # TODO enable this test case on XPU.
-    @requires_gpu
     def test_i64_input(self):
         # The i64 "seed" input needs to be marked as "i64", not "i32".
         @triton.jit
@@ -2342,7 +2296,6 @@ def forward(self, arg0_1, arg1_1):
 
         self.assertTrue(((res < 2) & (res >= 0)).all().item())
 
-    @requires_gpu
     @parametrize("wrapped", [False, True])
     @parametrize("autotune", [False, True])
     def test_constexpr_dynamic_shapes(self, wrapped, autotune):
@@ -2412,7 +2365,6 @@ def forward(self, arg0_1, arg1_1):
         res2 = fn_c(x2)
         self.assertEqual(x2 * x2, res2)
 
-    @requires_gpu
     def test_triton_kernel_none_args(self):
         # https://github.com/pytorch/pytorch/issues/115344
         @triton.autotune(
@@ -2457,7 +2409,6 @@ def forward(self, arg0_1, arg1_1):
         sin_triton_compiled(None, out_compiled)
         self.assertEqual(out, out_compiled)
 
-    @requires_gpu
     def test_triton_kernel_global_constexpr(self):
         @triton.jit
         def triton_(in_ptr, out_ptr, BLOCK_SIZE: tl.constexpr):
@@ -2484,7 +2435,6 @@ def forward(self, arg0_1, arg1_1):
         actual = torch.compile(fn)(x)
         self.assertEqual(expected, actual)
 
-    @requires_gpu
     @unittest.skipIf(
         not triton_version_uses_attrs_dict(),
         "Test is only valid for new triton versions where attrs is represented by a raw dict",
@@ -2533,7 +2483,6 @@ def forward(self, arg0_1, arg1_1):
             "'BLOCK_SIZE': 'constexpr'"
         ).run(code[0])
 
-    @requires_gpu
     @inductor_config.patch({"triton.autotune_at_compile_time": True})
     @parametrize("quotes", ["single", "double"])
     def test_kernel_with_docstring(self, quotes):
@@ -2555,7 +2504,6 @@ def forward(self, arg0_1, arg1_1):
         expected = torch.compile(fn, fullgraph=True)(345)
         self.assertEqual(actual, expected)
 
-    @requires_gpu
     @skipIfXpu(msg="`tl.inline_asm_elementwise` is not yet supported on Intel GPUs")
     @skipIfRocm
     @inductor_config.patch({"triton.autotune_at_compile_time": True})
@@ -2581,7 +2529,6 @@ def forward(self, arg0_1, arg1_1):
         expected = torch.compile(fn, fullgraph=True)(inp)
         self.assertEqual(actual, expected)
 
-    @requires_gpu
     @inductor_config.patch("emulate_precision_casts", True)
     def test_triton_kernel_emulate_precision_unaffected(self):
         @triton.jit
@@ -2605,7 +2552,6 @@ def forward(self, arg0_1, arg1_1):
         _, (code,) = run_and_get_code(fn, t1)
         self.assertTrue("enable_fp_fusion" not in code)
 
-    @requires_gpu
     @inductor_config.patch("emulate_precision_casts", True)
     @inductor_config.patch("max_autotune_gemm_backends", "TRITON")
     def test_triton_kernel_emulate_precision_mm_kernels_do_not_change(self):
@@ -2629,7 +2575,6 @@ def forward(self, arg0_1, arg1_1):
 
 
 def make_mutation_test(fn):
-    @requires_gpu
     def test_fn(self):
         from torch._higher_order_ops.triton_kernel_wrap import identify_mutated_tensors
 
@@ -2807,7 +2752,6 @@ class MutationTests(torch._inductor.test_case.TestCase):
             expected,
         )
 
-    @requires_gpu
     def test_triton_kernel_inference_mode(self):
         def f(x, y, out):
             n_elements = x.numel()
@@ -3645,7 +3589,6 @@ if HAS_GPU:
 class CustomOpTests(torch._inductor.test_case.TestCase):
     """Tests for custom ops wrapping triton kernels"""
 
-    @requires_gpu
     @common_utils.parametrize("autotuned", [False, True])
     @common_utils.parametrize("dynamic", [False, True])
     def test_add_kernel(self, autotuned, dynamic):
@@ -3686,7 +3629,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
         self.assertNotIn(libname, code)
         self.assertNotIn(opname, code)
 
-    @requires_gpu
     def test_subclass(self):
         libname = "my_cool_namespace"
         opname = "my_triton_operator"
@@ -3720,7 +3662,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
         self.assertEqual(out.a, expected.a)
         self.assertEqual(out.b, expected.b)
 
-    @requires_gpu
     @dynamo_config.patch("recompile_limit", 1)
     def test_triton_dynamic_grid_no_recompile(self):
         libname = "my_cool_namespace"
@@ -3783,7 +3724,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
         expected = torch.empty_like(x)
         self.assertEqual(out, expected)
 
-    @requires_gpu
     def test_wrap_triton_disabled_in_triton_op(self):
         import triton  # @manual
         import triton.language as tl  # @manual
@@ -3839,7 +3779,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
         self.assertEqual(status[-1], False)
         self.assertEqual(z, (x + y) * 2)
 
-    @requires_gpu
     @common_utils.parametrize(
         "variant", ["triton_kernel", "custom_op", "mutable_custom_op"]
     )
@@ -3958,7 +3897,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
                 self.assertEqual(f(x, other), f_compile(x, other))
                 self.assertTrue(called)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("autotune", [False, True])
     def test_capture_triton_special_kwargs(self, dynamic, autotune):
@@ -4019,7 +3957,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
         self.assertEqual(gm(x, x), x + x)
 
     @skipIfWindows(msg="AOTI/Cpp_Wrapper have not enabled on Windows")
-    @requires_gpu
     @inductor_config.patch("cpp_wrapper", True)
     @inductor_config.patch("triton.autotune_at_compile_time", True)
     def test_autotune_unbacked(self):
@@ -4148,7 +4085,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
 
     # Triton 3.2.0 adds the required flags to the Autotuner object for this test
     # PR: https://github.com/triton-lang/triton/pull/5092
-    @requires_gpu
     def test_autotune_no_pre_or_post_hook_user_defined(self):
         from triton.runtime.autotuner import Autotuner
 
@@ -4212,7 +4148,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
             add_compiled = torch.compile(add, mode="reduce-overhead", fullgraph=True)
             add_compiled(x, y).mean()
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     @common_utils.parametrize("autotune_at_compile_time", [True, False])
     def test_triton_kernel_reset_to_zero(self, backend, autotune_at_compile_time):
@@ -4265,7 +4200,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
 
         self.assertEqual(y + increment, x)
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     def test_triton_single_autotune(self, backend):
         @triton.autotune(
@@ -4317,7 +4251,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
             )
             add_compiled(x, y).mean()
 
-    @requires_gpu
     @common_utils.parametrize("non_strict", [True, False])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     @common_utils.parametrize("with_perf_model", [True, False])
@@ -4410,7 +4343,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
             self.assertTrue(records["capture_kwargs"])
             self.assertTrue(records["capture_named_args"])
 
-    @requires_gpu
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     @common_utils.parametrize("with_perf_model", [True, False])
     def test_triton_kernel_prune_configs_by_recompile(self, backend, with_perf_model):
@@ -4503,7 +4435,6 @@ class CustomOpTests(torch._inductor.test_case.TestCase):
         self.assertEqual(counter.op_count, 2)
 
     # see: https://github.com/triton-lang/triton/blob/67ea999935f4511a535a25bdecb27e79e3c3af41/python/test/unit/language/test_decorator.py#L31
-    @requires_gpu
     @common_utils.parametrize("non_strict", [True, False])
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     @common_utils.parametrize("autotune_at_compile_time", [True, False])

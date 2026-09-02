@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["oncall: cpu inductor"]
 import contextlib
 import copy
@@ -11,7 +19,6 @@ import unittest
 from collections.abc import Callable
 from unittest.mock import patch
 
-import torch
 from torch import nn
 from torch._C import FileCheck
 from torch._dynamo.testing import rand_strided
@@ -51,6 +58,7 @@ except unittest.SkipTest:
     if __name__ == "__main__":
         sys.exit(0)
     raise
+import torch_npu._inductor
 
 
 vec_dtypes = test_torchinductor.vec_dtypes

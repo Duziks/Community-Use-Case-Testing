@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import itertools
 import logging
@@ -11,7 +19,6 @@ import zipfile
 from unittest import skip
 from unittest.mock import patch
 
-import torch
 import torch._export
 import torch._inductor
 import torch._inductor.config
@@ -164,6 +171,7 @@ except (unittest.SkipTest, ImportError):
     if __name__ == "__main__":
         sys.exit(0)
     raise
+import torch_npu._inductor
 
 
 def get_module_ext_type():
@@ -455,7 +463,6 @@ class AOTInductorTestsTemplate:
         new_output = runner_call(test_inputs)
         self.assertEqual(expected, new_output)
 
-    @requires_gpu
     def test_duplicate_constant_folding(self):
         class Model(torch.nn.Module):
             def __init__(self, device):
@@ -602,7 +609,6 @@ class AOTInductorTestsTemplate:
             dynamic_shapes=dynamic_shapes,
         )
 
-    @requires_gpu
     def test_multi_device(self):
         if self.device == "cpu" and GPU_TYPE == "xpu":
             raise unittest.SkipTest(
@@ -8072,6 +8078,4 @@ class TestCheckLowerboundConfig(TestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    # cpp_extension N/A in fbcode
-    if HAS_GPU or sys.platform == "darwin":
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

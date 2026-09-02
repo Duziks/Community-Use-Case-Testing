@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import unittest
 
@@ -7,6 +15,7 @@ from torch._inductor.codegen.mps import MetalOverrides
 from torch._inductor.codegen.triton import TritonKernelOverrides
 from torch._inductor.ops_handler import list_ops, OP_NAMES, OpsHandler
 from torch._inductor.test_case import TestCase
+import torch_npu._inductor
 
 
 class TestOpCompleteness(TestCase):

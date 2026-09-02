@@ -1,11 +1,19 @@
-# Owner(s): ["module: inductor"]
 import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
+# Owner(s): ["module: inductor"]
 from torch._dynamo.repro.aoti import (
     AOTIMinifierError,
     export_for_aoti_minifier,
     get_module_string,
 )
 from torch.testing._internal.common_utils import run_tests, TestCase
+import torch_npu._inductor
 
 
 class MinifierUtilsTests(TestCase):

@@ -1,9 +1,16 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import contextlib
 import operator
 from collections import defaultdict
 
-import torch
 import torch._inductor.pattern_matcher as pattern_matcher
 import torch.fx as fx
 from torch._dynamo.utils import counters
@@ -19,6 +26,7 @@ from torch._inductor.pattern_matcher import Arg, CallFunction, PatternMatcherPas
 from torch._inductor.test_case import run_tests, TestCase
 from torch.testing._internal.common_utils import IS_LINUX
 from torch.testing._internal.inductor_utils import HAS_CPU, patch_inductor_backend
+import torch_npu._inductor
 
 
 @config.patch({"freezing": True})

@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 # ruff: noqa: F841
 import contextlib
@@ -8,7 +16,6 @@ import unittest
 from collections.abc import Callable
 from typing import Any, Optional, Union
 
-import torch
 import torch.utils._pytree as pytree
 from torch._dynamo.debug_utils import InputReader
 from torch._inductor import config
@@ -40,6 +47,7 @@ try:
     from . import test_torchinductor
 except ImportError:
     import test_torchinductor
+import torch_npu._inductor
 
 
 skip_windows_ci(__name__, __file__)
@@ -1037,7 +1045,6 @@ class CommonTemplate:
         self.assertTrue("Min" not in code[0])
 
     @xfail_if_use_tensor_descriptor
-    @requires_gpu()  # FIXME this test failed on Triton-CPU
     def test_3d_permute_tiling(self):
         """
         Test 3D tiling with permute.
@@ -2001,5 +2008,4 @@ class TestTilingExtra(InductorTestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_GPU or TRITON_HAS_CPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

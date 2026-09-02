@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import functools
 import logging
@@ -14,7 +22,6 @@ from typing import Optional, Union
 from typing_extensions import override
 from unittest import mock
 
-import torch
 from torch._dynamo import reset
 from torch._dynamo.package import DynamoCache
 from torch._dynamo.precompile_context import PrecompileContext
@@ -92,6 +99,7 @@ if HAS_TRITON:
 
 torch._dynamo.config.fake_tensor_cache_enabled = True
 torch._dynamo.config.fake_tensor_cache_crosscheck_enabled = True
+import torch_npu._inductor
 
 
 class LogCaptureHandler(logging.Handler):
@@ -272,7 +280,6 @@ class TestFxGraphCache(TestCase):
         torch._dynamo.reset()
         clear_caches()
 
-    @requires_triton()
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @config.patch({"compile_threads": 1})
@@ -467,7 +474,6 @@ class TestFxGraphCache(TestCase):
                         grad_multiplier if device == "cuda" else 0,
                     )
 
-    @requires_triton()
     @config.patch({"fx_graph_remote_cache": True})
     @parametrize("device", (GPU_TYPE, "cpu"))
     @parametrize("dtype", (torch.float32, torch.bfloat16))
@@ -529,7 +535,6 @@ class TestFxGraphCache(TestCase):
         for k in global_stats.fx_graph.cache:
             self.assertRegex(k, r"pt2:fx-graph-v1::[0-9a-z]{52}:c[0-9]+")
 
-    @requires_triton()
     @config.patch(
         {
             "fx_graph_cache": True,
@@ -966,7 +971,6 @@ class TestFxGraphCache(TestCase):
         _, cache_info = artifacts
         self.assertEqual(len(cache_info.test_artifacts), 1)
 
-    @requires_triton()
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @parametrize("device", (GPU_TYPE, "cpu"))
@@ -1298,8 +1302,6 @@ class TestFxGraphCache(TestCase):
         self.assertEqual(counters["inductor"]["fxgraph_cache_hit"], 1)
         self.assertEqual(counters["inductor"]["fxgraph_lookup_write_file"], 1)
 
-    @requires_gpu()
-    @requires_triton()
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @parametrize("bundle_triton", (False, True))
@@ -1330,8 +1332,6 @@ class TestFxGraphCache(TestCase):
             self.assertEqual(counters["inductor"]["fxgraph_cache_hit"], 0)
             self.assertGreater(counters["inductor"]["fxgraph_cache_bypass"], 0)
 
-    @requires_gpu()
-    @requires_triton()
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @parametrize("bundle_triton", (False, True))
@@ -1397,8 +1397,6 @@ class TestFxGraphCache(TestCase):
             self.assertEqual(counters["inductor"]["fxgraph_cache_hit"], 1)
             self.assertEqual(counters["inductor"]["fxgraph_cache_bypass"], 0)
 
-    @requires_gpu()
-    @requires_triton()
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @parametrize("bundle_triton", (False, True))
@@ -1481,8 +1479,6 @@ class TestFxGraphCache(TestCase):
             self.assertEqual(counters["inductor"]["fxgraph_cache_hit"], 1)
             self.assertEqual(counters["inductor"]["fxgraph_cache_bypass"], 0)
 
-    @requires_gpu()
-    @requires_triton()
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @config.patch({"compile_threads": 1})

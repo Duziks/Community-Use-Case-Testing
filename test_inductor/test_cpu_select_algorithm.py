@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["oncall: cpu inductor"]
 import contextlib
 import functools
@@ -6,7 +14,6 @@ import unittest
 from typing import Optional
 from unittest.mock import patch
 
-import torch
 import torch._dynamo.config
 import torch._dynamo.config as dynamo_config
 import torch._inductor.config as inductor_config
@@ -49,6 +56,7 @@ set_num_threads = test_cpu_repro.set_num_threads
 run_and_get_cpp_code = test_torchinductor.run_and_get_cpp_code
 
 aten = torch.ops.aten
+import torch_npu._inductor
 
 
 def patches(fn):

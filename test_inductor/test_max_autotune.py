@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import contextlib
 import functools
@@ -14,7 +22,6 @@ from collections.abc import Callable
 from typing import Optional
 from unittest import mock
 
-import torch
 from torch import multiprocessing as mp, nn
 from torch._dynamo import reset
 from torch._dynamo.exc import BackendCompilerFailed
@@ -88,6 +95,7 @@ from torch.testing._internal.inductor_utils import (
 torch.set_float32_matmul_precision("high")
 if HAS_CUDA_AND_TRITON:
     torch.cuda.memory._set_allocator_settings("expandable_segments:False")
+import torch_npu._inductor
 
 
 def benchmark_choice(choice, args, out, expected_out, timings):
@@ -3578,6 +3586,4 @@ class TestPrologueFusion(TestCase):
 if __name__ == "__main__":
     from torch._inductor.utils import is_big_gpu
 
-    # Set env to make it work in CI.
-    if HAS_GPU and HAS_CPU and is_big_gpu():
-        run_tests()
+    run_tests()

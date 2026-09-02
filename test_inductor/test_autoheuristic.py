@@ -1,8 +1,15 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import os
 import unittest
 
-import torch
 import torch._inductor.config as inductor_config
 from torch._dynamo.device_interface import get_interface_for_device
 from torch._inductor.autoheuristic.autoheuristic import AutoHeuristic, LocalFeedback
@@ -12,6 +19,7 @@ from torch._inductor.test_case import run_tests, TestCase
 from torch._inductor.utils import get_gpu_shared_memory
 from torch.testing._internal.common_utils import skipIfXpu
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU, IS_A100, IS_H100
+import torch_npu._inductor
 
 
 @skipIfXpu(msg="AutoHeuristic doesn't currently work on the XPU stack")
@@ -169,5 +177,4 @@ class AutoHeuristicTest(TestCase):
 
 
 if __name__ == "__main__":
-    if HAS_GPU:
-        run_tests()
+    run_tests()

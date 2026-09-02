@@ -1,3 +1,11 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 
 import functools
@@ -6,7 +14,6 @@ import unittest
 from unittest import skipUnless
 from unittest.mock import MagicMock, patch
 
-import torch
 from torch._dynamo.testing import rand_strided
 from torch._inductor.runtime.triton_compat import HAS_WARP_SPEC
 from torch._inductor.utils import clone_preserve_strides
@@ -49,6 +56,9 @@ from torch._inductor.runtime.triton_heuristics import (
     triton_config,
 )
 from torch._inductor.test_case import run_tests, TestCase
+import torch_npu._inductor
+
+NPU_TYPE = "npu"
 
 
 @triton.jit
@@ -77,7 +87,7 @@ def get_autotuned_amd_sqr_kernel():
 
 @instantiate_parametrized_tests
 class TestTritonHeuristics(TestCase):
-    device_type = GPU_TYPE
+    device_type = NPU_TYPE
 
     def test_triton_config(self):
         """
@@ -111,9 +121,9 @@ class TestTritonHeuristics(TestCase):
         s1 = 8
 
         args = [
-            torch.rand([2, 4], device=GPU_TYPE),
-            torch.rand([2], device=GPU_TYPE),
-            torch.rand([s0, s1], device=GPU_TYPE),
+            torch.rand([2, 4], device=NPU_TYPE),
+            torch.rand([2], device=NPU_TYPE),
+            torch.rand([s0, s1], device=NPU_TYPE),
         ]
         torch._dynamo.mark_dynamic(args[-1], 0)
         foo_c = torch.compile(forward)
@@ -121,9 +131,9 @@ class TestTritonHeuristics(TestCase):
         self.assertEqual(forward(*args), foo_c(*args))
 
         args = [
-            torch.rand([2, 4], device=GPU_TYPE),
-            torch.rand([2], device=GPU_TYPE),
-            torch.rand([s0, s1], device=GPU_TYPE),
+            torch.rand([2, 4], device=NPU_TYPE),
+            torch.rand([2], device=NPU_TYPE),
+            torch.rand([s0, s1], device=NPU_TYPE),
         ]
         self.assertEqual(forward(*args), foo_c(*args))
 
@@ -151,7 +161,7 @@ class TestTritonHeuristics(TestCase):
 
         triton_meta = {
             "signature": {"in_ptr0": "*fp32", "out_ptr0": "*fp32", "xnumel": "i32"},
-            "device": DeviceProperties.create(torch.device(GPU_TYPE)),
+            "device": DeviceProperties.create(torch.device(NPU_TYPE)),
             "constants": {},
             "configs": [
                 AttrsDescriptorWrapper(divisible_by_16=(0, 1, 2), equal_to_1=())
@@ -193,7 +203,7 @@ class TestTritonHeuristics(TestCase):
             CachingAutotuner(**args)
 
     def test_autotune_hints_to_configs(self):
-        device_props = DeviceProperties.create(torch.device(GPU_TYPE))
+        device_props = DeviceProperties.create(torch.device(NPU_TYPE))
         device_props = device_props._replace(warp_size=8)
 
         hints = {AutotuneHint.ONE_ELEMENT_PER_THREAD}
@@ -322,7 +332,7 @@ class TestArgumentCloneAndRestore(TestCase):
         """
         M = 2
         N = 2**29 // 4
-        out = rand_strided((M, N), (N + pad, 1), device=GPU_TYPE)
+        out = rand_strided((M, N), (N + pad, 1), device=NPU_TYPE)
         if with_offset:
             out = out[:, 1:]
         return out
@@ -385,5 +395,4 @@ class TestArgumentCloneAndRestore(TestCase):
 
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_GPU:
-        run_tests()
+    run_tests()

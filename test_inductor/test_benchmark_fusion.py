@@ -1,9 +1,16 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+
 # Owner(s): ["module: inductor"]
 import math
 import os
 import sys
 
-import torch
 from torch._inductor.codegen.triton import TritonScheduling
 from torch._inductor.test_case import TestCase as InductorTestCase
 from torch._inductor.test_operators import realize
@@ -34,6 +41,7 @@ from inductor.test_torchinductor import (  # @manual=fbcode//caffe2/test/inducto
 )
 from torch._inductor import config
 from torch._inductor.scheduler import Scheduler
+import torch_npu._inductor
 
 
 class TestCase(InductorTestCase):
@@ -351,5 +359,4 @@ if HAS_CPU and not torch.backends.mps.is_available():
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_CPU or HAS_GPU_AND_TRITON:
-        run_tests()
+    run_tests()
