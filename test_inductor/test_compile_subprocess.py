@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: fx"]
 
 #
@@ -13,7 +22,6 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
-import torch
 import torch.library
 from torch._inductor.compile_fx import _InProcessFxCompile, FxCompile, FxCompileMode
 from torch._inductor.graph import GraphLowering
@@ -269,5 +277,4 @@ if RUN_GPU and not TEST_WITH_ASAN:
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if RUN_CPU or RUN_GPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

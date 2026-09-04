@@ -2,6 +2,15 @@
 # pyre-strict
 from __future__ import annotations
 
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 import atexit
 import os
 import pickle
@@ -19,7 +28,6 @@ from unittest.mock import patch
 
 from filelock import FileLock
 
-import torch
 from torch._inductor.runtime.caching import (
     config,
     context,

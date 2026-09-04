@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 """
 Tests for custom operation autotuning with PyTorch Inductor.
@@ -7,7 +16,6 @@ config specifies an optional decomposition function and its associated parameter
 Inductor benchmarks all variants and automatically selects the best performing one.
 """
 
-import torch
 from torch._inductor import config
 from torch._inductor.kernel.custom_op import (
     CustomOpConfig,

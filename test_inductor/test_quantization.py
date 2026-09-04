@@ -1,10 +1,18 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
 import logging
 
 import numpy as np
 
-import torch
 import torch._inductor
 import torch._inductor.fx_passes.group_batch_fusion
 from torch._dynamo.utils import counters
@@ -230,5 +238,4 @@ class TestQuantization(TestCase):
 
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_GPU:
-        run_tests()
+    run_tests()

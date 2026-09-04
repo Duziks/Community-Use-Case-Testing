@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 import contextlib
 import os
@@ -7,7 +16,6 @@ import sys
 import tempfile
 import unittest
 
-import torch
 import torch._inductor.config as inductor_config
 from torch._dynamo.utils import counters
 from torch._inductor.test_case import run_tests, TestCase
@@ -173,5 +181,4 @@ class DeterministicTest(TestCase):
 
 
 if __name__ == "__main__":
-    if HAS_GPU_AND_TRITON:
-        run_tests()
+    run_tests()

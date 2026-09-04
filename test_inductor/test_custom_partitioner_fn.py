@@ -1,5 +1,13 @@
-# Owner(s): ["module: pt2-dispatcher"]
 import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
+# Owner(s): ["module: pt2-dispatcher"]
 from functorch.compile import min_cut_rematerialization_partition
 from torch._C import FileCheck
 from torch._inductor.custom_graph_pass import CustomPartitionerFn, get_hash_for_files
@@ -68,5 +76,4 @@ class TestCustomPartitionerFn(TestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_GPU:
-        run_tests()
+    run_tests()

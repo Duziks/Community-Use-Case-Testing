@@ -1,9 +1,17 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
 
 from collections.abc import Callable
 
-import torch
 from torch._dynamo.testing import rand_strided
 from torch._dynamo.utils import same
 from torch._inductor import config as inductor_config
@@ -158,5 +166,4 @@ if HAS_GPU:
     torch.set_default_device(GPU_TYPE)
 
 if __name__ == "__main__":
-    if HAS_GPU:
-        run_tests()
+    run_tests()

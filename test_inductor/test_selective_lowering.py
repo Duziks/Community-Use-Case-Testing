@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 """
 Test selective lowering control via node metadata annotations.
@@ -5,7 +14,6 @@ Test selective lowering control via node metadata annotations.
 
 from collections.abc import Callable
 
-import torch
 from torch._inductor.test_case import TestCase as InductorTestCase
 from torch.testing._internal.common_utils import instantiate_parametrized_tests
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU
@@ -87,5 +95,4 @@ class SelectiveLoweringTest(InductorTestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_GPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

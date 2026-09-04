@@ -1,10 +1,18 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 import functools
 import sys
 import unittest
 from unittest.mock import patch
 
-import torch
 import torch._dynamo.config as dynamo_config
 import torch._inductor.config as inductor_config
 import torch._inductor.select_algorithm as select_algorithm

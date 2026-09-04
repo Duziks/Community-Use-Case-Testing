@@ -1,6 +1,14 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
-import torch
 import torch.utils._pytree as pytree
 from torch._inductor.pattern_matcher import (
     CallFunctionVarArgs,
@@ -98,5 +106,4 @@ class TestNeedsExactStrides(InductorTestCase):
 instantiate_parametrized_tests(TestNeedsExactStrides)
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_CUDA_AND_TRITON:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")
