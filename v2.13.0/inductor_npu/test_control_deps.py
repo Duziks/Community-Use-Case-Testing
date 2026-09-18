@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
 import torch
@@ -15,7 +24,6 @@ from torch.testing._internal.inductor_utils import (
 
 class TestControlDeps(InductorTestCase):
     @config.patch(reorder_for_locality=False)
-    @requires_gpu()
     def test_control_deps_prevents_fusion(self):
         def fn(a, b):
             c = a + 1
@@ -82,7 +90,6 @@ class TestControlDeps(InductorTestCase):
             torch.testing.assert_close(result, expected)
 
     @config.patch(allow_buffer_reuse=False)
-    @requires_gpu()
     def test_control_deps_do_not_extend_buffer_lifetime(self):
         """
         Control deps should not extend buffer lifetimes - buf0/buf1 should be
@@ -129,7 +136,6 @@ class TestControlDeps(InductorTestCase):
             ).check("del buf0").run(code[0])
 
     @config.patch(reorder_for_locality=False)
-    @requires_gpu()
     def test_control_deps_with_nested_args(self):
         """Test control_deps with operations that have nested args (e.g., torch.cat)."""
 
@@ -277,7 +283,6 @@ class TestControlDeps(InductorTestCase):
             torch.testing.assert_close(result, expected)
             torch.testing.assert_close(compiled_x, eager_x)
 
-    @requires_gpu()
     def test_control_deps_with_triton_kernel(self):
         """Test control_deps with triton_kernel_wrapper_mutation."""
         import triton
@@ -341,7 +346,6 @@ class TestControlDeps(InductorTestCase):
             expected = fn(x, y)
             torch.testing.assert_close(result, expected)
 
-    @requires_gpu()
     def test_control_deps_orders_void_op_across_nested_calls(self):
         """record_event's void op must be named as an additional_buffer_dep
         of the subsequent wait_event's operations after Inductor lowering.
@@ -412,5 +416,4 @@ class TestControlDeps(InductorTestCase):
 
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_GPU_AND_TRITON:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

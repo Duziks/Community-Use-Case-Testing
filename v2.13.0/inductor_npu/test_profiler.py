@@ -360,5 +360,4 @@ class DynamoProfilerTests(torch._inductor.test_case.TestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_GPU_AND_TRITON:
-        run_tests()
+    run_tests()

@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 """Tests for cat multi-consumer and pad-as-cat optimizations."""
 
@@ -15,7 +24,6 @@ torch._logging.set_logs(inductor_metrics=True)
 
 class TestCatMultiConsumer(TestCase):
     @torch._inductor.config.patch(fx_graph_cache=False)
-    @requires_gpu()
     def test_cat_to_fp16(self):
         """Multi-consumer cat avoids duplicate computation."""
 
@@ -49,7 +57,6 @@ class TestCatMultiConsumer(TestCase):
         )
 
     @torch._inductor.config.patch(fx_graph_cache=False)
-    @requires_gpu()
     def test_single_consumer_cat_unchanged(self):
         """Single-consumer cat unchanged."""
 
@@ -77,7 +84,6 @@ class TestCatMultiConsumer(TestCase):
 
 
 class TestPadAsCat(TestCase):
-    @requires_gpu()
     def test_mul_pad_addmm(self):
         """Multi-consumer F.pad uses ConcatKernel zero-copy."""
         counters.clear()
@@ -102,7 +108,6 @@ class TestPadAsCat(TestCase):
         self.assertIn("reinterpret_tensor", code)
         self.assertGreater(counters["inductor"]["pad_rewritten_as_cat"], 0)
 
-    @requires_gpu()
     def test_single_consumer_pad(self):
         """Single-consumer F.pad is decomposed into cat, which fuses via pointwise_cat."""
         counters.clear()

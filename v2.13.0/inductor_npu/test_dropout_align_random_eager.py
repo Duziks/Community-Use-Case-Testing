@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
 import struct
@@ -135,7 +144,6 @@ def dropout_parity(shape, p=0.3, dtype=torch.float32, seed=1234):
 )
 @config.patch(align_random_eager=True)
 class TestDropoutAlignRandomEager(InductorTestCase):
-    @requires_gpu()
     def test_linear_block_compile_parity_forward(self):
         device = torch.device(GPU_TYPE)
 
@@ -164,7 +172,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
 
             torch.testing.assert_close(y_eager, y_comp, rtol=0.0, atol=0.0)
 
-    @requires_gpu()
     def test_linear_block_compile_parity_backward(self):
         device = torch.device(GPU_TYPE)
 
@@ -198,7 +205,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
             self.assertIsNotNone(p_new.grad)
             torch.testing.assert_close(p_ref.grad, p_new.grad, rtol=1e-3, atol=1e-5)
 
-    @requires_gpu()
     def test_dropout_mask_parity_and_rng_offset_cuda(self):
         device = torch.device(GPU_TYPE)
         H, W = BATCH * SEQ_LEN, FFN_DIM
@@ -245,7 +251,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
     # ───────────────────────────────────────────────────────────
     # multiple dropouts + multiple iterations
     # ───────────────────────────────────────────────────────────
-    @requires_gpu()
     def test_multi_dropout_multi_iterations_parity(self):
         device = torch.device(GPU_TYPE)
 
@@ -274,7 +279,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
     # ───────────────────────────────────────────────────────────
     # dynamic shapes test (a)
     # ───────────────────────────────────────────────────────────
-    @requires_gpu()
     def test_dropout_parity_dynamic_shapes(self):
         device = torch.device(GPU_TYPE)
 
@@ -305,7 +309,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
     # ───────────────────────────────────────────────────────────
     # cudagraphs test via mode='reduce-overhead' (b)
     # ───────────────────────────────────────────────────────────
-    @requires_gpu()
     def test_dropout_parity_cudagraphs_reduce_overhead(self):
         device = torch.device(GPU_TYPE)
 
@@ -330,7 +333,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
     # ───────────────────────────────────────────────────────────
     # Codegen sanity: run_and_get_code + FileCheck
     # ───────────────────────────────────────────────────────────
-    @requires_gpu()
     def test_inductor_generated_code_contains_dropout(self):
         device = torch.device(GPU_TYPE)
         x = torch.randn(BATCH, SEQ_LEN, HIDDEN_DIM, device=device)
@@ -351,7 +353,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
     # ───────────────────────────────────────────────────────────
     # Optional: perf smoke (GPU only)
     # ───────────────────────────────────────────────────────────
-    @requires_gpu()
     def test_perf_smoke_cuda(self):
         device = torch.device(GPU_TYPE)
         x = torch.randn(BATCH, SEQ_LEN, HIDDEN_DIM, device=device)
@@ -411,7 +412,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
     # ───────────────────────────────────────────────────────────
     # Primitive random fns: rand / randn / randint -> mark as XFAIL
     # ───────────────────────────────────────────────────────────
-    @requires_gpu()
     @pytest.mark.xfail(
         reason="primitive torch.rand parity is tracked as future work",
         strict=False,
@@ -421,7 +421,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
         shape = (BATCH, SEQ_LEN, HIDDEN_DIM)
         self._run_primitive_random_parity("rand", device, shape)
 
-    @requires_gpu()
     @pytest.mark.xfail(
         reason="primitive torch.randn parity is tracked as future work",
         strict=False,
@@ -431,7 +430,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
         shape = (BATCH, SEQ_LEN, HIDDEN_DIM)
         self._run_primitive_random_parity("randn", device, shape)
 
-    @requires_gpu()
     @pytest.mark.xfail(
         reason="primitive torch.randint parity is tracked as future work",
         strict=False,
@@ -444,7 +442,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
     # ───────────────────────────────────────────────────────────
     # nn.Dropout as primitive RNG consumer (should PASS)
     # ───────────────────────────────────────────────────────────
-    @requires_gpu()
     def test_primitive_nn_dropout_parity(self):
         device = torch.device(GPU_TYPE)
         shape = (BATCH, SEQ_LEN, HIDDEN_DIM)
@@ -469,7 +466,6 @@ class TestDropoutAlignRandomEager(InductorTestCase):
     # Seed and base are packed into int64 as (seed << 32) | base.
     # Seeds > 2^32 overflow.
     # ───────────────────────────────────────────────────────────
-    @requires_gpu()
     def test_large_seed(self):
         for seed in [2**33 + 1, 2**40 + 12345]:
             with self.subTest(seed=seed):
@@ -478,5 +474,4 @@ class TestDropoutAlignRandomEager(InductorTestCase):
 
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_CUDA_AND_TRITON:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

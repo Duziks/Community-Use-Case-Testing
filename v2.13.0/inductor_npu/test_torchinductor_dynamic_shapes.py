@@ -1484,5 +1484,4 @@ if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
     # Slow on ASAN after https://github.com/pytorch/pytorch/pull/94068
-    if (HAS_CPU or HAS_GPU or HAS_MPS) and not TEST_WITH_ASAN:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

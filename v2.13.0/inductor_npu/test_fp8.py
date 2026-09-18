@@ -1967,5 +1967,4 @@ instantiate_device_type_tests(TestFP8Lowering, globals(), allow_xpu=True)
 
 
 if __name__ == "__main__":
-    if HAS_CUDA_AND_TRITON or HAS_CPU:
-        run_tests()
+    run_tests()

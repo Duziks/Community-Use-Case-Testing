@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 """
 Tests for custom operation autotuning with PyTorch Inductor.
@@ -39,7 +48,6 @@ torch.set_float32_matmul_precision("high")
 
 
 @unittest.skipIf(IS_MACOS, "TODO: mac")
-@unittest.skipUnless(HAS_GPU and HAS_TRITON, "requires GPU and Triton")
 class TestCustomOpAutoTune(TestCase):
     """Test custom operation autotuning functionality."""
 
@@ -1524,5 +1532,4 @@ instantiate_parametrized_tests(TestCustomOpAutoTune)
 if __name__ == "__main__":
     from torch._inductor.utils import is_big_gpu
 
-    if HAS_GPU and HAS_CPU and is_big_gpu():
-        run_tests()
+    run_tests()

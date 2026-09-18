@@ -2466,5 +2466,4 @@ class ComboKernelPeakMemoryTests(InductorTestCase):
 if __name__ == "__main__":
     from torch._dynamo.test_case import run_tests
 
-    if HAS_CPU or HAS_GPU_AND_TRITON:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

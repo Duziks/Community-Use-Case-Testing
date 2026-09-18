@@ -473,5 +473,4 @@ class TestFixedConfigs(TestCase):
 if __name__ == "__main__":
     from torch._dynamo.test_case import run_tests
 
-    if HAS_GPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

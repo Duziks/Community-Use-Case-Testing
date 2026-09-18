@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 import unittest
 
@@ -846,5 +855,4 @@ using StrideD = cute::Stride<int64_t, cute::Int<1>, cute::Int<0>>;
 if __name__ == "__main__":
     from torch._dynamo.test_case import run_tests
 
-    if HAS_CPU or HAS_GPU_AND_TRITON:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

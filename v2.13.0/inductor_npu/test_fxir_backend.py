@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 """
 Test the FX IR backend.
@@ -69,7 +78,6 @@ test_config = {
 }
 
 
-@requires_gpu()
 @config.patch(test_config)
 @instantiate_parametrized_tests
 class FxirTestCase(InductorTestCase):
@@ -908,7 +916,6 @@ class AOTFxirTestCase(InductorTestCase):
         inp = (torch.ones(3, device=self.device), torch.ones(3, device=self.device))
         self.check(M(), inp)
 
-    @requires_gpu()
     def test_aoti_fx_parallel_compile_reloads_triton_kernel(self):
         class M(torch.nn.Module):
             def forward(self, x, y):
@@ -1465,5 +1472,4 @@ class TestReplaceFloorDiv(InductorTestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_GPU or TRITON_HAS_CPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

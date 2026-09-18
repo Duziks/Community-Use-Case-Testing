@@ -174,7 +174,6 @@ class KernelTests(torch._inductor.test_case.TestCase):
         # No need to assert anything, the goal is to make sure dynamo does
         # not crash
 
-    @requires_gpu
     def test_triton_kernel_dunder_name_no_name_mangling(self):
         # Regression test for https://github.com/pytorch/pytorch/issues/170398
         # Triton kernels whose names start with ``__`` must not trigger
@@ -300,7 +299,6 @@ class KernelTests(torch._inductor.test_case.TestCase):
             )
             self.assertEqual(actual_indices, expected_indices)
 
-    @requires_gpu
     def test_triton_kernel_ill_formed(self):
         if inductor_config.cpp_wrapper:
             # With lazy compile, kernel errors happen at runtime, not codegen
@@ -514,7 +512,6 @@ def forward(self, x_1, output_1):
                 torch._functionalize_are_all_mutations_hidden_from_autograd(x_func.elem)
             )
 
-    @requires_gpu
     def test_triton_kernel_clone_wekdeps(self):
         from torch._higher_order_ops.triton_kernel_wrap import kernel_side_table
         from torch._inductor.choices import InductorChoices
@@ -1561,7 +1558,6 @@ def forward(self, x_1, output_1):
         compiled_out = torch.compile(f)(x, y)
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     def test_triton_kernel_to_cpu(self):
         def f(x, y):
             out = torch.zeros_like(x)
@@ -1637,7 +1633,6 @@ def forward(self, x_1, output_1):
         compiled_out = torch.compile(f, fullgraph=True, backend=backend)(x)
         self.assertEqual(compiled_out, eager_out)
 
-    @requires_gpu
     @common_utils.parametrize("dump_launch_params", ["0", "1"])
     @common_utils.parametrize("dynamic", [False, True])
     def test_triton_kernel_equal_to_1_arg(self, dynamic, dump_launch_params):
@@ -2096,7 +2091,6 @@ def forward(self, x_1, output_1):
         self.assertEqual(eager_out, expected_out)
         self.assertEqual(compiled_out, expected_out)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("tma_version", ["new", "old"])
     def test_on_device_tma(self, dynamic, tma_version):
@@ -2194,7 +2188,6 @@ def forward(self, x_1, output_1):
         self.assertEqual(out2, x + y + 1)
         self.assertEqual(out3, z**2)
 
-    @requires_gpu
     @common_utils.parametrize("dynamic", [False, True])
     @common_utils.parametrize("tma_version", ["new", "old"])
     def test_tma_capture_and_functionalize(self, dynamic, tma_version):
@@ -2295,7 +2288,6 @@ def forward(self, arg0_1, arg1_1):
     return (getitem,)""",
                 )
 
-    @requires_gpu
     @common_utils.parametrize("after_data_ptr", [False, True])
     @common_utils.parametrize("after_create_desc", [False, True])
     @common_utils.parametrize("tma_version", ["new", "old"])

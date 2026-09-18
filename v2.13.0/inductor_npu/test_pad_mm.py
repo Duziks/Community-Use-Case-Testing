@@ -664,5 +664,4 @@ class PadMMTest(TestCase):
 
 
 if __name__ == "__main__":
-    if HAS_GPU_AND_TRITON:
-        run_tests()
+    run_tests()

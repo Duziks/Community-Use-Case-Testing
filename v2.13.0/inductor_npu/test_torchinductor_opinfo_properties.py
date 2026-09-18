@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 """
 OpInfo-based property tests for inductor numerical correctness.
@@ -526,7 +535,6 @@ def compile_fn(fn, backend):
 
 @unittest.skipIf(IS_WINDOWS, "Skipped on Windows")
 @unittest.skipIf(TEST_WITH_ASAN, "Skipped under ASAN")
-@unittest.skipIf(not HAS_GPU, "Requires GPU")
 class TestOpInfoProperties(TestCase):
     """Test op properties under various inductor modes using OpInfo on CUDA."""
 

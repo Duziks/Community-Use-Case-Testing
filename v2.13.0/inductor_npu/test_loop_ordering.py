@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
 import contextlib
@@ -876,7 +885,6 @@ class LoopOrderingTest(TestCase):
             "test_configs.max_mm_configs": 4,
         }
     )
-    @skipUnless(HAS_GPU and is_big_gpu(), "Need big gpu for max-autotune")
     def test_interaction_with_triton_template(self):
         """
         Make sure the dependency prefix for TritonTempalate and its
@@ -913,7 +921,6 @@ class LoopOrderingTest(TestCase):
             "test_configs.max_mm_configs": 4,
         }
     )
-    @skipUnless(HAS_GPU and is_big_gpu(), "Need big gpu for max-autotune")
     def test_interaction_with_multi_template(self):
         """
         Skip MultiTemplateBuffer during loop reordering
@@ -1925,5 +1932,4 @@ class TestIndexInversion(TestCase):
 
 
 if __name__ == "__main__":
-    if HAS_GPU:
-        run_tests()
+    run_tests()

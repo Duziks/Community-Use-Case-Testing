@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
 import logging
@@ -136,7 +145,6 @@ class TestQuantization(TestCase):
             self.compare_dict_tensors(ref_grad, res_grad, rtol=rtol, atol=atol)
         )
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={},
         post_grad_fusion_options={
@@ -199,7 +207,6 @@ class TestQuantization(TestCase):
         self.assertTrue(torch.allclose(ref, res))
         counters.clear()
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={},
         post_grad_fusion_options={
@@ -252,7 +259,6 @@ class TestQuantization(TestCase):
         self.assertTrue(torch.allclose(ref, res))
         counters.clear()
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={},
         post_grad_fusion_options={
@@ -285,5 +291,4 @@ class TestQuantization(TestCase):
 
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_GPU:
-        run_tests()
+    run_tests()

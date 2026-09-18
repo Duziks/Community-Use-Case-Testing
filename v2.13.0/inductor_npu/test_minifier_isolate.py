@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 import unittest
 
@@ -39,7 +48,6 @@ inner(torch.randn(2, 2).to("{device}"))
         self._test_after_aot_runtime_error("cpu", "")
 
     @skipIfRocm
-    @requires_gpu
     @inductor_config.patch("triton.inject_relu_bug_TESTING_ONLY", "runtime_error")
     def test_after_aot_gpu_runtime_error(self):
         expected_error = (

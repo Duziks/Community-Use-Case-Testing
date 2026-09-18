@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: fx"]
 
 #
@@ -118,8 +127,6 @@ class TestSubprocess(TestCase):
 
     @skipIfRocm(msg="https://github.com/pytorch/pytorch/issues/157788")
     @skipIfRocm(msg="https://github.com/pytorch/pytorch/issues/157724")
-    @requires_gpu()
-    @requires_triton()
     @unittest.skipIf(
         not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
     )

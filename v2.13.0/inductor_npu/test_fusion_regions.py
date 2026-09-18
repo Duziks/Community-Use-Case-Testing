@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
 """Tests for fusion region detection."""
@@ -14,7 +23,6 @@ from torch.ops import aten
 HAS_GPU = torch.cuda.is_available()
 
 
-@unittest.skipIf(not HAS_GPU, "Inductor+gpu needs triton and recent GPU arch")
 class TestFusionRegionDetection(InductorTestCase):
     """Tests for fusion region detection and grouping."""
 

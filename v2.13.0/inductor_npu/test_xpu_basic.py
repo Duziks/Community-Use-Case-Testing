@@ -63,5 +63,4 @@ if __name__ == "__main__":
     from torch._dynamo.test_case import run_tests
     from torch.testing._internal.inductor_utils import HAS_XPU_AND_TRITON
 
-    if HAS_XPU_AND_TRITON:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

@@ -1469,5 +1469,4 @@ class ForeachTests(TestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_CPU or HAS_GPU:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

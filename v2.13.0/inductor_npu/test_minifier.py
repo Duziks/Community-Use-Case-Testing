@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 import unittest
 from unittest.mock import patch
@@ -39,12 +48,10 @@ inner(torch.randn(20, 20).to("{device}"))
     def test_after_aot_cpu_accuracy_error(self):
         self._test_after_aot("cpu", "AccuracyError")
 
-    @requires_gpu
     @inductor_config.patch("triton.inject_relu_bug_TESTING_ONLY", "compile_error")
     def test_after_aot_gpu_compile_error(self):
         self._test_after_aot(GPU_TYPE, "SyntaxError")
 
-    @requires_gpu
     @inductor_config.patch("triton.inject_relu_bug_TESTING_ONLY", "accuracy")
     def test_after_aot_gpu_accuracy_error(self):
         self._test_after_aot(GPU_TYPE, "AccuracyError")
@@ -60,7 +67,6 @@ inner(torch.randn(2))
 """
         self._run_full_test(run_code, "aot", "AccuracyError", isolate=False)
 
-    @requires_gpu
     @patch.object(config, "joint_graph_constant_folding", False)
     def test_rmse_improves_over_atol(self):
         # From https://twitter.com/itsclivetime/status/1651135821045719041?s=20
@@ -274,7 +280,6 @@ def forward(self, linear):
         res = self._test_aoti_unflattened_inputs("cpu", "CppCompileError")
         self._aoti_check_relu_repro(res)
 
-    @requires_gpu
     @inductor_config.patch(
         "triton.inject_relu_bug_TESTING_ONLY",
         "compile_error",
@@ -283,7 +288,6 @@ def forward(self, linear):
         res = self._test_aoti(GPU_TYPE, "SyntaxError")
         self._aoti_check_relu_repro(res)
 
-    @requires_gpu
     @inductor_config.patch(
         "triton.inject_relu_bug_TESTING_ONLY",
         "compile_error",
@@ -298,7 +302,6 @@ def forward(self, linear):
         res = self._test_aoti("cpu", "AccuracyError")
         self._aoti_check_relu_repro(res)
 
-    @requires_gpu
     @inductor_config.patch("triton.inject_relu_bug_TESTING_ONLY", "accuracy")
     def test_aoti_gpu_accuracy_error(self):
         res = self._test_aoti(GPU_TYPE, "AccuracyError")

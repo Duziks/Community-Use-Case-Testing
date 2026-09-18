@@ -5602,7 +5602,6 @@ for dtype in (torch.int32, torch.int64):
             (torch.randn([10]),),
         )
 
-    @requires_gpu()
     def test_to_copy_fp64_to_no_fp64_device(self):
         # See https://github.com/pytorch/pytorch/issues/180664
         # When the target device does not support fp64, _to_copy should
@@ -6065,7 +6064,6 @@ for dtype in (torch.int32, torch.int64):
         )
         assertGeneratedKernelCountEqual(self, 0)
 
-    @requires_gpu()
     @skip_if_gpu_halide  # slow
     @xfail_if_mps  # Non-divisible input sizes are not implemented on MPS device
     @parametrize("comprehensive_padding", (False, True))

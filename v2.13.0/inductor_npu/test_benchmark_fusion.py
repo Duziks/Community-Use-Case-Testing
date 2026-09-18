@@ -365,5 +365,4 @@ if HAS_CPU and not torch.backends.mps.is_available():
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_CPU or HAS_GPU_AND_TRITON:
-        run_tests()
+    run_tests()

@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 import torch
 from torch._inductor.test_case import run_tests, TestCase
@@ -16,7 +25,6 @@ if HAS_HELION:
 
 
 class HelionTests(TestCase):
-    @requires_triton()
     @requires_helion()
     def test_add_kernel(self):
         @helion.kernel(config=helion.Config(block_sizes=[1, 2]))
@@ -47,7 +55,6 @@ class HelionTests(TestCase):
         self.assertEqual(out, x + y)
         self.assertEqual(compiled_out, x + y)
 
-    @requires_triton()
     @requires_helion()
     def test_softmax_view_reshape(self):
         @helion.kernel(config={"block_size": 1})

@@ -613,7 +613,6 @@ class TestFxGraphCache(TestCase):
             "torch.randperm(1 << 12, dtype=torch.float32).log()"
         )
 
-    @requires_triton()
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @config.patch({"compile_threads": 1})
@@ -1661,7 +1660,6 @@ class TestFxGraphCache(TestCase):
         self.assertEqual(counters["inductor"]["fxgraph_cache_miss"], 2)
         self.assertEqual(counters["inductor"]["fxgraph_cache_hit"], 0)
 
-    @requires_gpu()
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     def test_cache_hit_aligned_and_unaligned_inputs(self):

@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
 from unittest import skipIf
@@ -932,7 +941,6 @@ class TestScoreFusionMemory(TestCase):
     3. Small overlap: reads on different offset but overlap is small → don't fuse (2 kernels)
     """
 
-    @skipIf(not HAS_GPU, "GPU not available")
     @inductor_config.patch("score_fusion_memory_threshold", 1)
     @inductor_config.patch("min_overlap_ratio", 0.5)
     def test_exact_same_reads_should_fuse(self) -> None:
@@ -963,7 +971,6 @@ class TestScoreFusionMemory(TestCase):
         # Should fuse into 1 kernel since both ops read exact same buffer
         self.assertEqual(metrics.generated_kernel_count, 1)
 
-    @skipIf(not HAS_GPU, "GPU not available")
     @inductor_config.patch("score_fusion_memory_threshold", 1)
     @inductor_config.patch("min_overlap_ratio", 0.5)
     def test_split_cat_large_overlap_should_fuse(self) -> None:
@@ -997,7 +1004,6 @@ class TestScoreFusionMemory(TestCase):
         # Should fuse into 1 kernel since all ops read from the same underlying buffer
         self.assertEqual(metrics.generated_kernel_count, 1)
 
-    @skipIf(not HAS_GPU, "GPU not available")
     @inductor_config.patch("score_fusion_memory_threshold", 1)
     def test_partial_overlap_below_threshold(self) -> None:
         """

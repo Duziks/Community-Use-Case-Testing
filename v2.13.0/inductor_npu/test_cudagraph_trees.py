@@ -80,8 +80,8 @@ register_opaque_type(_CudagraphTestScaleFactor, typ="reference")
 
 
 def get_compile_fn(backend):
-    if backend == "cudagraphs":
-        return functools.partial(torch.compile, backend="cudagraphs")
+    if backend == "npugraphs":
+        return functools.partial(torch.compile, backend="npugraphs")
     else:
         return functools.partial(torch.compile, mode="reduce-overhead")
 
@@ -150,7 +150,7 @@ class TestCase(InductorTestCase):
 if HAS_CUDA_AND_TRITON:
 
     def get_all_cudagraph_segments():
-        segments = torch.cuda.memory_snapshot()
+        segments = torch.npu.memory_snapshot()
         return [segment for segment in segments if segment["segment_pool_id"] != (0, 0)]
 
     def all_live_blocks():
@@ -345,14 +345,14 @@ if HAS_CUDA_AND_TRITON:
                     input = torch.logical_xor(input=input, other=other, out=out)
                     return input
 
-            x = torch.rand([1, 2, 1, 4, 9, 7], dtype=torch.float32).cuda()
-            y = torch.rand([1, 2, 1, 4, 9, 7], dtype=torch.float32).cuda()
-            z = torch.rand([1, 2, 1, 4, 9, 7], dtype=torch.float16).cuda()
+            x = torch.rand([1, 2, 1, 4, 9, 7], dtype=torch.float32).npu()
+            y = torch.rand([1, 2, 1, 4, 9, 7], dtype=torch.float32).npu()
+            z = torch.rand([1, 2, 1, 4, 9, 7], dtype=torch.float16).npu()
 
-            model = Model().cuda()
+            model = Model().npu()
             eag = model(x, y, z)
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 opt = torch.compile(model.forward, mode="reduce-overhead")(x, y, z)
@@ -363,14 +363,14 @@ if HAS_CUDA_AND_TRITON:
             self.assertEqual(counters["inductor"]["cudagraph_skips"], 1)
 
         @requires_multigpu()
-        @parametrize("backend", ("inductor", "cudagraphs"))
+        @parametrize("backend", ("inductor", "npugraphs"))
         def test_multiple_devices_msg(self, backend):
             def foo(x, y):
                 return (x + 1, y + 2)
 
             foo = get_compile_fn(backend)(foo)
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 foo(torch.ones([10], device="cuda"), torch.ones([20]))
@@ -385,7 +385,7 @@ if HAS_CUDA_AND_TRITON:
                 self.assertEqual(counters["inductor"]["cudagraph_skips"], 1)
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 foo(
@@ -407,10 +407,10 @@ if HAS_CUDA_AND_TRITON:
                 return x + y
 
             scheduler_log_stream, scheduler_ctx = logs_to_string(
-                "torch._inductor.scheduler", "cudagraphs"
+                "torch._inductor.scheduler", "npugraphs"
             )
             utils_log_stream, utils_ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with scheduler_ctx(), utils_ctx():
                 foo(torch.rand([10], device="cuda"), torch.rand([10], device="cuda"))
@@ -424,7 +424,7 @@ if HAS_CUDA_AND_TRITON:
                     "skipping cudagraphs due to graph with symbolic shapes inputs"
                 ).run(utils_log_stream.getvalue())
 
-        @parametrize("backend", ("inductor", "cudagraphs"))
+        @parametrize("backend", ("inductor", "npugraphs"))
         @torch._dynamo.config.patch("cudagraph_backend_keep_input_mutation", True)
         @torch._dynamo.config.patch("cudagraph_backend_support_input_mutation", True)
         @torch._inductor.config.patch("triton.cudagraph_support_input_mutation", True)
@@ -439,7 +439,7 @@ if HAS_CUDA_AND_TRITON:
                 return torch.ones([10], device="cuda")
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 foo(inp())
@@ -504,7 +504,7 @@ if HAS_CUDA_AND_TRITON:
                 dynamic=True,
             )
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx(), torch.no_grad():
                 actual = compiled_model(x)
@@ -518,7 +518,7 @@ if HAS_CUDA_AND_TRITON:
             self.assertEqual(counters["inductor"]["cudagraph_skips"], 1)
             self.assertIsNone(self.get_manager())
 
-        @parametrize("backend", ("inductor", "cudagraphs"))
+        @parametrize("backend", ("inductor", "npugraphs"))
         @torch._dynamo.config.patch("cudagraph_backend_keep_input_mutation", True)
         @torch._dynamo.config.patch("cudagraph_backend_support_input_mutation", False)
         @torch._inductor.config.patch("triton.cudagraph_support_input_mutation", False)
@@ -537,7 +537,7 @@ if HAS_CUDA_AND_TRITON:
             foo = get_compile_fn(backend)(foo)
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 for _ in range(3):
@@ -553,7 +553,7 @@ if HAS_CUDA_AND_TRITON:
                 exactly=True,
             ).run(log_stream.getvalue())
 
-        @parametrize("backend", ("inductor", "cudagraphs"))
+        @parametrize("backend", ("inductor", "npugraphs"))
         @torch._dynamo.config.patch("cudagraph_backend_keep_input_mutation", True)
         @torch._dynamo.config.patch("cudagraph_backend_support_input_mutation", True)
         @torch._inductor.config.patch("triton.cudagraph_support_input_mutation", True)
@@ -572,7 +572,7 @@ if HAS_CUDA_AND_TRITON:
             foo = get_compile_fn(backend)(foo)
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 for _ in range(3):
@@ -596,7 +596,7 @@ if HAS_CUDA_AND_TRITON:
             # in this case, what previously a mutated cudagraph managed tensor is no longer,
             # now its an input from eager we should fallback to inductor without cudagraphs
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 mut(mut_inp)
@@ -606,7 +606,7 @@ if HAS_CUDA_AND_TRITON:
             self.assertEqual(mut_inp, non_mut(foo(inp)))
             self.assertEqual(counters["inductor"]["cudagraph_skips"], 1)
 
-        @parametrize("backend", ("inductor", "cudagraphs"))
+        @parametrize("backend", ("inductor", "npugraphs"))
         @torch._dynamo.config.patch("cudagraph_backend_keep_input_mutation", True)
         @torch._dynamo.config.patch("cudagraph_backend_support_input_mutation", True)
         @torch._inductor.config.patch("triton.cudagraph_support_input_mutation", True)
@@ -624,7 +624,7 @@ if HAS_CUDA_AND_TRITON:
             fee = get_compile_fn(backend)(fee)
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 for _ in range(3):
@@ -637,7 +637,7 @@ if HAS_CUDA_AND_TRITON:
             ).run(log_stream.getvalue())
             self.assertEqual(counters["inductor"]["cudagraph_skips"], 1)
 
-        @parametrize("backend", ("inductor", "cudagraphs"))
+        @parametrize("backend", ("inductor", "npugraphs"))
         @torch._dynamo.config.patch("cudagraph_backend_keep_input_mutation", True)
         @torch._dynamo.config.patch("cudagraph_backend_support_input_mutation", True)
         @torch._inductor.config.patch("triton.cudagraph_support_input_mutation", True)
@@ -656,7 +656,7 @@ if HAS_CUDA_AND_TRITON:
             foo = get_compile_fn(backend)(foo)
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 # Should warn for current_node=None
@@ -736,7 +736,7 @@ if HAS_CUDA_AND_TRITON:
             else:
                 # Without partitioning, cudagraphs are skipped due to the unsafe op
                 log_stream, ctx = logs_to_string(
-                    "torch._inductor.cudagraph_utils", "cudagraphs"
+                    "torch._inductor.cudagraph_utils", "npugraphs"
                 )
                 with ctx():
                     fn_c(x, mask, values)
@@ -1318,7 +1318,7 @@ if HAS_CUDA_AND_TRITON:
                 # or 2 graph partitions in total).
                 q = q + 1
                 q_cpu = q.cpu()
-                q = q_cpu.cuda()
+                q = q_cpu.npu()
 
                 num_decode = torch.ops.mylib.get_size(q)  # Returns unbacked SymInt
 
@@ -1383,7 +1383,7 @@ if HAS_CUDA_AND_TRITON:
             compiled = torch.compile(generate, fullgraph=True, mode="reduce-overhead")
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 for _ in range(3):
@@ -1493,7 +1493,7 @@ if HAS_CUDA_AND_TRITON:
                         hidden_size=hidden_size,
                     )
 
-                    self.hidden_states = torch.zeros((BATCH_SIZE, MLP_SIZE)).cuda()
+                    self.hidden_states = torch.zeros((BATCH_SIZE, MLP_SIZE)).npu()
 
                 def forward(self, x: torch.Tensor) -> torch.Tensor:
                     bsz = x.shape[0]
@@ -1510,12 +1510,12 @@ if HAS_CUDA_AND_TRITON:
                     hidden_size=HIDDEN_SIZE,
                 )
                 .eval()
-                .cuda()
+                .npu()
             )
 
             compiled_model = torch.compile(eager_model, mode="reduce-overhead")
 
-            inputs = torch.randn(BATCH_SIZE, MLP_SIZE).cuda()
+            inputs = torch.randn(BATCH_SIZE, MLP_SIZE).npu()
 
             for _ in range(3):
                 eager_out = eager_model(inputs)
@@ -2232,7 +2232,7 @@ if HAS_CUDA_AND_TRITON:
             x1, x2 = foo_cg([inp])
 
             # With cudagraphs logging enabled, we should see the re-recording debug log
-            with log_settings("cudagraphs"):
+            with log_settings("npugraphs"):
                 with self.assertLogs(
                     logger="torch._inductor.cudagraph_trees", level=logging.DEBUG
                 ) as log:
@@ -2699,10 +2699,10 @@ if HAS_CUDA_AND_TRITON:
             # awkward, because we plan to Tensor-ify the float compute, and as
             # a result we'd actually expect this to work with npu graphs!
             scheduler_log_stream, scheduler_ctx = logs_to_string(
-                "torch._inductor.scheduler", "cudagraphs"
+                "torch._inductor.scheduler", "npugraphs"
             )
             utils_log_stream, utils_ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with scheduler_ctx(), utils_ctx():
                 self.assertEqual(foo(torch.tensor(3, device="cuda")), 3)
@@ -2744,10 +2744,10 @@ if HAS_CUDA_AND_TRITON:
                 return x.nonzero()
 
             scheduler_log_stream, scheduler_ctx = logs_to_string(
-                "torch._inductor.scheduler", "cudagraphs"
+                "torch._inductor.scheduler", "npugraphs"
             )
             utils_log_stream, utils_ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with scheduler_ctx(), utils_ctx():
                 self.assertEqual(
@@ -2791,7 +2791,7 @@ if HAS_CUDA_AND_TRITON:
                 return x.nonzero()
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 self.assertEqual(
@@ -2816,7 +2816,7 @@ if HAS_CUDA_AND_TRITON:
             foo_c = torch.compile(mode="reduce-overhead")(foo)
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 t = torch.rand([32], device="cuda")
@@ -3322,7 +3322,7 @@ if HAS_CUDA_AND_TRITON:
                 def forward(self, x):
                     return x + 1
 
-            mod = MyModule().cuda()
+            mod = MyModule().npu()
 
             def model(x):
                 # g1: mod.forward has annotation -> cudagraphs OFF
@@ -3557,7 +3557,7 @@ if HAS_CUDA_AND_TRITON:
             mod = torch.compile(Mod(), mode="reduce-overhead")
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 for batch_size in range(10, 40, 10):
@@ -3598,7 +3598,7 @@ if HAS_CUDA_AND_TRITON:
                     mod(q, k, v)
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 for batch_size in range(10, 40, 10):
@@ -3634,7 +3634,7 @@ if HAS_CUDA_AND_TRITON:
             mod = torch.compile(Mod(), mode="reduce-overhead")
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 for batch_size in range(10, 200, 10):
@@ -3671,7 +3671,7 @@ if HAS_CUDA_AND_TRITON:
                 y1 = y + 1
                 y_cpu = y1.cpu() + 1
                 z = x @ y
-                return x1 + y1 + z + y_cpu.cuda()
+                return x1 + y1 + z + y_cpu.npu()
 
             x, y = [torch.randn(2, 2, device="cuda") for _ in range(2)]
             x_cloned, y_cloned = [tmp.clone() for tmp in [x, y]]
@@ -3691,7 +3691,7 @@ if HAS_CUDA_AND_TRITON:
                 y = x + 1
                 z = torch.ops.aten.view.dtype(y, torch.float8_e4m3fn)
                 z_cpu = z.cpu()
-                u_cuda = z_cpu.cuda()
+                u_cuda = z_cpu.npu()
                 return u_cuda
 
             compiled_f = torch.compile(f, mode="reduce-overhead")
@@ -3709,7 +3709,7 @@ if HAS_CUDA_AND_TRITON:
 
             foo = torch.compile(foo, mode="reduce-overhead")
 
-            log_stream, ctx = logs_to_string("torch._inductor.scheduler", "cudagraphs")
+            log_stream, ctx = logs_to_string("torch._inductor.scheduler", "npugraphs")
             with ctx():
                 foo(torch.ones([10], device="cuda"), torch.ones([20]))
 
@@ -3720,7 +3720,7 @@ if HAS_CUDA_AND_TRITON:
             ).check_count("reason=cpu ops", 1, exactly=True).run(log_stream.getvalue())
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_trees", "cudagraphs"
+                "torch._inductor.cudagraph_trees", "npugraphs"
             )
             with ctx():
                 # trigger recording
@@ -3889,7 +3889,7 @@ if HAS_CUDA_AND_TRITON:
                 y1 = y + 1
                 y_cpu = y1.cpu() + 1
                 z = x @ y
-                return x1 + y1 + z + y_cpu.cuda()
+                return x1 + y1 + z + y_cpu.npu()
 
             x, y = [torch.randn(2, 2, device="cuda") for _ in range(2)]
 
@@ -3910,12 +3910,12 @@ if HAS_CUDA_AND_TRITON:
                     y1 = x + 2
                     y_cpu = y1.cpu() + 1
                     z = x @ y1
-                    inp = x1 + y1 + z + y_cpu.cuda()
+                    inp = x1 + y1 + z + y_cpu.npu()
                     return self.linear(inp)
 
-            model = Mod().cuda()
+            model = Mod().npu()
 
-            input_data = torch.randn(16, 16).cuda()
+            input_data = torch.randn(16, 16).npu()
 
             criterion = torch.nn.CrossEntropyLoss()
             optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -3924,7 +3924,7 @@ if HAS_CUDA_AND_TRITON:
 
             for _ in range(5):
                 output = compiled_model(input_data)
-                loss = criterion(output, torch.randint(0, 10, (16,)).cuda())
+                loss = criterion(output, torch.randint(0, 10, (16,)).npu())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -3943,7 +3943,7 @@ if HAS_CUDA_AND_TRITON:
                 def forward(self, x):
                     y = self.linear(x)
                     cpu_val = y.sum().cpu() * self.cpu_scale
-                    return y + cpu_val.cuda()
+                    return y + cpu_val.npu()
 
             model = Mod()
             x = torch.randn(4, 4, device="cuda")
@@ -3951,7 +3951,7 @@ if HAS_CUDA_AND_TRITON:
             compiled_model = torch.compile(model, mode="reduce-overhead")
 
             # Verify graph_partition produces the expected partitions.
-            log_stream, ctx = logs_to_string("torch._inductor.scheduler", "cudagraphs")
+            log_stream, ctx = logs_to_string("torch._inductor.scheduler", "npugraphs")
             with ctx():
                 compiled_model(x)
             FileCheck().check("2 cudagraphable, 1 non-cudagraphable").run(
@@ -3963,7 +3963,7 @@ if HAS_CUDA_AND_TRITON:
 
             for _ in range(5):
                 output = compiled_model(x)
-                loss = criterion(output, torch.randint(0, 4, (4,)).cuda())
+                loss = criterion(output, torch.randint(0, 4, (4,)).npu())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -4000,7 +4000,7 @@ if HAS_CUDA_AND_TRITON:
 
             for _ in range(5):
                 output = compiled_model(x)
-                loss = criterion(output, torch.randint(0, 4, (4,)).cuda())
+                loss = criterion(output, torch.randint(0, 4, (4,)).npu())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -4036,12 +4036,12 @@ if HAS_CUDA_AND_TRITON:
                 def forward(self, x):
                     a = x * 2
                     # CPU round-trip creates a DeviceCopy partition boundary.
-                    # The .cuda() result is an activation saved for backward.
-                    b = a.cpu().cuda()
+                    # The .npu() result is an activation saved for backward.
+                    b = a.cpu().npu()
                     c = b * b
                     return self.linear(c)
 
-            model = Mod().cuda()
+            model = Mod().npu()
             input_data = torch.randn(16, 16, device="cuda")
             criterion = torch.nn.CrossEntropyLoss()
             optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -4049,7 +4049,7 @@ if HAS_CUDA_AND_TRITON:
             with patch("torch._inductor.compile_fx.compile_fx_backward", intercept_bw):
                 compiled_model = torch.compile(model, mode="reduce-overhead")
                 output = compiled_model(input_data)
-                loss = criterion(output, torch.randint(0, 10, (16,)).cuda())
+                loss = criterion(output, torch.randint(0, 10, (16,)).npu())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -4068,7 +4068,7 @@ if HAS_CUDA_AND_TRITON:
             # Run a few more iterations to confirm stability
             for _ in range(4):
                 output = compiled_model(input_data)
-                loss = criterion(output, torch.randint(0, 10, (16,)).cuda())
+                loss = criterion(output, torch.randint(0, 10, (16,)).npu())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -4096,7 +4096,7 @@ if HAS_CUDA_AND_TRITON:
                 def forward(self, x):
                     return self.linear(x * x + 1)
 
-            model = Mod().cuda()
+            model = Mod().npu()
             input_data = torch.randn(16, 16, device="cuda")
             criterion = torch.nn.CrossEntropyLoss()
             optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -4104,7 +4104,7 @@ if HAS_CUDA_AND_TRITON:
             with patch("torch._inductor.compile_fx.compile_fx_backward", intercept_bw):
                 compiled_model = torch.compile(model, mode="reduce-overhead")
                 output = compiled_model(input_data)
-                loss = criterion(output, torch.randint(0, 10, (16,)).cuda())
+                loss = criterion(output, torch.randint(0, 10, (16,)).npu())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -4203,7 +4203,7 @@ if HAS_CUDA_AND_TRITON:
             self.assertEqual(counters["inductor"]["cudagraph_skips"], 0)
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 for _ in range(3):
@@ -4240,7 +4240,7 @@ if HAS_CUDA_AND_TRITON:
                 y1 = y + 1
                 y_cpu = y1.cpu() + 1
                 z = x @ y
-                return x1 + y1 + z + y_cpu.cuda()
+                return x1 + y1 + z + y_cpu.npu()
 
             f_compiled = torch.compile(f)
             x, y = torch.ones(3, 3, device="cuda"), torch.randn(3, 3, device="cuda")
@@ -4287,7 +4287,7 @@ if HAS_CUDA_AND_TRITON:
             compiled_f = torch.compile(fn, mode="reduce-overhead", fullgraph=True)
 
             log_stream, ctx = logs_to_string(
-                "torch._inductor.cudagraph_utils", "cudagraphs"
+                "torch._inductor.cudagraph_utils", "npugraphs"
             )
             with ctx():
                 for _ in range(3):
@@ -4310,7 +4310,7 @@ if HAS_CUDA_AND_TRITON:
             def movement(pic: torch.Tensor) -> torch.Tensor:
                 img = pic.cpu()
                 cropped_img = (img + 1) * 2
-                return cropped_img.cuda() / 255.0
+                return cropped_img.npu() / 255.0
 
             @movement.register_fake
             def _(pic):
@@ -4324,7 +4324,7 @@ if HAS_CUDA_AND_TRITON:
             def modify(pic: torch.Tensor) -> torch.Tensor:
                 pic1 = pic + 1
                 pic1_cpu = (pic1.cpu() + 1) * 2
-                return pic1_cpu.cuda() + pic
+                return pic1_cpu.npu() + pic
 
             @modify.register_fake
             def _(pic):
@@ -4468,7 +4468,7 @@ if HAS_CUDA_AND_TRITON:
             def movement(pic: torch.Tensor) -> torch.Tensor:
                 img = pic.cpu()
                 cropped_img = (img + 1) * 2
-                return cropped_img.cuda() / 255.0
+                return cropped_img.npu() / 255.0
 
             @movement.register_fake
             def _(pic):
@@ -6047,5 +6047,4 @@ if __name__ == "__main__":
             sys.exit(0)
         raise unittest.SkipTest("cuda graph test is skipped")
 
-    if HAS_CUDA_AND_TRITON:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")

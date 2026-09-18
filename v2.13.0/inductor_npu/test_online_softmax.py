@@ -475,5 +475,4 @@ class TestOnlineSoftmax(TestCase):
 instantiate_parametrized_tests(TestOnlineSoftmax)
 
 if __name__ == "__main__":
-    if IS_LINUX and HAS_GPU and HAS_TRITON:
-        run_tests()
+    run_tests()

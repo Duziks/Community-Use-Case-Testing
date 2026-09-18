@@ -1,3 +1,12 @@
+import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
+
 # Owner(s): ["module: inductor"]
 
 import torch
@@ -57,7 +66,6 @@ class TestKernelOptimization(TestCase):
             self.compare_dict_tensors(ref_grad, res_grad, rtol=rtol, atol=atol)
         )
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={
             "einsum_to_pointwise_pass": {},

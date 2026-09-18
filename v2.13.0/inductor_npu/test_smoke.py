@@ -73,6 +73,4 @@ class SmokeTest(TestCase):
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if IS_LINUX and HAS_GPU:
-        if (not HAS_CUDA_AND_TRITON) or torch.cuda.get_device_properties(0).major <= 5:
-            run_tests()
+    run_tests()

@@ -357,7 +357,6 @@ class CondTests(TestCase):
             dynamic=dynamic,
         )
 
-    @requires_gpu
     def test_cond_subgraph_output_stride_padding(self):
         self._run_test(
             model=CondModels.StridePadding(),
@@ -770,7 +769,6 @@ class CondTests(TestCase):
             dynamic=dynamic,
         )
 
-    @requires_gpu
     @parametrize("device", ["cpu", GPU_TYPE])
     @parametrize("dynamic", [True, False])
     def test_cond_functional_call(self, device, dynamic):
@@ -781,7 +779,6 @@ class CondTests(TestCase):
             dynamic=dynamic,
         )
 
-    @requires_gpu
     @parametrize("device", ["cpu", GPU_TYPE])
     @parametrize("dynamic", [True, False])
     @torch._dynamo.config.patch("capture_scalar_outputs", True)
@@ -793,7 +790,6 @@ class CondTests(TestCase):
             dynamic=dynamic,
         )
 
-    @requires_gpu
     def test_output_on_different_device(self):
         class FactoryBranches(torch.nn.Module):
             def forward(self, pred):
@@ -813,7 +809,6 @@ class CondTests(TestCase):
             dynamic=True,
         )
 
-    @requires_gpu
     @parametrize("device", ["cpu", GPU_TYPE])
     def test_cond_buffer_reuse_with_large_subgraph(self, device):
         # Regression test: torch.cond subgraph with more buffers than main
@@ -1310,7 +1305,6 @@ class WhileLoopTests(TestCase):
 
         self.assertEqual(cnt.frame_count, 1, "only one compilation expected")
 
-    @requires_gpu
     @parametrize("device", ["cpu", GPU_TYPE])
     @parametrize("dynamic", [False, True])
     @parametrize("autograd", [False, True])
@@ -1328,7 +1322,6 @@ class WhileLoopTests(TestCase):
             autograd=autograd,
         )
 
-    @requires_gpu
     @parametrize("device", ["cpu", GPU_TYPE])
     @parametrize("dynamic", [False, True])
     @parametrize("autograd", [False, True])
@@ -1347,7 +1340,6 @@ class WhileLoopTests(TestCase):
             autograd=autograd,
         )
 
-    @requires_gpu
     @parametrize("device", ["cpu", GPU_TYPE])
     @parametrize("dynamic", [False, True])
     @parametrize("autograd", [False, True])

@@ -1358,5 +1358,4 @@ class WouldBeNiceIfItWorked:
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if HAS_GPU_AND_TRITON:
-        run_tests(needs="filelock")
+    run_tests(needs="filelock")
