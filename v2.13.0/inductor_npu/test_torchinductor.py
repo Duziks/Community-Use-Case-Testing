@@ -177,6 +177,11 @@ _P = ParamSpec("_P")
 
 HAS_AVX2 = "fbgemm" in torch.backends.quantized.supported_engines
 
+# PyTorch 2.13's RUN_GPU only considers CUDA/XPU. TorchNPU maps Inductor's
+# GPU_TYPE to "npu", so create the shared GPU test class explicitly when NPU
+# is available while preserving the GPUTests name used by downstream tests.
+HAS_NPU = hasattr(torch, "npu") and torch.npu.is_available()
+
 if TEST_WITH_ROCM:
     torch._inductor.config.force_layout_optimization = 1
     os.environ["PYTORCH_MIOPEN_SUGGEST_NHWC"] = "1"
@@ -18267,7 +18272,7 @@ if RUN_CPU:
 
     copy_tests(CommonTemplate, CpuTests, "cpu")
 
-if RUN_GPU or HAS_MPS:
+if RUN_GPU or HAS_MPS or HAS_NPU:
 
     class SweepInputsGPUTest(SweepInputs2, TestCase):
         gen = InputGen(10, GPU_TYPE)
@@ -20416,5 +20421,5 @@ def _run_and_get_stripped_kernels(
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if RUN_CPU or RUN_GPU or HAS_MPS:
+    if RUN_CPU or RUN_GPU or HAS_MPS or HAS_NPU:
         run_tests(needs="filelock")

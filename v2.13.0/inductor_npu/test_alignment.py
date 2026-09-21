@@ -2,8 +2,10 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+
 _dynamo.use_jit_script = True
-torch.cuda.get_device_capability = lambda :(10, 0)
+_dynamo.patch_has_triton()
+torch.cuda.get_device_capability = lambda: (10, 0)
 import torch_npu.testing
 import torch_npu._inductor
 
@@ -19,7 +21,7 @@ from torch.testing._internal.common_utils import (
     MACOS_VERSION,
     parametrize,
 )
-from torch.testing._internal.inductor_utils import GPU_TYPE, RUN_CPU, RUN_GPU
+from torch.testing._internal.inductor_utils import RUN_CPU
 
 
 try:
@@ -242,16 +244,16 @@ if RUN_CPU:
 
     copy_tests(CommonTemplate, CpuTests, "cpu")
 
-if RUN_GPU:
+if torch.npu.is_available():
 
-    class GPUTests(TestCase):
+    class NPUTests(TestCase):
         common = check_model_gpu
-        device = GPU_TYPE
+        device = "npu"
 
-    copy_tests(CommonTemplate, GPUTests, GPU_TYPE)
+    copy_tests(CommonTemplate, NPUTests, "npu")
 
 if __name__ == "__main__":
     from torch._inductor.test_case import run_tests
 
-    if RUN_CPU or RUN_GPU:
+    if RUN_CPU or torch.npu.is_available():
         run_tests()

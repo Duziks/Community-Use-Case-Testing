@@ -2,8 +2,10 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+
 _dynamo.use_jit_script = True
-torch.cuda.get_device_capability = lambda :(10, 0)
+_dynamo.patch_has_triton()
+torch.cuda.get_device_capability = lambda: (10, 0)
 import torch_npu.testing
 import torch_npu._inductor
 
@@ -86,6 +88,14 @@ device_configs = {
         dtypes=[torch.float32, torch.bfloat16, torch.float16],
         dtypes_fast=[torch.float16],
     ),
+    "npu": DeviceConfig(
+        dtypes=(
+            [torch.float32, torch.bfloat16, torch.float16]
+            if torch.npu.is_bf16_supported()
+            else [torch.float16, torch.float32]
+        ),
+        dtypes_fast=[torch.float16],
+    ),
     "cpu": DeviceConfig(
         dtypes=(
             [torch.float32, torch.bfloat16, torch.float16]
@@ -96,6 +106,9 @@ device_configs = {
         dtypes_fast=[torch.float32],
     ),
 }
+# PyTorch's device-test framework uses the generic name during collection and
+# switches to the registered backend name when the test class is initialized.
+device_configs["privateuse1"] = device_configs["npu"]
 
 test_device = ("cpu",)
 if TEST_ON_CUDA:
@@ -119,7 +132,10 @@ class parametrize_device_dtype(common_utils.parametrize):
         self.dtypes_attr = dtypes_attr
 
     def _parametrize_test(self, test, generic_cls, device_cls):
-        dtypes = getattr(device_configs[device_cls.device_type], self.dtypes_attr)
+        device_type = device_cls.device_type
+        if device_type == "privateuse1":
+            device_type = torch._C._get_privateuse1_backend_name()
+        dtypes = getattr(device_configs[device_type], self.dtypes_attr)
         for idx, dtype in enumerate(dtypes):
             values = [dtype]
             test_name = self._get_subtest_name(idx, values)
