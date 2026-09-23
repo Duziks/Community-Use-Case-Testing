@@ -1,0 +1,2456 @@
+[
+  {
+    "file": "test_alignment.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 12,
+    "recorded": 12,
+    "pending": 0,
+    "counts": {
+      "failed": 12
+    },
+    "collection_errors": [],
+    "log": "collection/test_alignment/output.log"
+  },
+  {
+    "file": "test_analysis.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 30,
+    "recorded": 30,
+    "pending": 0,
+    "counts": {
+      "passed": 6,
+      "skipped": 19,
+      "xfail": 5
+    },
+    "collection_errors": [],
+    "log": "collection/test_analysis/output.log"
+  },
+  {
+    "file": "test_aot_inductor.py",
+    "category": "AOT 编译、打包与部署",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1028,
+    "recorded": 1028,
+    "pending": 0,
+    "counts": {
+      "passed": 29,
+      "crash": 162,
+      "skipped": 553,
+      "failed": 284
+    },
+    "collection_errors": [],
+    "log": "collection/test_aot_inductor/output.log"
+  },
+  {
+    "file": "test_aot_inductor_arrayref.py",
+    "category": "AOT 编译、打包与部署",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 340,
+    "recorded": 340,
+    "pending": 0,
+    "counts": {
+      "crash": 118,
+      "skipped": 205,
+      "passed": 14,
+      "failed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_aot_inductor_arrayref/output.log"
+  },
+  {
+    "file": "test_aot_inductor_custom_ops.py",
+    "category": "AOT 编译、打包与部署",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 41,
+    "recorded": 41,
+    "pending": 0,
+    "counts": {
+      "passed": 4,
+      "crash": 18,
+      "failed": 19
+    },
+    "collection_errors": [],
+    "log": "collection/test_aot_inductor_custom_ops/output.log"
+  },
+  {
+    "file": "test_aot_inductor_package.py",
+    "category": "AOT 编译、打包与部署",
+    "collection_status": "收集失败",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [
+      {
+        "event": "collectreport",
+        "time": 1790061766.7607713,
+        "nodeid": "test_aot_inductor_package.py",
+        "outcome": "failed",
+        "longrepr": "ImportError while importing test module '/home/p00927906/workspace/triton_dev/Community-Use-Case-Testing-v2.10.0/v2.13.0/inductor_npu/test_aot_inductor_package.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/python3.11.15/lib/python3.11/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntest_aot_inductor_package.py:25: in <module>\n    from parameterized import parameterized_class\nE   ModuleNotFoundError: No module named 'parameterized'"
+      }
+    ],
+    "log": "collection/test_aot_inductor_package/output.log"
+  },
+  {
+    "file": "test_aot_inductor_utils.py",
+    "category": "AOT 编译、打包与部署",
+    "collection_status": "零用例/入口条件",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [],
+    "log": "collection/test_aot_inductor_utils/output.log"
+  },
+  {
+    "file": "test_aoti_cache_dir.py",
+    "category": "AOT 编译、打包与部署",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_aoti_cache_dir/output.log"
+  },
+  {
+    "file": "test_aoti_cross_compile_windows.py",
+    "category": "AOT 编译、打包与部署",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 14,
+    "recorded": 14,
+    "pending": 0,
+    "counts": {
+      "skipped": 6,
+      "passed": 8
+    },
+    "collection_errors": [],
+    "log": "collection/test_aoti_cross_compile_windows/output.log"
+  },
+  {
+    "file": "test_aoti_torchbind_constants.py",
+    "category": "AOT 编译、打包与部署",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "failed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_aoti_torchbind_constants/output.log"
+  },
+  {
+    "file": "test_async_compile.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 42,
+    "recorded": 42,
+    "pending": 0,
+    "counts": {
+      "skipped": 36,
+      "passed": 6
+    },
+    "collection_errors": [],
+    "log": "collection/test_async_compile/output.log"
+  },
+  {
+    "file": "test_augmented_graph_helper.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 20,
+    "recorded": 20,
+    "pending": 0,
+    "counts": {
+      "passed": 20
+    },
+    "collection_errors": [],
+    "log": "collection/test_augmented_graph_helper/output.log"
+  },
+  {
+    "file": "test_auto_chunker.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 14,
+    "recorded": 14,
+    "pending": 0,
+    "counts": {
+      "skipped": 8,
+      "failed": 6
+    },
+    "collection_errors": [],
+    "log": "collection/test_auto_chunker/output.log"
+  },
+  {
+    "file": "test_auto_functionalize.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 44,
+    "recorded": 44,
+    "pending": 0,
+    "counts": {
+      "passed": 43,
+      "skipped": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_auto_functionalize/output.log"
+  },
+  {
+    "file": "test_autoheuristic.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 12,
+    "recorded": 12,
+    "pending": 0,
+    "counts": {
+      "failed": 5,
+      "skipped": 5,
+      "passed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_autoheuristic/output.log"
+  },
+  {
+    "file": "test_b2b_gemm.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 9,
+    "recorded": 9,
+    "pending": 0,
+    "counts": {
+      "failed": 6,
+      "skipped": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_b2b_gemm/output.log"
+  },
+  {
+    "file": "test_benchmark_fusion.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 6,
+    "recorded": 6,
+    "pending": 0,
+    "counts": {
+      "skipped": 2,
+      "passed": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_benchmark_fusion/output.log"
+  },
+  {
+    "file": "test_benchmarking.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 27,
+    "recorded": 27,
+    "pending": 0,
+    "counts": {
+      "passed": 13,
+      "skipped": 14
+    },
+    "collection_errors": [],
+    "log": "collection/test_benchmarking/output.log"
+  },
+  {
+    "file": "test_best_config.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "failed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_best_config/output.log"
+  },
+  {
+    "file": "test_binary_folding.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_binary_folding/output.log"
+  },
+  {
+    "file": "test_block_analysis.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 10,
+    "recorded": 10,
+    "pending": 0,
+    "counts": {
+      "passed": 10
+    },
+    "collection_errors": [],
+    "log": "collection/test_block_analysis/output.log"
+  },
+  {
+    "file": "test_block_ptr_store_dtype.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 5,
+    "recorded": 5,
+    "pending": 0,
+    "counts": {
+      "passed": 5
+    },
+    "collection_errors": [],
+    "log": "collection/test_block_ptr_store_dtype/output.log"
+  },
+  {
+    "file": "test_cache.py",
+    "category": "缓存与序列化",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 728,
+    "recorded": 728,
+    "pending": 0,
+    "counts": {
+      "passed": 728
+    },
+    "collection_errors": [],
+    "log": "collection/test_cache/output.log"
+  },
+  {
+    "file": "test_cache_dir_utils.py",
+    "category": "缓存与序列化",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_cache_dir_utils/output.log"
+  },
+  {
+    "file": "test_caching.py",
+    "category": "缓存与序列化",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 212,
+    "recorded": 212,
+    "pending": 0,
+    "counts": {
+      "passed": 212
+    },
+    "collection_errors": [],
+    "log": "collection/test_caching/output.log"
+  },
+  {
+    "file": "test_ck_backend.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 41,
+    "recorded": 41,
+    "pending": 0,
+    "counts": {
+      "skipped": 41
+    },
+    "collection_errors": [],
+    "log": "collection/test_ck_backend/output.log"
+  },
+  {
+    "file": "test_codecache.py",
+    "category": "缓存与序列化",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 317,
+    "recorded": 317,
+    "pending": 0,
+    "counts": {
+      "passed": 167,
+      "failed": 7,
+      "skipped": 143
+    },
+    "collection_errors": [],
+    "log": "collection/test_codecache/output.log"
+  },
+  {
+    "file": "test_codegen_triton.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 16,
+    "recorded": 16,
+    "pending": 0,
+    "counts": {
+      "passed": 13,
+      "skipped": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_codegen_triton/output.log"
+  },
+  {
+    "file": "test_collective_autotuning.py",
+    "category": "分布式与通信",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 2,
+    "recorded": 2,
+    "pending": 0,
+    "counts": {
+      "skipped": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_collective_autotuning/output.log"
+  },
+  {
+    "file": "test_combo_kernels.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 125,
+    "recorded": 125,
+    "pending": 0,
+    "counts": {
+      "skipped": 122,
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_combo_kernels/output.log"
+  },
+  {
+    "file": "test_comm_analysis.py",
+    "category": "分布式与通信",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "failed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_comm_analysis/output.log"
+  },
+  {
+    "file": "test_compile.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 13,
+    "recorded": 13,
+    "pending": 0,
+    "counts": {
+      "passed": 13
+    },
+    "collection_errors": [],
+    "log": "collection/test_compile/output.log"
+  },
+  {
+    "file": "test_compile_subprocess.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 2,
+    "recorded": 2,
+    "pending": 0,
+    "counts": {
+      "failed": 1,
+      "skipped": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_compile_subprocess/output.log"
+  },
+  {
+    "file": "test_compile_worker.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 23,
+    "recorded": 23,
+    "pending": 0,
+    "counts": {
+      "passed": 14,
+      "skipped": 7,
+      "failed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_compile_worker/output.log"
+  },
+  {
+    "file": "test_compiled_autograd.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "收集失败",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [
+      {
+        "event": "collectreport",
+        "time": 1790061812.0007713,
+        "nodeid": "test_compiled_autograd.py",
+        "outcome": "failed",
+        "longrepr": "test_compiled_autograd.py:5725: in <module>\n    test_autograd = load_test_module(\"test_autograd\")\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntest_compiled_autograd.py:5340: in load_test_module\n    ).load_module()\n      ^^^^^^^^^^^^^\n<frozen importlib._bootstrap_external>:605: in _check_name_wrapper\n    ???\n<frozen importlib._bootstrap_external>:1120: in load_module\n    ???\n<frozen importlib._bootstrap_external>:945: in load_module\n    ???\n<frozen importlib._bootstrap>:290: in _load_module_shim\n    ???\n<frozen importlib._bootstrap>:721: in _load\n    ???\n<frozen importlib._bootstrap>:690: in _load_unlocked\n    ???\n<frozen importlib._bootstrap_external>:936: in exec_module\n    ???\n<frozen importlib._bootstrap_external>:1073: in get_code\n    ???\n<frozen importlib._bootstrap_external>:1130: in get_data\n    ???\nE   FileNotFoundError: [Errno 2] No such file or directory: '/home/p00927906/workspace/triton_dev/Community-Use-Case-Testing-v2.10.0/v2.13.0/test_autograd.py'"
+      }
+    ],
+    "log": "collection/test_compiled_autograd/output.log"
+  },
+  {
+    "file": "test_compiled_fx_graph_serialization.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_compiled_fx_graph_serialization/output.log"
+  },
+  {
+    "file": "test_compiled_optimizers.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 314,
+    "recorded": 314,
+    "pending": 0,
+    "counts": {
+      "skipped": 184,
+      "failed": 124,
+      "passed": 6
+    },
+    "collection_errors": [],
+    "log": "collection/test_compiled_optimizers/output.log"
+  },
+  {
+    "file": "test_config.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 16,
+    "recorded": 16,
+    "pending": 0,
+    "counts": {
+      "passed": 13,
+      "failed": 1,
+      "skipped": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_config/output.log"
+  },
+  {
+    "file": "test_control_deps.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 6,
+    "recorded": 6,
+    "pending": 0,
+    "counts": {
+      "failed": 5,
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_control_deps/output.log"
+  },
+  {
+    "file": "test_control_flow.py",
+    "category": "编译流程、子进程与 Autograd",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 747,
+    "recorded": 747,
+    "pending": 0,
+    "counts": {
+      "passed": 54,
+      "failed": 55,
+      "skipped": 638
+    },
+    "collection_errors": [],
+    "log": "collection/test_control_flow/output.log"
+  },
+  {
+    "file": "test_cooperative_reductions.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 167,
+    "recorded": 167,
+    "pending": 0,
+    "counts": {
+      "skipped": 4,
+      "failed": 163
+    },
+    "collection_errors": [],
+    "log": "collection/test_cooperative_reductions/output.log"
+  },
+  {
+    "file": "test_coordinate_descent_tuner.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 14,
+    "recorded": 14,
+    "pending": 0,
+    "counts": {
+      "failed": 4,
+      "passed": 10
+    },
+    "collection_errors": [],
+    "log": "collection/test_coordinate_descent_tuner/output.log"
+  },
+  {
+    "file": "test_cpp_wrapper_custom_ops.py",
+    "category": "CPU 与 C++ Wrapper",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_cpp_wrapper_custom_ops/output.log"
+  },
+  {
+    "file": "test_cpp_wrapper_hipify.py",
+    "category": "CPU 与 C++ Wrapper",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_cpp_wrapper_hipify/output.log"
+  },
+  {
+    "file": "test_cpu_cpp_wrapper.py",
+    "category": "CPU 与 C++ Wrapper",
+    "collection_status": "零用例/入口条件",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [],
+    "log": "collection/test_cpu_cpp_wrapper/output.log"
+  },
+  {
+    "file": "test_cpu_repro.py",
+    "category": "CPU 与 C++ Wrapper",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 789,
+    "recorded": 789,
+    "pending": 0,
+    "counts": {
+      "passed": 779,
+      "skipped": 4,
+      "failed": 5,
+      "timeout": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_cpu_repro/output.log"
+  },
+  {
+    "file": "test_cpu_select_algorithm.py",
+    "category": "CPU 与 C++ Wrapper",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1895,
+    "recorded": 1895,
+    "pending": 0,
+    "counts": {
+      "failed": 1356,
+      "skipped": 313,
+      "passed": 226
+    },
+    "collection_errors": [],
+    "log": "collection/test_cpu_select_algorithm/output.log"
+  },
+  {
+    "file": "test_cuda_repro.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 113,
+    "recorded": 113,
+    "pending": 0,
+    "counts": {
+      "failed": 102,
+      "passed": 7,
+      "skipped": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_cuda_repro/output.log"
+  },
+  {
+    "file": "test_cudacodecache.py",
+    "category": "缓存与序列化",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "skipped": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_cudacodecache/output.log"
+  },
+  {
+    "file": "test_cudagraph_trees.py",
+    "category": "Graph、Stream 与设备执行",
+    "collection_status": "零用例/入口条件",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [],
+    "log": "collection/test_cudagraph_trees/output.log"
+  },
+  {
+    "file": "test_cudagraph_trees_expandable_segments.py",
+    "category": "Graph、Stream 与设备执行",
+    "collection_status": "收集失败",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [
+      {
+        "event": "collectreport",
+        "time": 1790061842.414091,
+        "nodeid": "test_cudagraph_trees_expandable_segments.py",
+        "outcome": "failed",
+        "longrepr": "ImportError while importing test module '/home/p00927906/workspace/triton_dev/Community-Use-Case-Testing-v2.10.0/v2.13.0/inductor_npu/test_cudagraph_trees_expandable_segments.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/python3.11.15/lib/python3.11/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntest_cudagraph_trees_expandable_segments.py:37: in <module>\n    from tools.stats.import_test_stats import get_disabled_tests  # @manual\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   ModuleNotFoundError: No module named 'tools'"
+      }
+    ],
+    "log": "collection/test_cudagraph_trees_expandable_segments/output.log"
+  },
+  {
+    "file": "test_custom_lowering.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 6,
+    "recorded": 6,
+    "pending": 0,
+    "counts": {
+      "passed": 2,
+      "failed": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_custom_lowering/output.log"
+  },
+  {
+    "file": "test_custom_op_autotune.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 23,
+    "recorded": 23,
+    "pending": 0,
+    "counts": {
+      "skipped": 7,
+      "failed": 14,
+      "passed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_custom_op_autotune/output.log"
+  },
+  {
+    "file": "test_custom_op_out_lowering.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_custom_op_out_lowering/output.log"
+  },
+  {
+    "file": "test_custom_partitioner_fn.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "failed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_custom_partitioner_fn/output.log"
+  },
+  {
+    "file": "test_custom_post_grad_passes.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 8,
+    "recorded": 8,
+    "pending": 0,
+    "counts": {
+      "passed": 8
+    },
+    "collection_errors": [],
+    "log": "collection/test_custom_post_grad_passes/output.log"
+  },
+  {
+    "file": "test_cutedsl_grouped_mm.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 24,
+    "recorded": 24,
+    "pending": 0,
+    "counts": {
+      "skipped": 24
+    },
+    "collection_errors": [],
+    "log": "collection/test_cutedsl_grouped_mm/output.log"
+  },
+  {
+    "file": "test_cutedsl_template.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 21,
+    "recorded": 21,
+    "pending": 0,
+    "counts": {
+      "skipped": 21
+    },
+    "collection_errors": [],
+    "log": "collection/test_cutedsl_template/output.log"
+  },
+  {
+    "file": "test_cutlass_backend.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 194,
+    "recorded": 194,
+    "pending": 0,
+    "counts": {
+      "failed": 183,
+      "passed": 5,
+      "skipped": 6
+    },
+    "collection_errors": [],
+    "log": "collection/test_cutlass_backend/output.log"
+  },
+  {
+    "file": "test_cutlass_evt.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 8,
+    "recorded": 8,
+    "pending": 0,
+    "counts": {
+      "skipped": 8
+    },
+    "collection_errors": [],
+    "log": "collection/test_cutlass_evt/output.log"
+  },
+  {
+    "file": "test_cutlass_fallback.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 12,
+    "recorded": 12,
+    "pending": 0,
+    "counts": {
+      "skipped": 4,
+      "passed": 8
+    },
+    "collection_errors": [],
+    "log": "collection/test_cutlass_fallback/output.log"
+  },
+  {
+    "file": "test_debug_graph_dump.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 6,
+    "recorded": 6,
+    "pending": 0,
+    "counts": {
+      "passed": 6
+    },
+    "collection_errors": [],
+    "log": "collection/test_debug_graph_dump/output.log"
+  },
+  {
+    "file": "test_debug_trace.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 4,
+    "recorded": 4,
+    "pending": 0,
+    "counts": {
+      "skipped": 1,
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_debug_trace/output.log"
+  },
+  {
+    "file": "test_decompose_mem_bound_mm.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "收集失败",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [
+      {
+        "event": "collectreport",
+        "time": 1790061846.9591706,
+        "nodeid": "test_decompose_mem_bound_mm.py",
+        "outcome": "failed",
+        "longrepr": "test_decompose_mem_bound_mm.py:79: in <module>\n    class TestDecomposeMemMM(TestCase):\ntest_decompose_mem_bound_mm.py:241: in TestDecomposeMemMM\n    \"atol\": 2e-3 if is_navi3_arch() else 1e-3,\n                    ^^^^^^^^^^^^^^^\n../../../../../torch-213/lib/python3.11/site-packages/torch/testing/_internal/common_utils.py:137: in is_navi3_arch\n    gfx_arch = prop.gcnArchName.split(\":\")[0]\n               ^^^^^^^^^^^^^^^^^^^^^^\nE   AttributeError: 'NoneType' object has no attribute 'split'"
+      }
+    ],
+    "log": "collection/test_decompose_mem_bound_mm/output.log"
+  },
+  {
+    "file": "test_dependencies.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 7,
+    "recorded": 7,
+    "pending": 0,
+    "counts": {
+      "passed": 7
+    },
+    "collection_errors": [],
+    "log": "collection/test_dependencies/output.log"
+  },
+  {
+    "file": "test_deterministic.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 34,
+    "recorded": 34,
+    "pending": 0,
+    "counts": {
+      "skipped": 2,
+      "failed": 30,
+      "passed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_deterministic/output.log"
+  },
+  {
+    "file": "test_device_assert.py",
+    "category": "Graph、Stream 与设备执行",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 8,
+    "recorded": 8,
+    "pending": 0,
+    "counts": {
+      "skipped": 2,
+      "passed": 3,
+      "failed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_device_assert/output.log"
+  },
+  {
+    "file": "test_distributed_patterns.py",
+    "category": "分布式与通信",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 20,
+    "recorded": 20,
+    "pending": 0,
+    "counts": {
+      "passed": 17,
+      "failed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_distributed_patterns/output.log"
+  },
+  {
+    "file": "test_dropout_align_random_eager.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 13,
+    "recorded": 13,
+    "pending": 0,
+    "counts": {
+      "skipped": 13
+    },
+    "collection_errors": [],
+    "log": "collection/test_dropout_align_random_eager/output.log"
+  },
+  {
+    "file": "test_efficient_conv_bn_eval.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_efficient_conv_bn_eval/output.log"
+  },
+  {
+    "file": "test_embedding.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_embedding/output.log"
+  },
+  {
+    "file": "test_exc_lowering_stack_trace.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 2,
+    "recorded": 2,
+    "pending": 0,
+    "counts": {
+      "passed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_exc_lowering_stack_trace/output.log"
+  },
+  {
+    "file": "test_extension_backend.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "passed": 1,
+      "failed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_extension_backend/output.log"
+  },
+  {
+    "file": "test_external_callables.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "failed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_external_callables/output.log"
+  },
+  {
+    "file": "test_flex_attention.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 560,
+    "recorded": 560,
+    "pending": 0,
+    "counts": {
+      "skipped": 560
+    },
+    "collection_errors": [],
+    "log": "collection/test_flex_attention/output.log"
+  },
+  {
+    "file": "test_flex_aux_vectorization.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 17,
+    "recorded": 17,
+    "pending": 0,
+    "counts": {
+      "passed": 17
+    },
+    "collection_errors": [],
+    "log": "collection/test_flex_aux_vectorization/output.log"
+  },
+  {
+    "file": "test_flex_decoding.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 570,
+    "recorded": 570,
+    "pending": 0,
+    "counts": {
+      "skipped": 569,
+      "failed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_flex_decoding/output.log"
+  },
+  {
+    "file": "test_flex_flash.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 251,
+    "recorded": 251,
+    "pending": 0,
+    "counts": {
+      "skipped": 244,
+      "passed": 7
+    },
+    "collection_errors": [],
+    "log": "collection/test_flex_flash/output.log"
+  },
+  {
+    "file": "test_flex_gemm_runtime.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 7,
+    "recorded": 7,
+    "pending": 0,
+    "counts": {
+      "passed": 1,
+      "skipped": 6
+    },
+    "collection_errors": [],
+    "log": "collection/test_flex_gemm_runtime/output.log"
+  },
+  {
+    "file": "test_foreach.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 615,
+    "recorded": 615,
+    "pending": 0,
+    "counts": {
+      "skipped": 595,
+      "passed": 20
+    },
+    "collection_errors": [],
+    "log": "collection/test_foreach/output.log"
+  },
+  {
+    "file": "test_fp8.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 320,
+    "recorded": 320,
+    "pending": 0,
+    "counts": {
+      "passed": 2,
+      "failed": 81,
+      "skipped": 237
+    },
+    "collection_errors": [],
+    "log": "collection/test_fp8/output.log"
+  },
+  {
+    "file": "test_fused_attention.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 57,
+    "recorded": 57,
+    "pending": 0,
+    "counts": {
+      "passed": 56,
+      "skipped": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_fused_attention/output.log"
+  },
+  {
+    "file": "test_fusion_regions.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 7,
+    "recorded": 7,
+    "pending": 0,
+    "counts": {
+      "failed": 3,
+      "passed": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_fusion_regions/output.log"
+  },
+  {
+    "file": "test_fuzzer.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 11,
+    "recorded": 11,
+    "pending": 0,
+    "counts": {
+      "passed": 9,
+      "skipped": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_fuzzer/output.log"
+  },
+  {
+    "file": "test_fx_fusion.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 5,
+    "recorded": 5,
+    "pending": 0,
+    "counts": {
+      "passed": 5
+    },
+    "collection_errors": [],
+    "log": "collection/test_fx_fusion/output.log"
+  },
+  {
+    "file": "test_fxir_backend.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 77,
+    "recorded": 77,
+    "pending": 0,
+    "counts": {
+      "failed": 62,
+      "passed": 15
+    },
+    "collection_errors": [],
+    "log": "collection/test_fxir_backend/output.log"
+  },
+  {
+    "file": "test_gpu_cpp_wrapper.py",
+    "category": "CPU 与 C++ Wrapper",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 18,
+    "recorded": 18,
+    "pending": 0,
+    "counts": {
+      "failed": 2,
+      "skipped": 16
+    },
+    "collection_errors": [],
+    "log": "collection/test_gpu_cpp_wrapper/output.log"
+  },
+  {
+    "file": "test_gpu_select_algorithm.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 58,
+    "recorded": 58,
+    "pending": 0,
+    "counts": {
+      "failed": 58
+    },
+    "collection_errors": [],
+    "log": "collection/test_gpu_select_algorithm/output.log"
+  },
+  {
+    "file": "test_graph_transform_observer.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_graph_transform_observer/output.log"
+  },
+  {
+    "file": "test_grid_sampler_codegen.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "skipped": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_grid_sampler_codegen/output.log"
+  },
+  {
+    "file": "test_group_batch_fusion.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 15,
+    "recorded": 15,
+    "pending": 0,
+    "counts": {
+      "skipped": 11,
+      "failed": 2,
+      "passed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_group_batch_fusion/output.log"
+  },
+  {
+    "file": "test_halide.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 4,
+    "recorded": 4,
+    "pending": 0,
+    "counts": {
+      "skipped": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_halide/output.log"
+  },
+  {
+    "file": "test_helion_kernels.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 2,
+    "recorded": 2,
+    "pending": 0,
+    "counts": {
+      "skipped": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_helion_kernels/output.log"
+  },
+  {
+    "file": "test_indexing.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 56,
+    "recorded": 56,
+    "pending": 0,
+    "counts": {
+      "passed": 53,
+      "skipped": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_indexing/output.log"
+  },
+  {
+    "file": "test_inductor_annotations.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 2,
+    "recorded": 2,
+    "pending": 0,
+    "counts": {
+      "skipped": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_inductor_annotations/output.log"
+  },
+  {
+    "file": "test_inductor_freezing.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 24,
+    "recorded": 24,
+    "pending": 0,
+    "counts": {
+      "passed": 21,
+      "skipped": 2,
+      "failed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_inductor_freezing/output.log"
+  },
+  {
+    "file": "test_inductor_scheduler.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 24,
+    "recorded": 24,
+    "pending": 0,
+    "counts": {
+      "xfail": 6,
+      "skipped": 4,
+      "passed": 11,
+      "failed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_inductor_scheduler/output.log"
+  },
+  {
+    "file": "test_inductor_utils.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 4,
+    "recorded": 4,
+    "pending": 0,
+    "counts": {
+      "failed": 2,
+      "passed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_inductor_utils/output.log"
+  },
+  {
+    "file": "test_inplace_padding.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 9,
+    "recorded": 9,
+    "pending": 0,
+    "counts": {
+      "failed": 9
+    },
+    "collection_errors": [],
+    "log": "collection/test_inplace_padding/output.log"
+  },
+  {
+    "file": "test_inplacing_pass.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 26,
+    "recorded": 26,
+    "pending": 0,
+    "counts": {
+      "passed": 14,
+      "failed": 12
+    },
+    "collection_errors": [],
+    "log": "collection/test_inplacing_pass/output.log"
+  },
+  {
+    "file": "test_interval_mask_packing.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 12,
+    "recorded": 12,
+    "pending": 0,
+    "counts": {
+      "passed": 12
+    },
+    "collection_errors": [],
+    "log": "collection/test_interval_mask_packing/output.log"
+  },
+  {
+    "file": "test_kernel_benchmark.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 20,
+    "recorded": 20,
+    "pending": 0,
+    "counts": {
+      "failed": 17,
+      "skipped": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_kernel_benchmark/output.log"
+  },
+  {
+    "file": "test_kernel_optimization.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "failed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_kernel_optimization/output.log"
+  },
+  {
+    "file": "test_layout_optim.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 11,
+    "recorded": 11,
+    "pending": 0,
+    "counts": {
+      "failed": 11
+    },
+    "collection_errors": [],
+    "log": "collection/test_layout_optim/output.log"
+  },
+  {
+    "file": "test_lookup_table.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 37,
+    "recorded": 37,
+    "pending": 0,
+    "counts": {
+      "skipped": 37
+    },
+    "collection_errors": [],
+    "log": "collection/test_lookup_table/output.log"
+  },
+  {
+    "file": "test_loop_ordering.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 90,
+    "recorded": 90,
+    "pending": 0,
+    "counts": {
+      "failed": 76,
+      "passed": 14
+    },
+    "collection_errors": [],
+    "log": "collection/test_loop_ordering/output.log"
+  },
+  {
+    "file": "test_low_contention_collectives.py",
+    "category": "分布式与通信",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_low_contention_collectives/output.log"
+  },
+  {
+    "file": "test_max_autotune.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 577,
+    "recorded": 577,
+    "pending": 0,
+    "counts": {
+      "failed": 274,
+      "skipped": 252,
+      "passed": 51
+    },
+    "collection_errors": [],
+    "log": "collection/test_max_autotune/output.log"
+  },
+  {
+    "file": "test_max_autotune_blackwell.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 127,
+    "recorded": 127,
+    "pending": 0,
+    "counts": {
+      "failed": 124,
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_max_autotune_blackwell/output.log"
+  },
+  {
+    "file": "test_mem_estimation.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 4,
+    "recorded": 4,
+    "pending": 0,
+    "counts": {
+      "passed": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_mem_estimation/output.log"
+  },
+  {
+    "file": "test_memory.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 9,
+    "recorded": 9,
+    "pending": 0,
+    "counts": {
+      "failed": 9
+    },
+    "collection_errors": [],
+    "log": "collection/test_memory/output.log"
+  },
+  {
+    "file": "test_memory_planning.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 4,
+    "recorded": 4,
+    "pending": 0,
+    "counts": {
+      "skipped": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_memory_planning/output.log"
+  },
+  {
+    "file": "test_metrics.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 6,
+    "recorded": 6,
+    "pending": 0,
+    "counts": {
+      "failed": 1,
+      "passed": 4,
+      "skipped": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_metrics/output.log"
+  },
+  {
+    "file": "test_minifier.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 14,
+    "recorded": 14,
+    "pending": 0,
+    "counts": {
+      "passed": 5,
+      "failed": 6,
+      "crash": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_minifier/output.log"
+  },
+  {
+    "file": "test_minifier_isolate.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 2,
+    "recorded": 2,
+    "pending": 0,
+    "counts": {
+      "failed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_minifier_isolate/output.log"
+  },
+  {
+    "file": "test_minifier_utils.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 4,
+    "recorded": 4,
+    "pending": 0,
+    "counts": {
+      "passed": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_minifier_utils/output.log"
+  },
+  {
+    "file": "test_mix_order_reduction.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 498,
+    "recorded": 498,
+    "pending": 0,
+    "counts": {
+      "failed": 192,
+      "passed": 2,
+      "skipped": 304
+    },
+    "collection_errors": [],
+    "log": "collection/test_mix_order_reduction/output.log"
+  },
+  {
+    "file": "test_mkldnn_pattern_matcher.py",
+    "category": "CPU 与 C++ Wrapper",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 31,
+    "recorded": 31,
+    "pending": 0,
+    "counts": {
+      "passed": 21,
+      "failed": 10
+    },
+    "collection_errors": [],
+    "log": "collection/test_mkldnn_pattern_matcher/output.log"
+  },
+  {
+    "file": "test_mmdecomp.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 31,
+    "recorded": 31,
+    "pending": 0,
+    "counts": {
+      "skipped": 27,
+      "passed": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_mmdecomp/output.log"
+  },
+  {
+    "file": "test_move_constructors_to_gpu.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 8,
+    "recorded": 8,
+    "pending": 0,
+    "counts": {
+      "skipped": 1,
+      "passed": 2,
+      "failed": 5
+    },
+    "collection_errors": [],
+    "log": "collection/test_move_constructors_to_gpu/output.log"
+  },
+  {
+    "file": "test_mps_basic.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 57,
+    "recorded": 57,
+    "pending": 0,
+    "counts": {
+      "skipped": 57
+    },
+    "collection_errors": [],
+    "log": "collection/test_mps_basic/output.log"
+  },
+  {
+    "file": "test_multi_kernel.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 19,
+    "recorded": 19,
+    "pending": 0,
+    "counts": {
+      "failed": 17,
+      "skipped": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_multi_kernel/output.log"
+  },
+  {
+    "file": "test_native_matmul.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 14,
+    "recorded": 14,
+    "pending": 0,
+    "counts": {
+      "failed": 14
+    },
+    "collection_errors": [],
+    "log": "collection/test_native_matmul/output.log"
+  },
+  {
+    "file": "test_needs_exact_strides.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 5,
+    "recorded": 5,
+    "pending": 0,
+    "counts": {
+      "failed": 5
+    },
+    "collection_errors": [],
+    "log": "collection/test_needs_exact_strides/output.log"
+  },
+  {
+    "file": "test_nested_reduction.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 180,
+    "recorded": 180,
+    "pending": 0,
+    "counts": {
+      "failed": 160,
+      "skipped": 20
+    },
+    "collection_errors": [],
+    "log": "collection/test_nested_reduction/output.log"
+  },
+  {
+    "file": "test_nv_universal_gemm.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 72,
+    "recorded": 72,
+    "pending": 0,
+    "counts": {
+      "skipped": 69,
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_nv_universal_gemm/output.log"
+  },
+  {
+    "file": "test_online_softmax.py",
+    "category": "注意力、Softmax 与归约",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 35,
+    "recorded": 35,
+    "pending": 0,
+    "counts": {
+      "failed": 34,
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_online_softmax/output.log"
+  },
+  {
+    "file": "test_op_completeness.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 5,
+    "recorded": 5,
+    "pending": 0,
+    "counts": {
+      "passed": 4,
+      "skipped": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_op_completeness/output.log"
+  },
+  {
+    "file": "test_op_dtype_prop.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 623,
+    "recorded": 623,
+    "pending": 0,
+    "counts": {
+      "failed": 580,
+      "skipped": 42,
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_op_dtype_prop/output.log"
+  },
+  {
+    "file": "test_optimize_indexing.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 15,
+    "recorded": 15,
+    "pending": 0,
+    "counts": {
+      "passed": 15
+    },
+    "collection_errors": [],
+    "log": "collection/test_optimize_indexing/output.log"
+  },
+  {
+    "file": "test_ordered_set.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 401,
+    "recorded": 401,
+    "pending": 0,
+    "counts": {
+      "passed": 386,
+      "skipped": 15
+    },
+    "collection_errors": [],
+    "log": "collection/test_ordered_set/output.log"
+  },
+  {
+    "file": "test_origami.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 9,
+    "recorded": 9,
+    "pending": 0,
+    "counts": {
+      "skipped": 7,
+      "passed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_origami/output.log"
+  },
+  {
+    "file": "test_pad_as_cat.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 4,
+    "recorded": 4,
+    "pending": 0,
+    "counts": {
+      "failed": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_pad_as_cat/output.log"
+  },
+  {
+    "file": "test_pad_mm.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 19,
+    "recorded": 19,
+    "pending": 0,
+    "counts": {
+      "skipped": 19
+    },
+    "collection_errors": [],
+    "log": "collection/test_pad_mm/output.log"
+  },
+  {
+    "file": "test_pad_mm_utils.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_pad_mm_utils/output.log"
+  },
+  {
+    "file": "test_padding.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 57,
+    "recorded": 57,
+    "pending": 0,
+    "counts": {
+      "skipped": 10,
+      "failed": 44,
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_padding/output.log"
+  },
+  {
+    "file": "test_pallas.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "零用例/入口条件",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [],
+    "log": "collection/test_pallas/output.log"
+  },
+  {
+    "file": "test_pattern_matcher.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 98,
+    "recorded": 98,
+    "pending": 0,
+    "counts": {
+      "failed": 42,
+      "passed": 40,
+      "skipped": 16
+    },
+    "collection_errors": [],
+    "log": "collection/test_pattern_matcher/output.log"
+  },
+  {
+    "file": "test_perf.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 68,
+    "recorded": 68,
+    "pending": 0,
+    "counts": {
+      "failed": 53,
+      "skipped": 14,
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_perf/output.log"
+  },
+  {
+    "file": "test_profiler.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 8,
+    "recorded": 8,
+    "pending": 0,
+    "counts": {
+      "skipped": 7,
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_profiler/output.log"
+  },
+  {
+    "file": "test_provenance_tracing.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 17,
+    "recorded": 17,
+    "pending": 0,
+    "counts": {
+      "skipped": 7,
+      "crash": 2,
+      "passed": 6,
+      "failed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_provenance_tracing/output.log"
+  },
+  {
+    "file": "test_quantization.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "failed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_quantization/output.log"
+  },
+  {
+    "file": "test_remote_cache.py",
+    "category": "缓存与序列化",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 7,
+    "recorded": 7,
+    "pending": 0,
+    "counts": {
+      "passed": 7
+    },
+    "collection_errors": [],
+    "log": "collection/test_remote_cache/output.log"
+  },
+  {
+    "file": "test_scatter_optimization.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 9,
+    "recorded": 9,
+    "pending": 0,
+    "counts": {
+      "passed": 9
+    },
+    "collection_errors": [],
+    "log": "collection/test_scatter_optimization/output.log"
+  },
+  {
+    "file": "test_segmented_tree.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "收集失败",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [
+      {
+        "event": "collectreport",
+        "time": 1790061947.1378798,
+        "nodeid": "test_segmented_tree.py",
+        "outcome": "failed",
+        "longrepr": "ImportError while importing test module '/home/p00927906/workspace/triton_dev/Community-Use-Case-Testing-v2.10.0/v2.13.0/inductor_npu/test_segmented_tree.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/usr/local/python3.11.15/lib/python3.11/importlib/__init__.py:126: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntest_segmented_tree.py:12: in <module>\n    from hypothesis import given, strategies as st\nE   ModuleNotFoundError: No module named 'hypothesis'"
+      }
+    ],
+    "log": "collection/test_segmented_tree/output.log"
+  },
+  {
+    "file": "test_select_algorithm.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 40,
+    "recorded": 40,
+    "pending": 0,
+    "counts": {
+      "passed": 5,
+      "skipped": 33,
+      "failed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_select_algorithm/output.log"
+  },
+  {
+    "file": "test_selective_lowering.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 2,
+    "recorded": 2,
+    "pending": 0,
+    "counts": {
+      "failed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_selective_lowering/output.log"
+  },
+  {
+    "file": "test_simd_range_trees.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "passed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_simd_range_trees/output.log"
+  },
+  {
+    "file": "test_smoke.py",
+    "category": "Inductor 综合、动态形状与 OpInfo",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "failed": 2,
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_smoke/output.log"
+  },
+  {
+    "file": "test_snode_runtime.py",
+    "category": "调度、布局、索引与内存",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 27,
+    "recorded": 27,
+    "pending": 0,
+    "counts": {
+      "passed": 2,
+      "failed": 25
+    },
+    "collection_errors": [],
+    "log": "collection/test_snode_runtime/output.log"
+  },
+  {
+    "file": "test_split_cat_fx_aten_passes.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 5,
+    "recorded": 5,
+    "pending": 0,
+    "counts": {
+      "skipped": 4,
+      "passed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_split_cat_fx_aten_passes/output.log"
+  },
+  {
+    "file": "test_split_cat_fx_passes.py",
+    "category": "图变换、融合与 Lowering",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 11,
+    "recorded": 11,
+    "pending": 0,
+    "counts": {
+      "passed": 10,
+      "failed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_split_cat_fx_passes/output.log"
+  },
+  {
+    "file": "test_static_triton_launcher.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 28,
+    "recorded": 28,
+    "pending": 0,
+    "counts": {
+      "passed": 3,
+      "skipped": 25
+    },
+    "collection_errors": [],
+    "log": "collection/test_static_triton_launcher/output.log"
+  },
+  {
+    "file": "test_subgraph_choice.py",
+    "category": "矩阵乘、算法选择与自动调优",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 2,
+    "recorded": 2,
+    "pending": 0,
+    "counts": {
+      "failed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_subgraph_choice/output.log"
+  },
+  {
+    "file": "test_symm_mem_registry.py",
+    "category": "分布式与通信",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 19,
+    "recorded": 19,
+    "pending": 0,
+    "counts": {
+      "passed": 17,
+      "failed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_symm_mem_registry/output.log"
+  },
+  {
+    "file": "test_template_heuristics_registry.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 8,
+    "recorded": 8,
+    "pending": 0,
+    "counts": {
+      "passed": 8
+    },
+    "collection_errors": [],
+    "log": "collection/test_template_heuristics_registry/output.log"
+  },
+  {
+    "file": "test_torchbind.py",
+    "category": "算子、精度与随机性",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 16,
+    "recorded": 16,
+    "pending": 0,
+    "counts": {
+      "crash": 5,
+      "passed": 10,
+      "skipped": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_torchbind/output.log"
+  },
+  {
+    "file": "test_torchinductor.py",
+    "category": "Inductor 综合、动态形状与 OpInfo",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1304,
+    "recorded": 1304,
+    "pending": 0,
+    "counts": {
+      "failed": 1074,
+      "skipped": 108,
+      "passed": 116,
+      "crash": 6
+    },
+    "collection_errors": [],
+    "log": "collection/test_torchinductor/output.log"
+  },
+  {
+    "file": "test_torchinductor_codegen_config_overrides.py",
+    "category": "Inductor 综合、动态形状与 OpInfo",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 6,
+    "recorded": 6,
+    "pending": 0,
+    "counts": {
+      "skipped": 3,
+      "passed": 2,
+      "failed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_torchinductor_codegen_config_overrides/output.log"
+  },
+  {
+    "file": "test_torchinductor_codegen_dynamic_shapes.py",
+    "category": "Inductor 综合、动态形状与 OpInfo",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1240,
+    "recorded": 1240,
+    "pending": 0,
+    "counts": {
+      "skipped": 508,
+      "passed": 717,
+      "crash": 6,
+      "failed": 9
+    },
+    "collection_errors": [],
+    "log": "collection/test_torchinductor_codegen_dynamic_shapes/output.log"
+  },
+  {
+    "file": "test_torchinductor_dynamic_shapes.py",
+    "category": "Inductor 综合、动态形状与 OpInfo",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1311,
+    "recorded": 1311,
+    "pending": 0,
+    "counts": {
+      "skipped": 412,
+      "passed": 881,
+      "crash": 6,
+      "failed": 12
+    },
+    "collection_errors": [],
+    "log": "collection/test_torchinductor_dynamic_shapes/output.log"
+  },
+  {
+    "file": "test_torchinductor_opinfo.py",
+    "category": "Inductor 综合、动态形状与 OpInfo",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3737,
+    "recorded": 3737,
+    "pending": 0,
+    "counts": {
+      "skipped": 3737
+    },
+    "collection_errors": [],
+    "log": "collection/test_torchinductor_opinfo/output.log"
+  },
+  {
+    "file": "test_torchinductor_opinfo_properties.py",
+    "category": "Inductor 综合、动态形状与 OpInfo",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1134,
+    "recorded": 1134,
+    "pending": 0,
+    "counts": {
+      "failed": 840,
+      "passed": 268,
+      "xfail": 26
+    },
+    "collection_errors": [],
+    "log": "collection/test_torchinductor_opinfo_properties/output.log"
+  },
+  {
+    "file": "test_torchinductor_strided_blocks.py",
+    "category": "Inductor 综合、动态形状与 OpInfo",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 323,
+    "recorded": 323,
+    "pending": 0,
+    "counts": {
+      "skipped": 323
+    },
+    "collection_errors": [],
+    "log": "collection/test_torchinductor_strided_blocks/output.log"
+  },
+  {
+    "file": "test_triton_cpu_backend.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "零用例/入口条件",
+    "collected": 0,
+    "recorded": 0,
+    "pending": 0,
+    "counts": {},
+    "collection_errors": [],
+    "log": "collection/test_triton_cpu_backend/output.log"
+  },
+  {
+    "file": "test_triton_extension_backend.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "skipped": 2,
+      "failed": 1
+    },
+    "collection_errors": [],
+    "log": "followup/collection/test_triton_extension_backend/output.log"
+  },
+  {
+    "file": "test_triton_helpers.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 16,
+    "recorded": 16,
+    "pending": 0,
+    "counts": {
+      "failed": 16
+    },
+    "collection_errors": [],
+    "log": "collection/test_triton_helpers/output.log"
+  },
+  {
+    "file": "test_triton_heuristics.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 53,
+    "recorded": 53,
+    "pending": 0,
+    "counts": {
+      "skipped": 19,
+      "failed": 8,
+      "passed": 26
+    },
+    "collection_errors": [],
+    "log": "collection/test_triton_heuristics/output.log"
+  },
+  {
+    "file": "test_triton_kernels.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 394,
+    "recorded": 394,
+    "pending": 0,
+    "counts": {
+      "skipped": 96,
+      "failed": 293,
+      "passed": 5
+    },
+    "collection_errors": [],
+    "log": "collection/test_triton_kernels/output.log"
+  },
+  {
+    "file": "test_triton_launcher_integration.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 6,
+    "recorded": 6,
+    "pending": 0,
+    "counts": {
+      "passed": 4,
+      "failed": 2
+    },
+    "collection_errors": [],
+    "log": "collection/test_triton_launcher_integration/output.log"
+  },
+  {
+    "file": "test_triton_syntax.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 1,
+    "recorded": 1,
+    "pending": 0,
+    "counts": {
+      "failed": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_triton_syntax/output.log"
+  },
+  {
+    "file": "test_triton_wrapper.py",
+    "category": "Triton 代码生成、模板与启动",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 3,
+    "recorded": 3,
+    "pending": 0,
+    "counts": {
+      "failed": 3
+    },
+    "collection_errors": [],
+    "log": "collection/test_triton_wrapper/output.log"
+  },
+  {
+    "file": "test_unbacked_symints.py",
+    "category": "Inductor 综合、动态形状与 OpInfo",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 55,
+    "recorded": 55,
+    "pending": 0,
+    "counts": {
+      "skipped": 42,
+      "failed": 3,
+      "passed": 10
+    },
+    "collection_errors": [],
+    "log": "collection/test_unbacked_symints/output.log"
+  },
+  {
+    "file": "test_user_streams.py",
+    "category": "Graph、Stream 与设备执行",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 71,
+    "recorded": 71,
+    "pending": 0,
+    "counts": {
+      "passed": 13,
+      "xfail": 57,
+      "skipped": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_user_streams/output.log"
+  },
+  {
+    "file": "test_utils.py",
+    "category": "诊断、性能与基础设施",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 22,
+    "recorded": 22,
+    "pending": 0,
+    "counts": {
+      "passed": 17,
+      "failed": 1,
+      "xfail": 3,
+      "skipped": 1
+    },
+    "collection_errors": [],
+    "log": "collection/test_utils/output.log"
+  },
+  {
+    "file": "test_xpu_basic.py",
+    "category": "CUDA 专属与其他后端",
+    "collection_status": "已执行全部已收集用例",
+    "collected": 4,
+    "recorded": 4,
+    "pending": 0,
+    "counts": {
+      "failed": 4
+    },
+    "collection_errors": [],
+    "log": "collection/test_xpu_basic/output.log"
+  }
+]

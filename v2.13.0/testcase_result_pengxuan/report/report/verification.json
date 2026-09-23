@@ -1,0 +1,18 @@
+{
+  "time": 1790089889.54078,
+  "checked_top_level_sources": 176,
+  "changed_sources": [],
+  "unique_case_ids": 23425,
+  "case_records": 23425,
+  "case_counts": {
+    "failed": 6636,
+    "skipped": 10900,
+    "passed": 5465,
+    "xfail": 97,
+    "crash": 326,
+    "timeout": 1
+  },
+  "attempts_checked": 7217,
+  "starts_after_failed_report": [],
+  "duplicate_starts_within_attempt": []
+}

@@ -1,0 +1,50 @@
+{
+  "stage": "最终重测报告",
+  "finished": true,
+  "execution_ended": true,
+  "updated": 1790089757.3230567,
+  "modules": 176,
+  "modules_collected": 166,
+  "modules_collection_blocked": 5,
+  "modules_zero_cases": 5,
+  "collected_cases": 23425,
+  "recorded_cases": 23425,
+  "pending_cases": 0,
+  "source_integrity_checked": true,
+  "source_changes": [],
+  "case_counts": {
+    "failed": 6636,
+    "skipped": 10900,
+    "passed": 5465,
+    "xfail": 97,
+    "crash": 326,
+    "timeout": 1
+  },
+  "error_counts": {
+    "R06 NPU Runtime/算子执行错误": 90,
+    "R01 NPU codegen/scheduler 注册或设备支持缺口": 3643,
+    "R13 API/属性/注册表不匹配": 45,
+    "R15 测试预期/结构/计数断言": 68,
+    "R11 Dynamo/图捕获不支持": 111,
+    "R16 其他 RuntimeError（不能直接等同设备故障）": 42,
+    "R03 自动调优没有可用算法候选": 423,
+    "R08 profiler/benchmark 接口或行为不兼容": 4,
+    "R14 数值/张量结果断言": 25,
+    "R00 进程崩溃（单列，不把后续用例判失败）": 326,
+    "R04 CUDA 专属接口/后端残留": 1722,
+    "R10 条件初始化/符号未定义（适配风险）": 384,
+    "R05 Triton 多驱动同时激活": 42,
+    "R07 NPU convolution Meta 一维参数解包": 1,
+    "R99 其他错误（查看原始堆栈）": 31,
+    "R09 依赖或测试资源缺失": 4,
+    "R02 CacheBase.get_system 缓存接口缺口（非本次 get_gpu_type 修复）": 1,
+    "R00 单例/阶段超时（非普通断言失败）": 1
+  },
+  "health_checks": 6445,
+  "health_nonzero": 5,
+  "main_jobs": {
+    "completed": 363
+  },
+  "main_start": 1790061898.253064,
+  "main_end": 1790089757.3230555
+}
