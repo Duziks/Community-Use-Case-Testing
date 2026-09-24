@@ -1,3 +1,6 @@
+# Owner(s): ["module: inductor"]
+from __future__ import annotations
+
 import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
@@ -6,9 +9,6 @@ _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
-
-# Owner(s): ["module: inductor"]
-from __future__ import annotations
 
 import json
 import pickle
