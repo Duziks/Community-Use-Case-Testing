@@ -1,15 +1,14 @@
 import torch
 import torch_npu
-from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
 _dynamo.use_jit_script = True
-torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 
 # Owner(s): ["module: inductor"]
 import copy
 import functools
 import os
+import re
 import unittest
 
 from torch import nn, Tensor
@@ -26,13 +25,18 @@ from torch.testing._internal.common_utils import (
     parametrize,
     serialTest,
 )
-from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU, requires_gpu
+from torch.utils._triton import has_triton
+GPU_TYPE = "npu"
+HAS_GPU = torch.npu.is_available() and has_triton()
+
+def requires_gpu():
+    return __import__("unittest").skipUnless(HAS_GPU, "requires npu and triton")
 
 
 DO_PERF_TEST = os.environ.get("DO_PERF_TEST") == "1"
 DO_ACC_TEST = os.environ.get("DO_ACC_TEST", "1") == "1"
 WITH_STACK = os.environ.get("WITH_STACK") == "1"
-USE_CUDA_GRAPHS = os.environ.get("USE_CUDA_GRAPHS", "1") == "1"
+USE_CUDA_GRAPHS = os.environ.get("USE_CUDA_GRAPHS", "0") == "1"
 
 try:
     import transformers  # noqa: F401
@@ -106,6 +110,7 @@ def forward_and_backward_pass(m, inputs):
 @config.patch(
     {
         "benchmark_kernel": True,
+        "comprehensive_padding": True,
         "triton.unique_kernel_names": True,
         "triton.cudagraphs": USE_CUDA_GRAPHS,
     }
@@ -508,7 +513,7 @@ class PaddingTest(TestCaseBase):
 
         # make sure the load for softmax is aligned
         self.assertTrue(
-            "tl.load(in_ptr0 + (r0_1 + 30528*x0)" in forward_wrapper,
+            re.search(r"tl\.load\(in(?:_out)?_ptr\d+ \+ \(r\w* \+ 30528\*x0\)", forward_wrapper) is not None,
             f"forward_wrapper: {forward_wrapper}",
         )
 
@@ -782,7 +787,7 @@ class PaddingTest(TestCaseBase):
 
         output_shape = (shape[0] * num_inputs, shape[1])
         output_stride = input_tensors[0].stride()
-        output_line = f"buf12 = empty_strided_{GPU_TYPE}({output_shape}, {output_stride}, torch.float32)"
+        output_line = f"buf12 = empty_strided({output_shape}, {output_stride}, device='{GPU_TYPE}', dtype=torch.float32)"
         self.assertTrue(output_line in code[0])
 
     @requires_gpu()
@@ -824,7 +829,7 @@ class PaddingTest(TestCaseBase):
         # "= empty_strided_<device>(" pattern.
         import re
 
-        num_allocs = len(re.findall(rf"= empty_strided_{GPU_TYPE}\(", code[0]))
+        num_allocs = len(re.findall(rf"= empty_strided\([^\n]*device='{GPU_TYPE}'", code[0]))
         self.assertEqual(
             num_allocs,
             1,

@@ -3,9 +3,9 @@ index 09c7489e85..bb1862797d 100644
 --- a/test/contrib/test_transfer_to_npu.py
 +++ b/test/contrib/test_transfer_to_npu.py
 @@ -13,6 +13,39 @@ from torch_npu.contrib import transfer_to_npu
- 
+
  class TestTransferToNpu(TestCase):
- 
+
 +    def test_get_gpu_type_cache_contract(self):
 +        from torch._inductor.utils import get_gpu_type
 +
@@ -43,15 +43,64 @@ index 09c7489e85..bb1862797d 100644
          g0 = torch.Generator()
          self.assertTrue(isinstance(g0, torch.Generator))
 diff --git a/torch_npu/contrib/transfer_to_npu.py b/torch_npu/contrib/transfer_to_npu.py
-index f069ed490a..065cfedc3a 100644
 --- a/torch_npu/contrib/transfer_to_npu.py
 +++ b/torch_npu/contrib/transfer_to_npu.py
-@@ -347,6 +347,8 @@ def _patch_has_triton(**kwargs):
-     return False
+@@ -344,9 +344,37 @@
+
  
- 
+ def _patch_has_triton(**kwargs):
+-    return False
+-
+-
++    if torch._inductor.config.triton_disable_device_detection or not torch.npu.is_available():
++        return False
++    if not torch.utils._triton.has_triton_package():
++        return False
++    from triton.backends import backends
++    backend = backends.get("ascend")
++    return backend is not None and backend.driver.is_active()
++
++
++def _patch_triton_nvidia_driver():
++    try:
++        from triton.backends.nvidia.driver import CudaDriver
++        CudaDriver.is_active = staticmethod(lambda: False)
++    except (ImportError, AttributeError):
++        pass
++
++
++def _wrapper_check_lowering_disable_cudagraph(fn):
++    @wraps(fn)
++    def decorated(device_node_mapping):
++        if any(device.type == "npu" for device in device_node_mapping):
++            from torch._inductor.cudagraph_utils import format_default_skip_message
++            # CUDA allocator/pool checks do not apply to NPU graphs.
++            return format_default_skip_message("NPU tensors are not supported by CUDA graphs")
++        return fn(device_node_mapping)
++
++    return decorated
++
++
 +# Preserve the cached get_gpu_type interface used by Inductor registration.
 +@functools.cache
  def _get_npu_type():
      return "npu"
- 
+
+@@ -585,11 +613,17 @@
+
+     _do_wrapper_libraries_func(_load_json_file(config_path))
+
++    _patch_triton_nvidia_driver()
++
+     torch.utils._triton.has_triton = _patch_has_triton
+     torch._dynamo.utils.has_triton = _patch_has_triton
+     torch._inductor.runtime.autotune_cache.has_triton = _patch_has_triton
+     torch._inductor.compile_fx.has_triton = _patch_has_triton
+
++    from torch._inductor import cudagraph_utils
++    cudagraph_utils.check_lowering_disable_cudagraph = _wrapper_check_lowering_disable_cudagraph(
++        cudagraph_utils.check_lowering_disable_cudagraph)
++
+     torch._inductor.utils.get_gpu_type = _get_npu_type
+     torch._inductor.fx_passes.post_grad.get_gpu_type = _get_npu_type
+     torch._inductor.fx_passes.joint_graph.get_gpu_type = _get_npu_type
