@@ -1,8 +1,9 @@
 import torch
 import torch_npu
-import torch_npu._inductor
+from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
 _dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 
 # Owner(s): ["module: inductor"]
@@ -25,11 +26,7 @@ from torch.testing._internal.common_utils import (
     TEST_WITH_ROCM,
 )
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_CPU, HAS_GPU
-from torch.testing._internal.triton_utils import requires_cuda_and_triton
-from torch.utils._triton import has_triton
-GPU_TYPE = "npu"
-HAS_GPU = torch.npu.is_available() and has_triton()
-requires_gpu = unittest.skipUnless(HAS_GPU, "requires npu and triton")
+from torch.testing._internal.triton_utils import requires_cuda_and_triton, requires_gpu
 from torch.utils._pytree import tree_flatten
 
 

@@ -1,8 +1,9 @@
 import torch
 import torch_npu
-import torch_npu._inductor
+from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
 _dynamo.use_jit_script = True
+torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
 
@@ -169,8 +170,6 @@ from torch.testing._internal.triton_utils import (
     requires_gpu_and_triton,
 )
 
-
-GPU_TYPE = "npu"
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
