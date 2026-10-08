@@ -13703,7 +13703,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @config.patch(profiler_mark_wrapper_call=True)
     def test_profiler_mark_wrapper_call(self):
-        from torch.profiler import profile
+        from torch.profiler.profiler import profile  # CPU host wrapper events
 
         @torch.compile(backend="inductor", fullgraph=True)
         def fn(a, b):

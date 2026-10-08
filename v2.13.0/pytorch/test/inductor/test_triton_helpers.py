@@ -132,12 +132,15 @@ class ExclusiveScanDecoupledLookback64Test(TestCase):
 
         # Scratch memory layout per block: [flag, partial_aggregate, inclusive_prefix]
         # Block 0: flag=2 (inclusive prefix ready), inclusive_prefix=10.0
-        scratch = torch.zeros(6, dtype=torch.uint64, device=device)
+        # Initialize uint64 metadata on CPU: aclnnInplaceZero has no uint64 support.
+        # Preserve the exact uint64 bits consumed by the original kernel.
+        scratch = torch.zeros(6, dtype=torch.uint64, device="cpu")
         scratch[0] = 2
         inclusive_prefix_value = torch.tensor(
-            [10.0], dtype=torch.float64, device=device
+            [10.0], dtype=torch.float64, device="cpu"
         )
         scratch[2] = inclusive_prefix_value.view(torch.int64).item()
+        scratch = scratch.to(device)
 
         block_value = torch.tensor([5.0], dtype=torch.float64, device=device)
         index = torch.tensor([1], dtype=torch.int64, device=device)
@@ -155,12 +158,15 @@ class ExclusiveScanDecoupledLookback64Test(TestCase):
 
         # Scratch memory layout per block: [flag, partial_aggregate, inclusive_prefix]
         # Block 0: flag=2 (inclusive prefix ready), inclusive_prefix=10.0
-        scratch = torch.zeros(6, dtype=torch.uint64, device=device)
+        # Initialize uint64 metadata on CPU: aclnnInplaceZero has no uint64 support.
+        # Preserve the exact uint64 bits consumed by the original kernel.
+        scratch = torch.zeros(6, dtype=torch.uint64, device="cpu")
         scratch[0] = 2
         inclusive_prefix_value = torch.tensor(
-            [10.0], dtype=torch.float64, device=device
+            [10.0], dtype=torch.float64, device="cpu"
         )
         scratch[2] = inclusive_prefix_value.view(torch.int64).item()
+        scratch = scratch.to(device)
 
         block_value = torch.tensor([5.0], dtype=torch.float64, device=device)
         index = torch.tensor([1], dtype=torch.int32, device=device)

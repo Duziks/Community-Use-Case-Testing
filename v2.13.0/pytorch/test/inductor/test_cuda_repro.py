@@ -821,10 +821,10 @@ class CudaReproTests(TestCase):
         if TEST_XPU:
             from torch._C import _xpu_getCurrentRawStream as get_gpu_stream
         else:
-            from torch._C import _cuda_getCurrentRawStream as get_gpu_stream
+            from torch_npu._C import _npu_getCurrentRawStream as get_gpu_stream
 
         from torch._inductor.runtime.hints import AttrsDescriptorWrapper, HeuristicType
-        from torch._inductor.runtime.triton_heuristics import CachingAutotuner
+        from torch_npu._inductor.runtime.triton_heuristics import NPUCachingAutotuner as CachingAutotuner
         from torch._inductor.utils import triton_version_uses_attrs_dict
 
         def autotune(configs, meta):
@@ -1029,7 +1029,7 @@ class CudaReproTests(TestCase):
             if torch.xpu.is_available():
                 torch.xpu.memory._record_memory_history(value)
             else:
-                torch.cuda.memory._record_memory_history(value)
+                torch.npu.memory._record_memory_history(enabled="all" if value else None)
 
         try:
             torch.accelerator.memory.empty_cache()
@@ -1238,11 +1238,11 @@ class CudaReproTests(TestCase):
             target.view(torch.uint16).copy_(source)
 
         target = torch.ones(1024, dtype=torch.bfloat16, device=device_type)
-        source = torch.full_like(target, 4, dtype=torch.uint16)
+        source = torch.full(target.shape, 4, dtype=torch.uint16, device="cpu").to(target.device)
 
         out = target.view(torch.uint16).copy_(source).clone()
         view_copy(target, source)
-        self.assertEqual(out, target.view(torch.uint16))
+        self.assertTrue(torch.equal(out.cpu(), target.view(torch.uint16).cpu()))
 
     def test_embedding_var_mean(self):
         def forward(arg0_1):
@@ -2384,7 +2384,7 @@ class CudaReproTests(TestCase):
         self.assertEqual(idxs, [0])
 
     @skipIfXpu(msg="cudagraph is not supported on xpu")
-    @skipIfCachingAllocatorDisabled
+    @skipIfCachingAllocatorDisabled if device_type == "cuda" else (lambda fn: fn)
     @config.patch("triton.cudagraphs", True)
     def test_unused_cpu_input_cudagraphs(self):
         def fn(x, y):
@@ -2423,7 +2423,7 @@ class CudaReproTests(TestCase):
             self.assertEqual(out, out2, atol=1e-3, rtol=1e-3)
 
     @skipIfXpu(msg="cudagraph is not supported on xpu")
-    @skipIfCachingAllocatorDisabled
+    @skipIfCachingAllocatorDisabled if device_type == "cuda" else (lambda fn: fn)
     @config.patch("triton.cudagraphs", True)
     def test_cpu_index(self):
         @torch.compile(fullgraph=True)
@@ -3190,10 +3190,10 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
         )
         actual_atan = torch.compile(atan_fn, backend="inductor", fullgraph=True)(atan_x)
         expected_atan = atan_fn(atan_x)
-        self.assertEqual(
-            actual_atan.view(torch.uint32),
-            expected_atan.view(torch.uint32),
-        )
+        self.assertTrue(torch.equal(
+            actual_atan.view(torch.uint32).cpu(),
+            expected_atan.view(torch.uint32).cpu(),
+        ))
 
         # Selected from the original seed-0 repro where a 1 ULP atan difference
         # was amplified by special_psi into an assert_close failure.

@@ -437,7 +437,7 @@ class PaddingTest(TestCaseBase):
             return mat1_pad @ mat2_pad
 
         def pad_dim(x: Tensor, padded_length: int, dim: int) -> Tensor:
-            pad = x.new_zeros(*x.shape[:dim], padded_length, *x.shape[dim + 1 :])
+            pad = torch.zeros((*x.shape[:dim], padded_length, *x.shape[dim + 1 :]), device=x.device, dtype=x.dtype)
             return torch.cat([x, pad], dim=dim)
 
         @torch.compile(fullgraph=True, options={"triton.cudagraphs": False})
@@ -613,13 +613,13 @@ class PaddingTest(TestCaseBase):
         Check this example trace: https://gist.github.com/shunting314/ce45398f7d51a63ce05fc8d411faddb3
         """
         x_shape = (1, 128, 640, 959)
-        x1 = torch.randn(*x_shape)
+        x1 = torch.randn(*x_shape, device=GPU_TYPE)
 
         padded_stride = ir.Layout._pad_strides(x1.stride(), x1.shape, torch.float32)
         x2 = rand_strided(x_shape, padded_stride, device=GPU_TYPE)
         x2.copy_(x1)
 
-        weight = torch.randn(64, 128, 3, 3)
+        weight = torch.randn(64, 128, 3, 3, device=GPU_TYPE)
 
         def fun(x, weight):
             return torch.convolution(
