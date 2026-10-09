@@ -10,6 +10,7 @@ import torch_npu.testing
 import copy
 import functools
 import os
+import re
 import unittest
 
 from torch import nn, Tensor
@@ -32,7 +33,7 @@ from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU, requires_g
 DO_PERF_TEST = os.environ.get("DO_PERF_TEST") == "1"
 DO_ACC_TEST = os.environ.get("DO_ACC_TEST", "1") == "1"
 WITH_STACK = os.environ.get("WITH_STACK") == "1"
-USE_CUDA_GRAPHS = os.environ.get("USE_CUDA_GRAPHS", "1") == "1"
+USE_CUDA_GRAPHS = os.environ.get("USE_CUDA_GRAPHS", "0") == "1"
 
 try:
     import transformers  # noqa: F401
@@ -106,6 +107,7 @@ def forward_and_backward_pass(m, inputs):
 @config.patch(
     {
         "benchmark_kernel": True,
+        "comprehensive_padding": True,
         "triton.unique_kernel_names": True,
         "triton.cudagraphs": USE_CUDA_GRAPHS,
     }
@@ -435,7 +437,7 @@ class PaddingTest(TestCaseBase):
             return mat1_pad @ mat2_pad
 
         def pad_dim(x: Tensor, padded_length: int, dim: int) -> Tensor:
-            pad = x.new_zeros(*x.shape[:dim], padded_length, *x.shape[dim + 1 :])
+            pad = torch.zeros((*x.shape[:dim], padded_length, *x.shape[dim + 1 :]), device=x.device, dtype=x.dtype)
             return torch.cat([x, pad], dim=dim)
 
         @torch.compile(fullgraph=True, options={"triton.cudagraphs": False})
@@ -508,7 +510,7 @@ class PaddingTest(TestCaseBase):
 
         # make sure the load for softmax is aligned
         self.assertTrue(
-            "tl.load(in_ptr0 + (r0_1 + 30528*x0)" in forward_wrapper,
+            re.search(r"tl\.load\(in(?:_out)?_ptr\d+ \+ \(r\w* \+ 30528\*x0\)", forward_wrapper) is not None,
             f"forward_wrapper: {forward_wrapper}",
         )
 
@@ -611,13 +613,13 @@ class PaddingTest(TestCaseBase):
         Check this example trace: https://gist.github.com/shunting314/ce45398f7d51a63ce05fc8d411faddb3
         """
         x_shape = (1, 128, 640, 959)
-        x1 = torch.randn(*x_shape)
+        x1 = torch.randn(*x_shape, device=GPU_TYPE)
 
         padded_stride = ir.Layout._pad_strides(x1.stride(), x1.shape, torch.float32)
         x2 = rand_strided(x_shape, padded_stride, device=GPU_TYPE)
         x2.copy_(x1)
 
-        weight = torch.randn(64, 128, 3, 3)
+        weight = torch.randn(64, 128, 3, 3, device=GPU_TYPE)
 
         def fun(x, weight):
             return torch.convolution(
@@ -782,7 +784,7 @@ class PaddingTest(TestCaseBase):
 
         output_shape = (shape[0] * num_inputs, shape[1])
         output_stride = input_tensors[0].stride()
-        output_line = f"buf12 = empty_strided_{GPU_TYPE}({output_shape}, {output_stride}, torch.float32)"
+        output_line = f"buf12 = empty_strided({output_shape}, {output_stride}, device='{GPU_TYPE}', dtype=torch.float32)"
         self.assertTrue(output_line in code[0])
 
     @requires_gpu()
@@ -824,7 +826,7 @@ class PaddingTest(TestCaseBase):
         # "= empty_strided_<device>(" pattern.
         import re
 
-        num_allocs = len(re.findall(rf"= empty_strided_{GPU_TYPE}\(", code[0]))
+        num_allocs = len(re.findall(rf"= empty_strided\([^\n]*device='{GPU_TYPE}'", code[0]))
         self.assertEqual(
             num_allocs,
             1,

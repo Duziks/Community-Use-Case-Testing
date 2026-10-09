@@ -1031,7 +1031,7 @@ class ForeachTests(TestCase):
             return outs[0].sum() + outs[1].sum() + outs[2].sum()
 
         def ref_fn(xs, ys):
-            outs = foreach_map_fn(torch.add, xs, ys)
+            outs = foreach_map_fn(op.original_op, xs, ys)
             return outs[0].sum() + outs[1].sum() + outs[2].sum()
 
         ref_inps = (
@@ -1058,7 +1058,7 @@ class ForeachTests(TestCase):
         _, (_, _) = run_fw_bw_and_get_code(lambda: torch.compile(fn)(*inps))
 
         for ref, act in zip(tree_flatten(ref_inps)[0], tree_flatten(inps)[0]):
-            torch.allclose(ref.grad, act.grad)
+            self.assertTrue(torch.allclose(ref.grad, act.grad))
 
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 5)
 
@@ -1353,7 +1353,7 @@ class ForeachTests(TestCase):
         _, (_, _) = run_fw_bw_and_get_code(lambda: torch.compile(fn)(inp))
 
         for ref, act in zip(ref_inp, inp):
-            torch.allclose(ref.grad, act.grad)
+            self.assertTrue(torch.allclose(ref.grad, act.grad))
 
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 5)
 
