@@ -452,7 +452,6 @@ class TestIndexingSimplification(InductorTestCase):
         # pointwise-cat view instead of loading from s*x1 + x0//2.
         self.assertEqual(2, triton_code.count("tl.load(in_ptr0 + (x2 // 2),"))
 
-    @unittest.skipUnless(HAS_GPU, "Need GPU for this test")
     def test_floordiv_div_sympy_is_integer_bug(self):
         def foo(arg0, arg1, arg2, arg3, arg4, sentinel):
             t0 = arg0

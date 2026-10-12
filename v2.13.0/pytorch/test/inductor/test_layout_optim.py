@@ -58,6 +58,8 @@ class TestLayoutOptim(TestCase):
                     backend = "nccl"
                 elif GPU_TYPE == "xpu":
                     backend = "ccl"
+                elif GPU_TYPE == "npu":
+                    backend = "hccl"
                 dist.init_process_group(
                     backend=backend,
                     init_method=f"tcp://localhost:{port}",

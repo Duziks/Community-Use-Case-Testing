@@ -84,7 +84,6 @@ class TestTorchDeviceAssertTrigger(TestCase):
         self.assertEqual(metrics.generated_kernel_count, 1)
         torch._logging.set_logs()
 
-    @requires_gpu_and_triton
     @torch._inductor.config.patch(force_disable_caches=True)
     def test_run_assert_triton(self):
         @torch.compile(backend="inductor")

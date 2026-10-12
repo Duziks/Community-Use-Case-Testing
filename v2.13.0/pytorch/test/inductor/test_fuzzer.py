@@ -67,7 +67,6 @@ class TestConfigFuzzer(TestCase):
         samp = [random("", bool, False) for i in range(1000)]
         self.assertTrue(not all(samp))
 
-    @unittest.skipIf(not HAS_GPU, "requires gpu")
     def test_config_fuzzer_inductor_gpu(self):
         fuzzer = ConfigFuzzer(inductor_config, create_simple_test_model_gpu, seed=30)
         self.assertIsNotNone(fuzzer.default)

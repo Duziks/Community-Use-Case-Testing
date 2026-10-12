@@ -452,7 +452,6 @@ class TestCodegenTriton(InductorTestCase):
                 triton_utils.signature_of(arg, size_dtype=None), "*fp8e4nv"
             )
 
-    @unittest.skipUnless(HAS_GPU_AND_TRITON, "requires GPU and Triton")
     @patch("torch._inductor.codegen.triton.device_supports_fp64", return_value=False)
     @patch(
         "torch._inductor.codegen.triton_utils.device_supports_fp64",
