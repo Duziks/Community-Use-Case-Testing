@@ -2,6 +2,47 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+
+from functools import wraps
+
+from torch._inductor import cudagraph_utils
+
+READY = torch.npu.is_available() and _dynamo.has_triton()
+
+
+def _wrapper_check_lowering_disable_cudagraph(fn):
+    @wraps(fn)
+    def decorated(device_node_mapping):
+        if any(device.type == "npu" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import format_default_skip_message
+
+            # NPU graphs must not reach CUDA allocator/pool checks in CPU torch.
+            return format_default_skip_message(
+                "NPU tensors are not supported by CUDA graphs"
+            )
+        if not any(device.type == "cuda" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import (
+                check_multiple_devices_or_any_cpu_nodes,
+            )
+
+            # CPU-only graphs also need device checks before the aliased CUDA gate.
+            return check_multiple_devices_or_any_cpu_nodes(device_node_mapping)
+        return fn(device_node_mapping)
+
+    return decorated
+
+
+# Apply the device precheck once even when these test modules import each other.
+if not getattr(
+    cudagraph_utils.check_lowering_disable_cudagraph, "_quick_pr47618", False
+):
+    cudagraph_utils.check_lowering_disable_cudagraph = (
+        _wrapper_check_lowering_disable_cudagraph(
+            cudagraph_utils.check_lowering_disable_cudagraph
+        )
+    )
+    cudagraph_utils.check_lowering_disable_cudagraph._quick_pr47618 = True
+
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
@@ -25,9 +66,16 @@ from torch.testing._internal.common_utils import (
     skipIfRocm,
     TEST_WITH_ROCM,
 )
-from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_CPU, HAS_GPU
-from torch.testing._internal.triton_utils import requires_cuda_and_triton, requires_gpu
+from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_CPU
+from torch.testing._internal.triton_utils import requires_cuda_and_triton
 from torch.utils._pytree import tree_flatten
+
+HAS_GPU = READY
+
+
+def requires_gpu(fn=None):
+    decorator = unittest.skipUnless(READY, "requires usable NPU and Ascend Triton")
+    return decorator if fn is None else decorator(fn)
 
 
 aten = torch.ops.aten

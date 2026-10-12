@@ -2,6 +2,47 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+
+from functools import wraps
+
+from torch._inductor import cudagraph_utils
+
+READY = torch.npu.is_available() and _dynamo.has_triton()
+
+
+def _wrapper_check_lowering_disable_cudagraph(fn):
+    @wraps(fn)
+    def decorated(device_node_mapping):
+        if any(device.type == "npu" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import format_default_skip_message
+
+            # NPU graphs must not reach CUDA allocator/pool checks in CPU torch.
+            return format_default_skip_message(
+                "NPU tensors are not supported by CUDA graphs"
+            )
+        if not any(device.type == "cuda" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import (
+                check_multiple_devices_or_any_cpu_nodes,
+            )
+
+            # CPU-only graphs also need device checks before the aliased CUDA gate.
+            return check_multiple_devices_or_any_cpu_nodes(device_node_mapping)
+        return fn(device_node_mapping)
+
+    return decorated
+
+
+# Apply the device precheck once even when these test modules import each other.
+if not getattr(
+    cudagraph_utils.check_lowering_disable_cudagraph, "_quick_pr47618", False
+):
+    cudagraph_utils.check_lowering_disable_cudagraph = (
+        _wrapper_check_lowering_disable_cudagraph(
+            cudagraph_utils.check_lowering_disable_cudagraph
+        )
+    )
+    cudagraph_utils.check_lowering_disable_cudagraph._quick_pr47618 = True
+
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
@@ -27,7 +68,14 @@ from torch.testing._internal.common_utils import (
     parametrize,
     serialTest,
 )
-from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU, requires_gpu
+from torch.testing._internal.inductor_utils import GPU_TYPE
+
+HAS_GPU = READY
+
+
+def requires_gpu(fn=None):
+    decorator = unittest.skipUnless(READY, "requires usable NPU and Ascend Triton")
+    return decorator if fn is None else decorator(fn)
 
 
 DO_PERF_TEST = os.environ.get("DO_PERF_TEST") == "1"
@@ -371,7 +419,10 @@ class PerfTestWithAndWithoutPadding(TestCaseBase):
         perf_inputs = torch.randn(256, layer_sizes[0])
         self.run_acc_and_perf_test(m, x, perf_inputs)
 
-    @unittest.skipIf(not DO_PERF_TEST or not HAS_TRANSFORMER, "Perf test not enabled")
+    @unittest.skipIf(
+        not HAS_TRANSFORMER or not (DO_ACC_TEST or DO_PERF_TEST),
+        "requires transformers and accuracy or performance testing",
+    )
     def test_longformer(self, bs=4):
         from transformers import AutoConfig, AutoModelForMaskedLM
 
@@ -384,7 +435,10 @@ class PerfTestWithAndWithoutPadding(TestCaseBase):
 
         self.run_acc_and_perf_test(model, input_dict)
 
-    @unittest.skipIf(not DO_PERF_TEST or not HAS_TRANSFORMER, "Perf test not enabled")
+    @unittest.skipIf(
+        not HAS_TRANSFORMER or not (DO_ACC_TEST or DO_PERF_TEST),
+        "requires transformers and accuracy or performance testing",
+    )
     def test_longformer_small_bs(self):
         """
         The model exists in both HF and TB. In TB it uses a smaller batch size.

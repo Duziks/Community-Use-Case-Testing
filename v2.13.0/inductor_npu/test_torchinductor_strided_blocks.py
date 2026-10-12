@@ -2,6 +2,47 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+
+from functools import wraps
+
+from torch._inductor import cudagraph_utils
+
+READY = torch.npu.is_available() and _dynamo.has_triton()
+
+
+def _wrapper_check_lowering_disable_cudagraph(fn):
+    @wraps(fn)
+    def decorated(device_node_mapping):
+        if any(device.type == "npu" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import format_default_skip_message
+
+            # NPU graphs must not reach CUDA allocator/pool checks in CPU torch.
+            return format_default_skip_message(
+                "NPU tensors are not supported by CUDA graphs"
+            )
+        if not any(device.type == "cuda" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import (
+                check_multiple_devices_or_any_cpu_nodes,
+            )
+
+            # CPU-only graphs also need device checks before the aliased CUDA gate.
+            return check_multiple_devices_or_any_cpu_nodes(device_node_mapping)
+        return fn(device_node_mapping)
+
+    return decorated
+
+
+# Apply the device precheck once even when these test modules import each other.
+if not getattr(
+    cudagraph_utils.check_lowering_disable_cudagraph, "_quick_pr47618", False
+):
+    cudagraph_utils.check_lowering_disable_cudagraph = (
+        _wrapper_check_lowering_disable_cudagraph(
+            cudagraph_utils.check_lowering_disable_cudagraph
+        )
+    )
+    cudagraph_utils.check_lowering_disable_cudagraph._quick_pr47618 = True
+
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
@@ -43,11 +84,16 @@ from torch.testing._internal.common_utils import (
 from torch.testing._internal.inductor_utils import (
     GPU_TYPE,
     HAS_CUDA_AND_TRITON,
-    HAS_GPU,
-    requires_gpu,
     skip_windows_ci,
     TRITON_HAS_CPU,
 )
+
+HAS_GPU = READY
+
+
+def requires_gpu(fn=None):
+    decorator = unittest.skipUnless(READY, "requires usable NPU and Ascend Triton")
+    return decorator if fn is None else decorator(fn)
 
 
 try:
@@ -708,7 +754,7 @@ class CommonTemplate:
 
         # Expect 2 block pointers: input and output
         self._run_and_compare(
-            x, compile_kwargs={"dynamic": True}, expected_num_block_pointers=2
+            foo, x, compile_kwargs={"dynamic": True}, expected_num_block_pointers=2
         )
 
     @decorateIf(
@@ -2263,6 +2309,19 @@ class TestTilingExtra(InductorTestCase):
                 input_feat=input_features,
                 **params,
             )
+
+
+class NpuGenericBodyTest(InductorTestCase):
+    device = GPU_TYPE
+
+    @unittest.skipUnless(READY, "requires usable NPU and Ascend Triton")
+    def test_large_tensor_pointwise(self):
+        # Input, compiled output and comparison each require at least one GiB.
+        required_bytes = 3 * (2**30 + 1)
+        free_bytes, _ = torch.npu.mem_get_info(torch.npu.current_device())
+        if free_bytes < required_bytes:
+            self.skipTest("requires at least 3 GiB of free NPU memory")
+        TritonTensorDescriptorTestCUDA.test_large_tensor_pointwise.__wrapped__(self)
 
 
 if __name__ == "__main__":
