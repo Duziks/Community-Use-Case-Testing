@@ -284,7 +284,6 @@ with torch.xpu._DeviceGuard(0):
 
 
 @unittest.skipIf(not TEST_CUDA, "requires CUDA")
-@xfailIfNoAcceleratorTriton
 class TestUserStreamCompile(InductorTestCase):
     """End-to-end tests for torch.compile with user stream contexts."""
 
@@ -1677,7 +1676,6 @@ class GraphModule(torch.nn.Module):
 
 
 @unittest.skipUnless(TEST_CUDA, "requires CUDA")
-@xfailIfNoAcceleratorTriton
 class TestStreamOrderingStress(InductorTestCase):
     """Stress tests verifying that interleaved event record/wait ops
     produce correct ordering under compilation.  Each test uses large
@@ -1960,7 +1958,6 @@ class TestStreamOrderingStress(InductorTestCase):
 
 
 @unittest.skipUnless(TEST_CUDA, "requires CUDA")
-@xfailIfNoAcceleratorTriton
 class TestGenericStreamCompile(InductorTestCase):
     """Tests for torch.compile with device-agnostic torch.Stream API."""
 
@@ -2109,7 +2106,6 @@ class TestGenericStreamCompile(InductorTestCase):
 
 
 @unittest.skipUnless(TEST_CUDA, "requires CUDA")
-@xfailIfNoAcceleratorTriton
 class TestStreamIdentity(InductorTestCase):
     """Verify that compiled code uses the user's original stream objects."""
 
@@ -2159,7 +2155,6 @@ class TestStreamIdentity(InductorTestCase):
         self.assertNotIn("torch.cuda.Stream(device=", code)
 
 
-@xfailIfNoAcceleratorTriton
 @unittest.skipUnless(TEST_CUDA, "requires CUDA")
 class TestPDLWithMultiStream(InductorTestCase):
     """Tests that PDL (Programmatic Dependent Launch) composes safely with
@@ -2492,7 +2487,6 @@ class TestPDLWithMultiStream(InductorTestCase):
 
 @unittest.skipIf(not TEST_CUDA, "requires CUDA")
 @torch._inductor.config.patch({"triton.cudagraphs": True})
-@xfailIfNoAcceleratorTriton
 class TestStreamCudagraphInteraction(InductorTestCase):
     """Tests for user streams under cudagraph capture (reduce-overhead mode)."""
 
