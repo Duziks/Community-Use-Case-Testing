@@ -297,7 +297,7 @@ class TestUserStreamCompile(InductorTestCase):
             # Perform operation on default stream
             z = x + y
             # Order the side stream after the default-stream producer before reading z.
-            s.wait_stream(torch.cuda.current_stream())
+            s.wait_stream(torch.npu.current_stream())
             # Perform operation on side stream
             with torch.cuda.stream(s):
                 w = z * 2
@@ -462,7 +462,7 @@ class TestUserStreamCompile(InductorTestCase):
             a = x * 2
 
             # Use result on side stream
-            s.wait_stream(torch.cuda.current_stream())
+            s.wait_stream(torch.npu.current_stream())
             with torch.cuda.stream(s):
                 b = a + 1  # depends on 'a' from default stream
 
