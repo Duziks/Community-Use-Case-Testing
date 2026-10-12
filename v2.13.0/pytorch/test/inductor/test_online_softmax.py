@@ -2,11 +2,33 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+from torch_npu.utils._dynamo import has_triton
+torch.utils._triton.has_triton = has_triton
+
 _dynamo.use_jit_script = True
-torch.cuda.get_device_capability = lambda :(10, 0)
+torch.cuda.get_device_capability = lambda: (10, 0)
 import torch_npu.testing
 import torch_npu._inductor
 
+# 1. 禁用 CudaDriver，锁定 NPUDriver 为唯一激活驱动
+try:
+    from triton.backends.nvidia.driver import CudaDriver
+    CudaDriver.is_active = staticmethod(lambda: False)
+except (ImportError, AttributeError):
+    pass
+
+try:
+    import triton.runtime.driver as triton_driver
+    from triton.backends.ascend.driver import NPUDriver
+    triton_driver.driver._active = NPUDriver()
+except (ImportError, AttributeError):
+    pass
+
+# 2. 限制 Inductor 编译线程数为 1，防止子进程并发超限触发 CANN 507033
+import torch._inductor.config as inductor_config
+inductor_config.compile_threads = 1
+
+# Owner(s): ["module: inductor"]
 # Owner(s): ["module: inductor"]
 
 import math
