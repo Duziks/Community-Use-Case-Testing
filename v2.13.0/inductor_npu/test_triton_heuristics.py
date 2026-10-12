@@ -1,5 +1,6 @@
 import torch
 import torch_npu
+import torch_npu._inductor
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
 _dynamo.use_jit_script = True
@@ -75,6 +76,7 @@ from torch._inductor.runtime.triton_heuristics import (
 from torch._inductor.test_case import run_tests, TestCase
 from torch._inductor.utils import fresh_cache
 
+NPU_TYPE = "npu"
 
 @triton.jit
 def amd_sqr_kernel(in_ptr, out_ptr, numel, BLOCK_SIZE: tl.constexpr):
@@ -102,7 +104,7 @@ def get_autotuned_amd_sqr_kernel():
 
 @instantiate_parametrized_tests
 class TestTritonHeuristics(TestCase):
-    device_type = GPU_TYPE
+    device_type = NPU_TYPE
 
     def test_triton_config(self):
         """
