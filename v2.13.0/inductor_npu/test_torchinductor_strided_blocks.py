@@ -2321,7 +2321,13 @@ class NpuGenericBodyTest(InductorTestCase):
         free_bytes, _ = torch.npu.mem_get_info(torch.npu.current_device())
         if free_bytes < required_bytes:
             self.skipTest("requires at least 3 GiB of free NPU memory")
-        TritonTensorDescriptorTestCUDA.test_large_tensor_pointwise.__wrapped__(self)
+        # Exercise generic NPU indexing; this does not validate CUDA TMA.
+        def fn(a):
+            return a + 4
+
+        t = torch.zeros(2**30 + 1, dtype=torch.int8, device=self.device)
+        actual = torch.compile(fn)(t)
+        self.assertTrue((actual == 4).all())
 
 
 if __name__ == "__main__":

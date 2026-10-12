@@ -1,3 +1,5 @@
+import unittest
+
 import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
@@ -28,7 +30,7 @@ from torch._inductor.runtime.triton_helpers import (
     select_one,
 )
 from torch._inductor.test_case import run_tests, TestCase
-from torch.testing._internal.inductor_utils import GPU_TYPE, requires_gpu
+from torch.testing._internal.inductor_utils import GPU_TYPE
 
 # The CPU torch CUDA capability flag does not detect the Ascend backend.
 HAS_GPU = torch.npu.is_available() and _dynamo.has_triton()
@@ -126,6 +128,7 @@ if HAS_GPU:
         tl.store(result_ptr + offsets, result)
 
 
+@unittest.skipUnless(HAS_GPU, "requires usable NPU and Ascend Triton")
 class ExclusiveScanDecoupledLookback64Test(TestCase):
     """Test cases for exclusive_scan_decoupled_lookback_64 dtype fix."""
 
@@ -182,6 +185,7 @@ class ExclusiveScanDecoupledLookback64Test(TestCase):
         torch.testing.assert_close(result, expected)
 
 
+@unittest.skipUnless(HAS_GPU, "requires usable NPU and Ascend Triton")
 class SelectOneTest(TestCase):
     """Test cases for select_one bitcast fix with sub-32-bit dtypes.
 
@@ -222,6 +226,7 @@ class SelectOneTest(TestCase):
         self._run_select_one(torch.float64)
 
 
+@unittest.skipUnless(HAS_GPU, "requires usable NPU and Ascend Triton")
 class Random4xTest(TestCase):
     """Test cases for rand4x/randn4x helper packing order."""
 

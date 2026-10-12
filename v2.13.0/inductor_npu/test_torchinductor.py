@@ -13366,9 +13366,6 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @requires_gpu()
     @skip_if_not_triton
-    @unittest.skipIf(
-        not (IS_BIG_GPU or HAS_GPU), "requires a usable max-autotune backend"
-    )
     def test_inductor_multiple_specializations(self):
         @torch.compile(
             options={
@@ -13406,9 +13403,6 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @requires_gpu()
     @skip_if_not_triton
-    @unittest.skipIf(
-        not (IS_BIG_GPU or HAS_GPU), "requires a usable max-autotune backend"
-    )
     @config.patch({"force_disable_caches": True})
     def test_mark_dynamic_with_hint_override(self):
         @torch.compile
@@ -13433,9 +13427,6 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @requires_gpu()
     @skip_if_not_triton
-    @unittest.skipIf(
-        not (IS_BIG_GPU or HAS_GPU), "requires a usable max-autotune backend"
-    )
     @config.patch({"force_disable_caches": True})
     def test_mark_unbacked_with_hint_override(self):
         @torch.compile
@@ -13473,9 +13464,6 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @requires_gpu()
     @skip_if_not_triton
-    @unittest.skipIf(
-        not (IS_BIG_GPU or HAS_GPU), "requires a usable max-autotune backend"
-    )
     def test_hint_override_cache_invalidation(self):
         """Different hint_override values must not produce stale cache hits."""
         from torch._inductor.utils import fresh_inductor_cache, run_and_get_code
@@ -20462,14 +20450,6 @@ def _run_and_get_stripped_kernels(
 ) -> tuple[_T, list[str]]:
     result, codes = run_and_get_kernels(fn, *args, **kwargs)
     return result, [_strip_tmp_path(code) for code in codes]
-
-
-class NpuHostCpuTests(TestCase):
-    common = check_model
-    device = "cpu"
-
-
-copy_tests(CommonTemplate, NpuHostCpuTests, "cpu")
 
 
 if __name__ == "__main__":

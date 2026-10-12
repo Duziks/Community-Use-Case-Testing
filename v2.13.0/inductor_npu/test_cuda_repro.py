@@ -2622,11 +2622,12 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
         self.assertEqual(foo(x0), result)
 
     @unittest.skipIf(
-        not config.is_fbcode(),
-        "bfloat16 atomic add is only supported in fbcode today #97016",
+        not READY and not config.is_fbcode(),
+        "requires NPU or fbcode BF16 atomic support #97016",
     )
     @skipCUDAIf(
-        not SM90OrLater, "uses bfloat16 atomic add instrs which requires SM >= 90"
+        not READY and not SM90OrLater,
+        "CUDA bfloat16 atomic add requires SM >= 90",
     )
     def test_atomic_add_bfloat16(self):
         def f(x, y):
@@ -3274,29 +3275,6 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
             return torch.linalg.vector_norm(x, dim=(-2, -1))
 
         self.common(fn4, [y])
-
-
-class NpuBF16AtomicBodyTest(TestCase):
-    device = device_type
-
-    @unittest.skipUnless(READY, "requires usable NPU and Ascend Triton")
-    def test_atomic_add_bfloat16(self):
-        def f(x, y):
-            return torch.index_select(x, 0, y)
-
-        x = torch.randn(
-            2000, 384, dtype=torch.bfloat16, device=device_type, requires_grad=True
-        )
-        y = torch.ones(713268, dtype=torch.int64, device=device_type)
-        x_ref = x.clone().detach().requires_grad_(True)
-        y_ref = y.clone().detach()
-
-        out, (_, bw_code) = run_fw_bw_and_get_code(lambda: torch.compile(f)(x, y))
-        fc = FileCheck()
-        fc.check("tl.atomic_add")
-        fc.run(bw_code)
-
-        self.assertEqual(f(x_ref, y_ref), out)
 
 
 if __name__ == "__main__":
