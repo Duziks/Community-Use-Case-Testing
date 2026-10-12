@@ -2,6 +2,47 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+
+from functools import wraps
+
+from torch._inductor import cudagraph_utils
+
+READY = torch.npu.is_available() and _dynamo.has_triton()
+
+
+def _wrapper_check_lowering_disable_cudagraph(fn):
+    @wraps(fn)
+    def decorated(device_node_mapping):
+        if any(device.type == "npu" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import format_default_skip_message
+
+            # NPU graphs must not reach CUDA allocator/pool checks in CPU torch.
+            return format_default_skip_message(
+                "NPU tensors are not supported by CUDA graphs"
+            )
+        if not any(device.type == "cuda" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import (
+                check_multiple_devices_or_any_cpu_nodes,
+            )
+
+            # CPU-only graphs also need device checks before the aliased CUDA gate.
+            return check_multiple_devices_or_any_cpu_nodes(device_node_mapping)
+        return fn(device_node_mapping)
+
+    return decorated
+
+
+# Apply the device precheck once even when these test modules import each other.
+if not getattr(
+    cudagraph_utils.check_lowering_disable_cudagraph, "_quick_pr47618", False
+):
+    cudagraph_utils.check_lowering_disable_cudagraph = (
+        _wrapper_check_lowering_disable_cudagraph(
+            cudagraph_utils.check_lowering_disable_cudagraph
+        )
+    )
+    cudagraph_utils.check_lowering_disable_cudagraph._quick_pr47618 = True
+
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
@@ -153,12 +194,10 @@ from torch.testing._internal.inductor_utils import (  # noqa: F401
     clone_preserve_strides_offset,
     GPU_TYPE,
     HAS_CPU,
-    HAS_GPU,
     HAS_MPS,
     HAS_MULTIGPU,
     HAS_TPU,
     IS_BIG_GPU,
-    requires_gpu,
     RUN_CPU,
     RUN_GPU,
     RUN_TPU,
@@ -169,6 +208,13 @@ from torch.testing._internal.triton_utils import (
     requires_cuda_and_triton,
     requires_gpu_and_triton,
 )
+
+HAS_GPU = READY
+
+
+def requires_gpu(fn=None):
+    decorator = unittest.skipUnless(READY, "requires usable NPU and Ascend Triton")
+    return decorator if fn is None else decorator(fn)
 
 
 _T = TypeVar("_T")
@@ -4867,7 +4913,7 @@ for dtype in (torch.int32, torch.int64):
             torch.compile(fn)(t)
 
     @unittest.skipIf(
-        not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
+        not (IS_BIG_GPU or HAS_GPU), "requires a usable max-autotune backend"
     )
     @config.patch(
         {
@@ -13321,7 +13367,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @requires_gpu()
     @skip_if_not_triton
     @unittest.skipIf(
-        not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
+        not (IS_BIG_GPU or HAS_GPU), "requires a usable max-autotune backend"
     )
     def test_inductor_multiple_specializations(self):
         @torch.compile(
@@ -13361,7 +13407,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @requires_gpu()
     @skip_if_not_triton
     @unittest.skipIf(
-        not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
+        not (IS_BIG_GPU or HAS_GPU), "requires a usable max-autotune backend"
     )
     @config.patch({"force_disable_caches": True})
     def test_mark_dynamic_with_hint_override(self):
@@ -13388,7 +13434,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @requires_gpu()
     @skip_if_not_triton
     @unittest.skipIf(
-        not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
+        not (IS_BIG_GPU or HAS_GPU), "requires a usable max-autotune backend"
     )
     @config.patch({"force_disable_caches": True})
     def test_mark_unbacked_with_hint_override(self):
@@ -13428,7 +13474,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @requires_gpu()
     @skip_if_not_triton
     @unittest.skipIf(
-        not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
+        not (IS_BIG_GPU or HAS_GPU), "requires a usable max-autotune backend"
     )
     def test_hint_override_cache_invalidation(self):
         """Different hint_override values must not produce stale cache hits."""
@@ -20416,6 +20462,14 @@ def _run_and_get_stripped_kernels(
 ) -> tuple[_T, list[str]]:
     result, codes = run_and_get_kernels(fn, *args, **kwargs)
     return result, [_strip_tmp_path(code) for code in codes]
+
+
+class NpuHostCpuTests(TestCase):
+    common = check_model
+    device = "cpu"
+
+
+copy_tests(CommonTemplate, NpuHostCpuTests, "cpu")
 
 
 if __name__ == "__main__":

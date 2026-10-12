@@ -2,6 +2,47 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+
+from functools import wraps
+
+from torch._inductor import cudagraph_utils
+
+READY = torch.npu.is_available() and _dynamo.has_triton()
+
+
+def _wrapper_check_lowering_disable_cudagraph(fn):
+    @wraps(fn)
+    def decorated(device_node_mapping):
+        if any(device.type == "npu" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import format_default_skip_message
+
+            # NPU graphs must not reach CUDA allocator/pool checks in CPU torch.
+            return format_default_skip_message(
+                "NPU tensors are not supported by CUDA graphs"
+            )
+        if not any(device.type == "cuda" for device in device_node_mapping):
+            from torch._inductor.cudagraph_utils import (
+                check_multiple_devices_or_any_cpu_nodes,
+            )
+
+            # CPU-only graphs also need device checks before the aliased CUDA gate.
+            return check_multiple_devices_or_any_cpu_nodes(device_node_mapping)
+        return fn(device_node_mapping)
+
+    return decorated
+
+
+# Apply the device precheck once even when these test modules import each other.
+if not getattr(
+    cudagraph_utils.check_lowering_disable_cudagraph, "_quick_pr47618", False
+):
+    cudagraph_utils.check_lowering_disable_cudagraph = (
+        _wrapper_check_lowering_disable_cudagraph(
+            cudagraph_utils.check_lowering_disable_cudagraph
+        )
+    )
+    cudagraph_utils.check_lowering_disable_cudagraph._quick_pr47618 = True
+
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
@@ -72,7 +113,9 @@ DO_PERF_TEST = os.environ.get("DO_PERF_TEST") == "1"
 
 
 requires_multigpu = functools.partial(
-    unittest.skipIf, not TEST_MULTIGPU, "requires multiple cuda devices"
+    unittest.skipIf,
+    not (TEST_MULTIGPU or (READY and torch.npu.device_count() >= 2)),
+    "requires multiple accelerator devices",
 )
 from torch._dynamo.utils import counters
 from torch.testing._internal.inductor_utils import skipCUDAIf
@@ -1421,7 +1464,7 @@ class CudaReproTests(TestCase):
         self.assertEqual(expect, actual)
 
     @unittest.skipIf(
-        not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
+        not (IS_BIG_GPU or READY), "requires a usable max-autotune backend"
     )
     @config.patch(
         {
@@ -3231,6 +3274,29 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
             return torch.linalg.vector_norm(x, dim=(-2, -1))
 
         self.common(fn4, [y])
+
+
+class NpuBF16AtomicBodyTest(TestCase):
+    device = device_type
+
+    @unittest.skipUnless(READY, "requires usable NPU and Ascend Triton")
+    def test_atomic_add_bfloat16(self):
+        def f(x, y):
+            return torch.index_select(x, 0, y)
+
+        x = torch.randn(
+            2000, 384, dtype=torch.bfloat16, device=device_type, requires_grad=True
+        )
+        y = torch.ones(713268, dtype=torch.int64, device=device_type)
+        x_ref = x.clone().detach().requires_grad_(True)
+        y_ref = y.clone().detach()
+
+        out, (_, bw_code) = run_fw_bw_and_get_code(lambda: torch.compile(f)(x, y))
+        fc = FileCheck()
+        fc.check("tl.atomic_add")
+        fc.run(bw_code)
+
+        self.assertEqual(f(x_ref, y_ref), out)
 
 
 if __name__ == "__main__":

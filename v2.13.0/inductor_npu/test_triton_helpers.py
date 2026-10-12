@@ -28,7 +28,10 @@ from torch._inductor.runtime.triton_helpers import (
     select_one,
 )
 from torch._inductor.test_case import run_tests, TestCase
-from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU, requires_gpu
+from torch.testing._internal.inductor_utils import GPU_TYPE, requires_gpu
+
+# The CPU torch CUDA capability flag does not detect the Ascend backend.
+HAS_GPU = torch.npu.is_available() and _dynamo.has_triton()
 
 
 if HAS_GPU:
