@@ -373,7 +373,6 @@ class TestCase(InductorTestCase):
         self.assertIn("'ks0': 'fp64'", code)
         self.assertIn(".to(tl.float32)", code)
 
-    @requires_gpu()
     @config.patch("test_configs.runtime_triton_dtype_assert", True)
     @config.patch("test_configs.runtime_triton_shape_assert", True)
     def test_index_expr_ks_arg_dtype_int(self):
@@ -420,7 +419,6 @@ class TestCase(InductorTestCase):
         self.assertTrue(torch.allclose(result, expected))
         self.assertIn(".to(tl.float32)", code)
 
-    @requires_gpu()
     @torch._dynamo.config.patch("capture_scalar_outputs", True)
     @config.patch("test_configs.runtime_triton_dtype_assert", True)
     @config.patch("test_configs.runtime_triton_shape_assert", True)
@@ -438,7 +436,6 @@ class TestCase(InductorTestCase):
         self.assertIn("triton_helpers.randint64", code)
         self.assertIn(".to(tl.int64)", code)
 
-    @requires_gpu()
     @parametrize("dynamic", [True, False])
     @torch._dynamo.config.patch("capture_scalar_outputs", True)
     def test_int64_symint_not_downcast_to_int32_index_expr(self, dynamic):
