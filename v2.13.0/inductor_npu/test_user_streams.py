@@ -2156,6 +2156,7 @@ class TestStreamIdentity(InductorTestCase):
 
 
 @unittest.skipUnless(TEST_CUDA, "requires CUDA")
+@unittest.skip("PDL requires NVIDIA sm90+")
 class TestPDLWithMultiStream(InductorTestCase):
     """Tests that PDL (Programmatic Dependent Launch) composes safely with
     user-annotated multi-stream code under torch.compile.
@@ -2486,6 +2487,7 @@ class TestPDLWithMultiStream(InductorTestCase):
 
 
 @unittest.skipIf(not TEST_CUDA, "requires CUDA")
+@unittest.skip("PDL requires NVIDIA sm90+")
 @torch._inductor.config.patch({"triton.cudagraphs": True})
 class TestStreamCudagraphInteraction(InductorTestCase):
     """Tests for user streams under cudagraph capture (reduce-overhead mode)."""
