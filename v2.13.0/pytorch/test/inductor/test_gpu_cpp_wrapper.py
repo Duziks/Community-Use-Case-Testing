@@ -124,8 +124,8 @@ class TestGpuWrapper(InductorTestCase):
         comp()
 
     def test_non_tensor_args_wrapped_on_cpu(self):
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         def test_fn(x, s):
             return (x + s).sum()
@@ -138,10 +138,10 @@ class TestGpuWrapper(InductorTestCase):
 
     @config.patch(implicit_fallbacks=True)
     def test_fbcode_custom_op_fallback_python_arg_helpers(self):
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
-        if not config.is_fbcode():
-            self.skipTest("fbcode-only cpp_wrapper symbol visibility test")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
+        # if not config.is_fbcode():
+        #     self.skipTest("fbcode-only cpp_wrapper symbol visibility test")
 
         device = self.device
         with torch.library._scoped_library(
@@ -165,7 +165,7 @@ class TestGpuWrapper(InductorTestCase):
             self.assertEqual(actual, expected)
 
     def test_cpp_scratch_scales_with_grid_size_for_tma(self):
-        if GPU_TYPE != "cuda" or torch.version.hip:
+        if GPU_TYPE != "npu" or torch.version.hip:
             self.skipTest("CUDA-only codegen test")
 
         scratch_def, scratch_var = CUDADeviceOpOverrides().cpp_scratch(
@@ -181,11 +181,11 @@ class TestGpuWrapper(InductorTestCase):
         )
 
     def test_triton_wrapper_scales_scratch_with_num_ctas(self):
-        if GPU_TYPE != "cuda" or torch.version.hip:
+        if GPU_TYPE != "npu" or torch.version.hip:
             self.skipTest("CUDA-only codegen test")
 
         class FakeWrapper:
-            device = "cuda"
+            device = "npu"
 
             def __init__(self):
                 self.scratch_spaces = None
@@ -227,8 +227,8 @@ class TestGpuWrapper(InductorTestCase):
     @parametrize("per_subkernel_blocks", [False, True])
     def test_lazy_compile_combo_kernel_default_config(self, per_subkernel_blocks):
         """Lazy compile should use default_config from combo_grid_meta for XBLOCK."""
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         from unittest.mock import patch
 
@@ -279,8 +279,8 @@ class TestGpuWrapper(InductorTestCase):
                 )
 
     def test_cudagraph_no_partition(self):
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         def test_fn(x, s):
             return (x + s).sum()
@@ -301,8 +301,8 @@ class TestGpuWrapper(InductorTestCase):
             self.assertEqual(res, expected)
 
     def test_many_args_fold_expression_nesting(self):
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
         if GPU_TYPE == "xpu":
             self.skipTest("ocloc backend compiler crashes with too many kernel args")
 
@@ -333,8 +333,8 @@ class TestGpuWrapper(InductorTestCase):
         The cpp_wrapper triton config (store_cubin, autotune_at_compile_time)
         must still be applied. See https://github.com/pytorch/pytorch/issues/178845
         """
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         def fn(x, output_grad):
             layer_norm = torch.nn.LayerNorm(normalized_shape=4).to(self.device)
@@ -350,8 +350,8 @@ class TestGpuWrapper(InductorTestCase):
         self.assertEqual(result.shape, x.shape)
 
     def test_cuda_cpp_wrapper_skips_vec_isa_for_device_only_code(self):
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         def fn(x):
             return (x.sin() + 1).cos()
@@ -365,8 +365,8 @@ class TestGpuWrapper(InductorTestCase):
         self.assertIn("needs_vec_isa=False", code)
 
     def test_cuda_cpp_wrapper_keeps_vec_isa_for_host_vectorized_code(self):
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         def fn(x):
             x = x + 1
@@ -389,8 +389,8 @@ class TestGpuWrapper(InductorTestCase):
         self.assertIn("needs_vec_isa=True", code)
 
     def test_cuda_cpp_wrapper_build_separate_splits_vec_isa_requirements(self):
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         def fn(x):
             x = x + 1
@@ -415,8 +415,8 @@ class TestGpuWrapper(InductorTestCase):
         self.assertIn("kernel_needs_vec_isa=True", code)
 
     def test_map_fullgraph_cpp_wrapper(self):
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         def body_fn(x):
             return torch.nn.functional.gelu(x)
@@ -481,8 +481,8 @@ class TestLazyCompileKernelCollision(InductorTestCase):
         This requires two process invocations because dlopen within a single
         process reuses loaded libraries without re-running static initializers.
         """
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         with tempfile.TemporaryDirectory() as cache_dir:
             env = {
@@ -543,8 +543,8 @@ class TestCppWrapperStaticInitDeadlock(InductorTestCase):
         contend for the dynamic linker's global init lock and deadlock
         the main thread inside dlopen.
         """
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
 
         with tempfile.TemporaryDirectory() as cache_dir:
             env = {
@@ -678,14 +678,14 @@ class TestLazyTmaGlobalScratch(InductorTestCase):
     device = GPU_TYPE
 
     def test_lazy_tma_global_scratch_scales_with_launch_grid(self):
-        if not RUN_GPU:
-            self.skipTest("GPU not available")
-        if GPU_TYPE != "cuda" or torch.version.hip:
+        # if not RUN_GPU:
+        #     self.skipTest("GPU not available")
+        if GPU_TYPE != "npu" or torch.version.hip:
             self.skipTest("requires CUDA")
-        if torch.cuda.get_device_capability()[0] < 9:
-            self.skipTest("requires Hopper or newer for TMA")
-        if not has_triton_tensor_descriptor_host_tma():
-            self.skipTest("requires Triton TensorDescriptor TMA support")
+        # if torch.cuda.get_device_capability()[0] < 9:
+        #     self.skipTest("requires Hopper or newer for TMA")
+        # if not has_triton_tensor_descriptor_host_tma():
+        #     self.skipTest("requires Triton TensorDescriptor TMA support")
 
         with tempfile.TemporaryDirectory() as cache_dir:
             script_path = Path(cache_dir) / "lazy_tma_global_scratch_repro.py"
