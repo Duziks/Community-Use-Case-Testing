@@ -336,7 +336,6 @@ class TestInductorConfig(TestCase):
         self.assertEqual(counters["inductor"]["fxgraph_cache_hit"], 0)
         self.assertEqual(counters["inductor"]["fxgraph_lookup_write_file"], 0)
 
-    @requires_gpu
     @torch._inductor.config.patch(fx_graph_cache=False)
     def test_config_read_in_backwards(self):
         @torch.compile

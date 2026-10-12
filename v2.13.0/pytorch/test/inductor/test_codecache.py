@@ -1467,7 +1467,6 @@ class TestFxGraphCache(TestCase):
         # And the results should be the same.
         self.assertEqual(grads1, grads2)
 
-    @largeTensorTest("64GB", device=GPU_TYPE, inductor=True)
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @parametrize("device", (GPU_TYPE,))
@@ -1477,8 +1476,6 @@ class TestFxGraphCache(TestCase):
         Test caching the same graph, but under conditions that introduce guards
         for tensor sizes < int32.
         """
-        if device == GPU_TYPE and not HAS_GPU:
-            raise unittest.SkipTest(f"requires {GPU_TYPE}")
         if (
             device == "cuda"
             and torch.version.hip is None
@@ -1636,9 +1633,6 @@ class TestFxGraphCache(TestCase):
         """
         Test that different constants are recognized correctly.
         """
-        if device == GPU_TYPE and not HAS_GPU:
-            raise unittest.SkipTest(f"requires {GPU_TYPE}")
-
         def fn1(x):
             return x + torch.tensor(list(range(12)), device=device)
 
@@ -1711,7 +1705,6 @@ class TestFxGraphCache(TestCase):
         self.assertEqual(counters["inductor"]["fxgraph_cache_miss"], 1)
         self.assertEqual(counters["inductor"]["fxgraph_cache_hit"], 2)
 
-    @requires_gpu()
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     def test_aligned_unaligned_inputs_no_recompile(self):
@@ -1793,7 +1786,6 @@ class TestFxGraphCache(TestCase):
             self.assertEqual(counters["inductor"]["fxgraph_cache_hit"], 1)
             self.assertEqual(counters["inductor"]["fxgraph_lookup_write_file"], 1)
 
-    @requires_gpu_and_triton
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @with_tf32_off
@@ -2310,7 +2302,6 @@ class TestFxGraphCache(TestCase):
         self.assertNotEqual(a, b)
 
     @config.patch({"fx_graph_cache": False, "fx_graph_remote_cache": False})
-    @requires_cuda_and_triton
     @unittest.expectedFailure  # TODO: pass in optimize_mem at runtime
     def test_async_compile_cache(self):
         class SimpleFunction(torch.autograd.Function):
@@ -2754,9 +2745,6 @@ class TestStandaloneCompile(TestCase):
     @functorch_config.patch({"enable_autograd_cache": True})
     @parametrize("device", (GPU_TYPE, "cpu"))
     def test_modify_unpacked_file(self, device: str) -> None:
-        if device == GPU_TYPE and not HAS_GPU:
-            raise unittest.SkipTest(f"requires {GPU_TYPE}")
-
         x = torch.ones(4, device=device)
 
         def f(x):
@@ -4707,8 +4695,6 @@ class TestAutotuneCache(TestCase):
         for k in global_stats.triton.cache:
             self.assertRegex(k, r"triton:[0-9a-f]{64}::[0-9a-f]{64}:c[0-9]+")
 
-    @requires_gpu_and_triton
-    @unittest.skipIf(not HAS_XPU_AND_TRITON and not SM80OrLater, "Requires SM80+")
     @config.patch({"fx_graph_cache": False})
     @config.patch({"fx_graph_remote_cache": False})
     @config.patch({"autotune_local_cache": True})
@@ -4767,9 +4753,6 @@ class TestAutotuneCache(TestCase):
         for k in global_stats.triton.cache:
             self.assertRegex(k, r"triton:[0-9a-f]{64}::[0-9a-f]{64}:c[0-9]+")
 
-    @requires_triton()
-    @requires_gpu_and_triton
-    @unittest.skipIf(not HAS_XPU_AND_TRITON and not SM80OrLater, "Requires SM80+")
     @config.patch({"fx_graph_cache": False})
     @config.patch({"fx_graph_remote_cache": False})
     @config.patch({"bundled_autotune_remote_cache": False})
@@ -4832,8 +4815,6 @@ class TestAutotuneCache(TestCase):
 
 
 class TestRemoteAOTAutogradCache(TestCase):
-    @requires_gpu()
-    @unittest.skipIf(not HAS_XPU_AND_TRITON and not SM80OrLater, "Requires SM80+")
     @config.patch({"fx_graph_cache": False})
     @config.patch({"fx_graph_remote_cache": True})
     @torch._functorch.config.patch({"enable_autograd_cache": False})
@@ -4871,8 +4852,6 @@ class TestRemoteAOTAutogradCache(TestCase):
         for k in global_stats.fx_graph.cache:
             self.assertRegex(k, r"pt2:fx-graph-v1::[0-9a-z]{52}:c[0-9]+")
 
-    @requires_gpu_and_triton
-    @unittest.skipIf(not HAS_XPU_AND_TRITON and not SM80OrLater, "Requires SM80+")
     @config.patch({"fx_graph_cache": False})
     @config.patch({"fx_graph_remote_cache": True})
     @torch._functorch.config.patch({"enable_autograd_cache": False})
@@ -4946,7 +4925,6 @@ class TestUtils(TestCase):
 
     # This combination of settings exposed a bug where we cleared the
     # PyCodeCache disk artifacts while they were still needed:
-    @requires_gpu_and_triton
     @config.patch(
         {
             "coordinate_descent_tuning": True,
@@ -5347,7 +5325,6 @@ class TestAutotuneCacheExtraOptions(TestCase):
         # extra_options should be None when not in cache
         self.assertIsNone(result.extra_options)
 
-    @requires_triton()
     def test_autotune_cache_save_includes_extra_options(self):
         """
         Test that AutotuneCache.save() includes extra_options in the saved data.
@@ -5384,7 +5361,6 @@ class TestAutotuneCacheExtraOptions(TestCase):
         self.assertIn("extra_options", saved_data)
         self.assertEqual(saved_data["extra_options"], {"custom_key": "custom_value"})
 
-    @requires_triton()
     def test_autotune_cache_save_omits_extra_options_when_none(self):
         """
         Test that AutotuneCache.save() does not include extra_options when it's None.

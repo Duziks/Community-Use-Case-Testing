@@ -419,7 +419,6 @@ class TestGroupBatchFusion(TestCase):
         )
         counters.clear()
 
-    @requires_gpu()
     @unittest.skipIf(GPU_TYPE == "mps", "welford_reduce is yet not implemented for MPS")
     @torch._inductor.config.patch(
         pre_grad_fusion_options={"batch_layernorm": {}},
@@ -442,7 +441,6 @@ class TestGroupBatchFusion(TestCase):
                 self.compare_gradients(module, traced, rtol=1e-8, atol=1e-8)
                 counters.clear()
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={"batch_linear_lhs": {}},
         post_grad_fusion_options={},
@@ -464,7 +462,6 @@ class TestGroupBatchFusion(TestCase):
             self.compare_gradients(module, traced, rtol=1e-8, atol=1e-8)
             counters.clear()
 
-    @requires_gpu()
     def test_as_strided_storage_offset_after_mm_fusion(self):
         """
         Post-grad batch linear fusion rewrites parallel mm nodes into a
@@ -569,7 +566,6 @@ class TestGroupBatchFusion(TestCase):
         for ref_t, res_t in zip(ref, res):
             self.assertEqual(ref_t, res_t, rtol=1e-3, atol=1e-3)
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={"batch_linear_lhs": {}},
         post_grad_fusion_options={},
@@ -606,7 +602,6 @@ class TestGroupBatchFusion(TestCase):
             self.compare_gradients(module, traced, rtol=1e-8, atol=1e-8)
             counters.clear()
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={"batch_linear": {}},
         post_grad_fusion_options={},
@@ -627,7 +622,6 @@ class TestGroupBatchFusion(TestCase):
             self.compare_gradients(module, traced, rtol=1e-8, atol=1e-8)
             counters.clear()
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={
             "batch_relu": {},
@@ -660,7 +654,6 @@ class TestGroupBatchFusion(TestCase):
         self.compare_gradients(module, traced, rtol=1e-8, atol=1e-8)
         counters.clear()
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={},
         post_grad_fusion_options={
@@ -688,7 +681,6 @@ class TestGroupBatchFusion(TestCase):
         self.compare_gradients(module, traced, rtol=1e-8, atol=1e-8)
         counters.clear()
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={},
         post_grad_fusion_options={
@@ -761,7 +753,6 @@ class TestGroupBatchFusion(TestCase):
         self.assertTrue(torch.allclose(ref, res))
         counters.clear()
 
-    @requires_gpu()
     @torch._inductor.config.patch(
         pre_grad_fusion_options={
             "normalization_pass": {},
