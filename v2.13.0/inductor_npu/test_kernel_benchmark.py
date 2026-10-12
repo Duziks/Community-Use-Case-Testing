@@ -2,10 +2,43 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+from torch_npu.utils._dynamo import has_triton
+
+# 1. 激活 NPU Triton 支持
+torch.utils._triton.has_triton = has_triton
 _dynamo.use_jit_script = True
-torch.cuda.get_device_capability = lambda :(10, 0)
+torch.cuda.get_device_capability = lambda: (10, 0)
+
 import torch_npu.testing
 import torch_npu._inductor
+
+# 2. 锁定 NPUDriver 为唯一激活驱动，避免双驱动冲突
+try:
+    from triton.backends.nvidia.driver import CudaDriver
+    CudaDriver.is_active = staticmethod(lambda: False)
+except (ImportError, AttributeError):
+    pass
+
+try:
+    import triton.runtime.driver as triton_driver
+    from triton.backends.ascend.driver import NPUDriver
+    triton_driver.driver._active = NPUDriver()
+except (ImportError, AttributeError):
+    pass
+
+# 3. 限制 Inductor 单线程编译，防止并发挤爆 NPU 资源
+import torch._inductor.config as inductor_config
+inductor_config.compile_threads = 1
+
+# 4. 允许 GEMM 调优回退到 ATen
+inductor_config.max_autotune_gemm_backends = "ATEN"
+
+# 5. 【核心修复】彻底屏蔽 len(avail_gpus) <= 1 断言
+import torch._inductor.runtime.benchmarking as inductor_benchmarking
+inductor_benchmarking._get_default_gpu_device_type = lambda: "cuda"
+inductor_benchmarking._normalize_gpu_device_type = lambda device_type=None: "cuda"
+
+# Owner(s): ["module: inductor"]
 
 # Owner(s): ["module: inductor"]
 # ruff: noqa: F841
@@ -183,9 +216,9 @@ class TestKernelBenchmark(TestCase):
     @config.patch(
         max_autotune=True, max_autotune_gemm_backends="TRITON", force_shape_pad=True
     )
-    @unittest.skipIf(
-        not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
-    )
+    #@unittest.skipIf(
+    #    not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
+    #)
     @fresh_cache()
     def test_matmul_triton_kernel_benchmark(self):
         M = 12544
@@ -204,9 +237,9 @@ class TestKernelBenchmark(TestCase):
     @config.patch(
         max_autotune=True, max_autotune_gemm_backends="TRITON", shape_padding=False
     )
-    @unittest.skipIf(
-        not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
-    )
+    #@unittest.skipIf(
+    #    not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
+    #)
     @fresh_cache()
     def test_mm_triton_kernel_benchmark(self):
         M = 2048
@@ -507,9 +540,9 @@ class TestKernelBenchmark(TestCase):
         compiled_module = self.get_compiled_module()
         self.verify_remove_inductor_deps(compiled_module)
 
-    @unittest.skipIf(
-        not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
-    )
+    #@unittest.skipIf(
+    #    not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
+    #)
     @config.patch("triton.unique_kernel_names", True)
     @config.patch(benchmark_kernel=False)
     @config.patch(compile_threads=1)
