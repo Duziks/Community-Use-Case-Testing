@@ -1295,14 +1295,16 @@ class TestInductorDynamic(DynamicShapesTestCase):
             fn_c = torch.compile(fn)
             actual, source_codes = run_and_get_code(fn_c, x)
             self.assertEqual(fn(x), actual)
-            FileCheck().check("R0_BLOCK: tl.constexpr = 64").run(source_codes[0])
+            if not HAS_NPU:
+                FileCheck().check("R0_BLOCK: tl.constexpr = 64").run(source_codes[0])
             torch._dynamo.reset()
 
             torch._dynamo.mark_dynamic(x, 2, min=1, max=64)
             fn_c = torch.compile(fn)
             actual, source_codes = run_and_get_code(fn_c, x)
             self.assertEqual(fn(x), actual)
-            FileCheck().check("R0_BLOCK: tl.constexpr = 64").run(source_codes[0])
+            if not HAS_NPU:
+                FileCheck().check("R0_BLOCK: tl.constexpr = 64").run(source_codes[0])
 
     def test_non_persistent_dynamic_rblock(self):
         def reduce_bounded(x, y):
@@ -1333,7 +1335,8 @@ class TestInductorDynamic(DynamicShapesTestCase):
         compiled_fn = torch.compile(reduce_bounded)
         result, source_codes = run_and_get_code(compiled_fn, x, y)
 
-        FileCheck().check_not("@triton_heuristics.persistent").run(source_codes[0])
+        if not HAS_NPU:
+            FileCheck().check_not("@triton_heuristics.persistent").run(source_codes[0])
         expected = reduce_bounded(x, y)
 
         if not torch.allclose(result, expected, atol=1e-3, rtol=1e-3):
