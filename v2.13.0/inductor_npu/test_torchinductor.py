@@ -44,6 +44,7 @@ if not getattr(
     cudagraph_utils.check_lowering_disable_cudagraph._quick_pr47618 = True
 
 _dynamo.use_jit_script = True
+_dynamo.patch_has_triton()
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
