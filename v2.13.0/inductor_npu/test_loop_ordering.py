@@ -272,7 +272,7 @@ class LoopOrderingTest(TestCase):
         # Make the first 2 dimension not able to merge on purpose so that
         # ComputedBuffer.iter_reoredering_reindex will be updated.
         x = rand_strided([A, A, B], [B, B * A + 300, 1], device=GPU_TYPE)
-        y = torch.randn(A, A)
+        y = torch.randn(A, A,device=GPU_TYPE)
 
         self.do_acc_test(f, x, y)
         self.assertEqual(1, metrics.generated_kernel_count)
@@ -557,7 +557,7 @@ class LoopOrderingTest(TestCase):
             return torch.ops.test.opaque_gemm(x_q, scale)
 
         FP8_MAX = 448.0  # arbitrary clamp range
-        x = torch.randn(8, HIDDEN, dtype=torch.bfloat16)
+        x = torch.randn(8, HIDDEN, device=GPU_TYPE, dtype=torch.bfloat16)
         self.do_acc_test(f, x)
         self.assertEqual(1, metrics.generated_kernel_count)
 
