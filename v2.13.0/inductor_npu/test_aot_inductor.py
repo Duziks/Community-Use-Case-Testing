@@ -7725,6 +7725,7 @@ class AOTInductorTestsTemplate:
     @parametrize("n", [64])
     @parametrize("q_group", [32, 64])
     @parametrize("num_groups", [1, 2])
+    @unittest.skip("npu not support")
     def test__weight_int4pack_mm(self, m, n, q_group, num_groups):
         if self.device != GPU_TYPE or self.device == "mps":
             raise unittest.SkipTest("requires GPU")
