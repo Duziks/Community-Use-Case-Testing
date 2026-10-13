@@ -240,17 +240,16 @@ class TestStaticTritonLauncher(TestCase):
             y = arg1 + arg2 + arg3 + arg4
             tl.store(arg0, x + y)
 
-        arg0_dtype = torch.int64 if IS_NPU else torch.uint64
-        arg0 = torch.zeros(1, dtype=arg0_dtype, device=GPU_TYPE)
+        arg0 = torch.zeros(1, dtype=torch.uint64, device=GPU_TYPE)
         # Using small numbers creates a Literal type which triton treats as a constant
         args = (arg0, 50, 50, 50, 50)
 
         compiled_kernel = unsigned_integers[1,](*args)
         launcher = self._make_launcher(compiled_kernel)
-        self.assertEqual(arg0, torch.tensor([200], dtype=arg0_dtype, device=GPU_TYPE))
+        self.assertEqual(arg0, torch.tensor([200], dtype=torch.uint64, device=GPU_TYPE))
         if not IS_NPU:
             self.assertEqual(launcher.arg_tys, "OBHIK")
-        new_arg0 = torch.zeros(1, dtype=arg0_dtype, device=GPU_TYPE)
+        new_arg0 = torch.zeros(1, dtype=torch.uint64, device=GPU_TYPE)
         device_interface = get_interface_for_device(GPU_TYPE)
         stream = device_interface.get_raw_stream(device_interface.current_device())
         launcher.run(1, 1, 1, stream, new_arg0, 50, 50, 50, 50)
@@ -674,8 +673,7 @@ class TestStaticTritonCompileResult(TestCase):
             )
 
         compiled_fn = torch.compile(fn)
-        dtype = torch.float32 if IS_NPU else torch.float64
-        arg = -torch.rand(64, device=GPU_TYPE, dtype=dtype)
+        arg = -torch.rand(64, device=GPU_TYPE, dtype=torch.float64)
         eager_result = fn(arg)
         compiled_result = compiled_fn(arg)
         self.assertEqual(eager_result, compiled_result)
