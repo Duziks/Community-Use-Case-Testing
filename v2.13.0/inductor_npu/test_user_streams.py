@@ -2006,7 +2006,7 @@ class TestGenericStreamCompile(InductorTestCase):
         from torch._inductor.utils import run_and_get_code
 
         # Create stream outside compiled function
-        stream = torch.Stream("cuda")
+        stream = torch.Stream("npu")
 
         def fn(x):
             with stream:
@@ -2032,7 +2032,7 @@ class TestGenericStreamCompile(InductorTestCase):
         from torch._inductor.utils import run_and_get_code
 
         # Create stream and event outside compiled function
-        stream = torch.Stream("cuda")
+        stream = torch.Stream("npu")
         event = torch.Event("cuda")
         cuda_stream = torch.cuda.Stream(
             stream_id=stream.stream_id,
@@ -2068,8 +2068,8 @@ class TestGenericStreamCompile(InductorTestCase):
         from torch._inductor.utils import run_and_get_code
 
         # Create streams and event outside compiled function
-        stream1 = torch.Stream("cuda")
-        stream2 = torch.Stream("cuda")
+        stream1 = torch.Stream("npu")
+        stream2 = torch.Stream("npu")
         event = torch.Event("cuda")
         cuda_stream1 = torch.cuda.Stream(
             stream_id=stream1.stream_id,
@@ -2113,7 +2113,7 @@ class TestGenericStreamCompile(InductorTestCase):
         from torch._inductor.utils import run_and_get_code
 
         # Create stream and event outside compiled function
-        stream = torch.Stream("cuda")
+        stream = torch.Stream("npu")
         event = torch.Event("cuda")
         cuda_stream = torch.cuda.Stream(
             stream_id=stream.stream_id,
