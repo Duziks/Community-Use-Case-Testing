@@ -51,6 +51,12 @@ from torch.testing._internal.inductor_utils import (
     patch_inductor_backend,
 )
 
+HAS_NPU = hasattr(torch, "npu") and torch.npu.is_available()
+if HAS_NPU:
+    # The adapter exposes NPU as the device-generic GPU backend for these tests.
+    HAS_GPU = True
+    IS_FBCODE = True
+
 
 # Make the helper files in test/ importable
 pytorch_test_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))

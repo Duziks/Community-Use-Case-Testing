@@ -183,6 +183,23 @@ HAS_AVX2 = "fbgemm" in torch.backends.quantized.supported_engines
 # is available while preserving the GPUTests name used by downstream tests.
 HAS_NPU = hasattr(torch, "npu") and torch.npu.is_available()
 
+if HAS_NPU:
+    # The upstream largeTensorTest helper only recognizes CUDA/XPU devices.
+    # Route its availability check through the actual NPU allocator instead.
+    from torch.testing._internal import common_device_type as _common_device_type
+
+    _original_has_sufficient_memory = _common_device_type._has_sufficient_memory
+
+    def _has_sufficient_npu_memory(device, size):
+        if torch.device(device).type != "npu":
+            return _original_has_sufficient_memory(device, size)
+        torch.npu.empty_cache()
+        free_memory, _ = torch.npu.mem_get_info(torch.device(device))
+        return free_memory >= size
+
+    _common_device_type._has_sufficient_memory = _has_sufficient_npu_memory
+    IS_BIG_GPU = True
+
 if TEST_WITH_ROCM:
     torch._inductor.config.force_layout_optimization = 1
     os.environ["PYTORCH_MIOPEN_SUGGEST_NHWC"] = "1"
