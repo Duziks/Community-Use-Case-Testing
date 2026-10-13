@@ -81,7 +81,7 @@ def _dump_launch_params(value: str):
                 os.remove(launch_params_file)
 
 
-if HAS_GPU:
+if HAS_GPU or torch.npu.is_available():
     import triton
     from triton import language as tl
 
@@ -96,6 +96,11 @@ if HAS_GPU:
                 fast_dividef,
                 fast_dividef as my_fast_dividef,
             )
+    elif torch.npu.is_available():
+        from triton.language.extra.cann.libdevice import (  # @manual
+            fast_dividef,
+            fast_dividef as my_fast_dividef,
+        )
     elif HAS_XPU_AND_TRITON:
         from triton.language.extra.intel.libdevice import (  # @manual
             fast_dividef,
