@@ -1439,9 +1439,12 @@ with torch.cuda._DeviceGuard(0):
         expected = fn(x, w1, w2)
         counter = CompileCounterWithBackend("inductor")
         compiled_fn = torch.compile(fn, backend=counter)
+        current_stream = torch.npu.current_stream()
         result, (code,) = run_and_get_code(compiled_fn, x, w1, w2)
         self.assertEqual(result, expected)
+        self.assertEqual(torch.npu.current_stream(), current_stream)
 
+        # NPU stream contexts explicitly save, switch, and restore the current stream.
         self.assertExpectedInline(
             normalize_gm(counter.graphs[0].print_readable(print_output=False)),
             """\
@@ -1451,7 +1454,7 @@ class GraphModule(torch.nn.Module):
         l_w1_ = L_w1_
         l_w2_ = L_w2_
 
-        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1);  get_external_object_by_index = None
+        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1)
 
         get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2);  get_external_object_by_index_1 = None
 
@@ -1460,9 +1463,14 @@ class GraphModule(torch.nn.Module):
         get_external_object_by_index_2 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(0);  get_external_object_by_index_2 = None
         record_event = torch.ops.streams.record_event(2, 0);  record_event = None
 
+        current_stream = torch_npu_npu_utils_current_stream(None)
+        set_stream = torch_npu_npu_utils_set_stream(get_external_object_by_index);  get_external_object_by_index = set_stream = None
+
         wait_event = torch.ops.streams.wait_event(2, 1);  wait_event = None
 
         b: "f32[32, 32]" = a @ l_w2_;  a = l_w2_ = None
+
+        set_stream_1 = torch_npu_npu_utils_set_stream(current_stream);  current_stream = set_stream_1 = None
 
         synchronize_stream = torch.ops.streams.synchronize_stream(1);  synchronize_stream = None
         return (b,)
@@ -1517,9 +1525,12 @@ class GraphModule(torch.nn.Module):
         expected = fn(x, w1, w2, w3)
         counter = CompileCounterWithBackend("inductor")
         compiled_fn = torch.compile(fn, backend=counter)
+        current_stream = torch.npu.current_stream()
         result, (code,) = run_and_get_code(compiled_fn, x, w1, w2, w3)
         self.assertEqual(result, expected)
+        self.assertEqual(torch.npu.current_stream(), current_stream)
 
+        # NPU stream contexts explicitly save, switch, and restore the current stream.
         self.assertExpectedInline(
             normalize_gm(counter.graphs[0].print_readable(print_output=False)),
             """\
@@ -1530,19 +1541,27 @@ class GraphModule(torch.nn.Module):
         l_w2_ = L_w2_
         l_w3_ = L_w3_
 
-        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1);  get_external_object_by_index = None
+        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1)
 
-        get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2);  get_external_object_by_index_1 = None
+        get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2)
 
-        get_external_object_by_index_2 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(3);  get_external_object_by_index_2 = None
+        get_external_object_by_index_2 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(3)
 
         get_external_object_by_index_3 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(4);  get_external_object_by_index_3 = None
 
         get_external_object_by_index_4 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(5);  get_external_object_by_index_4 = None
 
+        current_stream = torch_npu_npu_utils_current_stream(None)
+        set_stream = torch_npu_npu_utils_set_stream(get_external_object_by_index);  get_external_object_by_index = set_stream = None
+
         a: "f32[32, 32]" = l_x_ @ l_w1_;  l_x_ = l_w1_ = None
 
         record_event = torch.ops.streams.record_event(4, 1);  record_event = None
+
+        set_stream_1 = torch_npu_npu_utils_set_stream(current_stream);  current_stream = set_stream_1 = None
+
+        current_stream_1 = torch_npu_npu_utils_current_stream(None)
+        set_stream_2 = torch_npu_npu_utils_set_stream(get_external_object_by_index_1);  get_external_object_by_index_1 = set_stream_2 = None
 
         wait_event = torch.ops.streams.wait_event(4, 2);  wait_event = None
 
@@ -1550,9 +1569,16 @@ class GraphModule(torch.nn.Module):
 
         record_event_1 = torch.ops.streams.record_event(5, 2);  record_event_1 = None
 
+        set_stream_3 = torch_npu_npu_utils_set_stream(current_stream_1);  current_stream_1 = set_stream_3 = None
+
+        current_stream_2 = torch_npu_npu_utils_current_stream(None)
+        set_stream_4 = torch_npu_npu_utils_set_stream(get_external_object_by_index_2);  get_external_object_by_index_2 = set_stream_4 = None
+
         wait_event_1 = torch.ops.streams.wait_event(5, 3);  wait_event_1 = None
 
         c: "f32[32, 32]" = b @ l_w3_;  b = l_w3_ = None
+
+        set_stream_5 = torch_npu_npu_utils_set_stream(current_stream_2);  current_stream_2 = set_stream_5 = None
 
         synchronize_stream = torch.ops.streams.synchronize_stream(1);  synchronize_stream = None
 
@@ -1614,9 +1640,12 @@ class GraphModule(torch.nn.Module):
         expected = fn(x, w1, w2)
         counter = CompileCounterWithBackend("inductor")
         compiled_fn = torch.compile(fn, backend=counter)
+        current_stream = torch.npu.current_stream()
         result, (code,) = run_and_get_code(compiled_fn, x, w1, w2)
         self.assertEqual(result, expected)
+        self.assertEqual(torch.npu.current_stream(), current_stream)
 
+        # NPU stream contexts explicitly save, switch, and restore the current stream.
         self.assertExpectedInline(
             normalize_gm(counter.graphs[0].print_readable(print_output=False)),
             """\
@@ -1626,21 +1655,31 @@ class GraphModule(torch.nn.Module):
         l_w1_ = L_w1_
         l_w2_ = L_w2_
 
-        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1);  get_external_object_by_index = None
+        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1)
 
-        get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2);  get_external_object_by_index_1 = None
+        get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2)
 
         get_external_object_by_index_2 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(3);  get_external_object_by_index_2 = None
 
         get_external_object_by_index_3 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(4);  get_external_object_by_index_3 = None
 
+        current_stream = torch_npu_npu_utils_current_stream(None)
+        set_stream = torch_npu_npu_utils_set_stream(get_external_object_by_index);  get_external_object_by_index = set_stream = None
+
         a: "f32[32, 32]" = l_x_ @ l_w1_;  l_w1_ = None
 
         record_event = torch.ops.streams.record_event(3, 1);  record_event = None
 
+        set_stream_1 = torch_npu_npu_utils_set_stream(current_stream);  current_stream = set_stream_1 = None
+
+        current_stream_1 = torch_npu_npu_utils_current_stream(None)
+        set_stream_2 = torch_npu_npu_utils_set_stream(get_external_object_by_index_1);  get_external_object_by_index_1 = set_stream_2 = None
+
         b: "f32[32, 32]" = l_x_ @ l_w2_;  l_x_ = l_w2_ = None
 
         record_event_1 = torch.ops.streams.record_event(4, 2);  record_event_1 = None
+
+        set_stream_3 = torch_npu_npu_utils_set_stream(current_stream_1);  current_stream_1 = set_stream_3 = None
 
         wait_event = torch.ops.streams.wait_event(3, 0);  wait_event = None
 
@@ -1667,7 +1706,8 @@ class GraphModule(torch.nn.Module):
 # CHECK: extern_kernels.mm(
 # CHECK: record_event
 # CHECK: with default_stream:
-# CHECK: wait_event
+# CHECK: wait_event.default(3, 0)
+# CHECK: wait_event.default(4, 0)
 # CHECK: triton_kernel.run(
 # CHECK: synchronize_stream
 # CHECK: synchronize_stream""",
