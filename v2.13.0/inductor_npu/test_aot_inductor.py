@@ -3349,6 +3349,8 @@ class AOTInductorTestsTemplate:
     @unittest.skipIf(sys.platform == "darwin", "Skip MacOS")
     @unittest.skipIf(IS_FBCODE, "Need newer ideep")
     def test_buffer_mutation_and_force_mmap_weights(self):
+        if self.device != "cpu":
+            raise unittest.SkipTest("CPU test only")
         """
         This issue occurs when weight zero point is int64 and aot_inductor.force_mmap_weights is ON.
         The lowering path of qlinear will create a new constant buffer of int32 type for weight zero point,
@@ -3408,11 +3410,11 @@ class AOTInductorTestsTemplate:
             dynamic_shapes=dynamic_shapes,
         )
         aot_inductor_module = torch._inductor.aoti_load_package(package_path)
-        device_interface = get_interface_for_device(GPU_TYPE)
-        device: int = device_interface.current_device()
-        mem_before = device_interface.memory_allocated(device)
+        # device_interface = get_interface_for_device(GPU_TYPE)
+        device: int = torch.npu.current_device()
+        mem_before = torch.npu.memory_allocated(device)
         aot_inductor_module(*example_inputs)
-        mem_after = device_interface.memory_allocated(device)
+        mem_after = torch.npu.memory_allocated(device)
         self.assertEqual(mem_before, mem_after)
 
         actual = aot_inductor_module(*example_inputs)
