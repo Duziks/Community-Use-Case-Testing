@@ -119,8 +119,14 @@ class TestCompileWorker(TestCase):
 
     @skipIfWindows(msg="pass_fds not supported on Windows.")
     def test_shutdown_terminates_sidecar_worker_pool(self):
+        # On NPU the sidecar process is a fresh interpreter whose startup and
+        # teardown include torch_npu/ACL initialization and cleanup (several
+        # seconds), so allow a longer wait for the pool to terminate.
+        on_npu = torch.npu.is_available()
+        wait_timeout = 10 if on_npu else 2
+        run_timeout = 40 if on_npu else 20
         code = textwrap.dedent(
-            """
+            f"""
             import operator
             import subprocess
             import time
@@ -135,7 +141,7 @@ class TestCompileWorker(TestCase):
             wait = pool.process.wait
 
             def short_wait(timeout=None):
-                return wait(timeout=2)
+                return wait(timeout={wait_timeout})
 
             pool.process.wait = short_wait
 
@@ -155,7 +161,7 @@ class TestCompileWorker(TestCase):
                 cwd=cwd,
                 capture_output=True,
                 text=True,
-                timeout=20,
+                timeout=run_timeout,
             )
         self.assertEqual(
             result.returncode,
