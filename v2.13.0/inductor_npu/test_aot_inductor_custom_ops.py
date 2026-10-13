@@ -477,6 +477,7 @@ class AOTInductorTestsTemplate:
         self.assertEqual(len(inps), 0)
         self.assertTrue(sentinel_seen)
 
+    @unittest.skip("npu not support")
     def test_custom_op_with_dtype_arg_various_dtypes(self) -> None:
         class Model(torch.nn.Module):
             def forward(self, x):

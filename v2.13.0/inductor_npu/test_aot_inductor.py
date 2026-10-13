@@ -1595,6 +1595,7 @@ class AOTInductorTestsTemplate:
         example_inputs = (x, y)
         self.check_model(Model(), example_inputs, dynamic_shapes=dynamic_shapes)
 
+    @unittest.skip("npu not support")
     @unittest.skipIf(not PLATFORM_SUPPORTS_FP8, f8_msg)
     def test_fp8(self):
         # cuda only
@@ -1703,6 +1704,7 @@ class AOTInductorTestsTemplate:
             (x_fp8, weight_fp8, scale_a, scale_b, offsets),
         )
 
+    @unittest.skip("npu not support")
     @unittest.skipIf(not PLATFORM_SUPPORTS_FP8, f8_msg)
     def test_fp8_view_of_param(self):
         # cuda only
@@ -3006,6 +3008,7 @@ class AOTInductorTestsTemplate:
             dynamic_shapes=dynamic_shapes,
         )
 
+    @unittest.skip("npu not support")
     def test_while_loop_with_parameters(self):
         if self.device != GPU_TYPE or self.device == "mps":
             raise unittest.SkipTest("requires GPU")
@@ -3128,6 +3131,7 @@ class AOTInductorTestsTemplate:
             dynamic_shapes=dynamic_shapes,
         )
 
+    @unittest.skip("npu not support")
     @common_utils.parametrize("dynamic", [False, True])
     def test_while_loop_with_conv(self, dynamic):
         inputs = (torch.randn(2, 4, 4, 4, device=self.device, dtype=torch.float64),)
@@ -3996,6 +4000,7 @@ class AOTInductorTestsTemplate:
         example_inputs = (torch.randn(3, 10, device=self.device),)
         self.check_model(Model(), example_inputs)
 
+    @unittest.skip("npu not support")
     @skip_if_no_torchvision
     def test_missing_cubin(self):
         from torchvision.models.resnet import Bottleneck, ResNet
@@ -4058,6 +4063,7 @@ class AOTInductorTestsTemplate:
         )
         self.check_model(Model(), example_inputs)
 
+    @unittest.skip("npu not support")
     @common_utils.parametrize("minmax", [min, max])
     @skipIfWindowsXPU(msg="crash on Windows XPU.")
     def test_sympy_cpp_printer_min_max(self, minmax):
@@ -4972,6 +4978,7 @@ class AOTInductorTestsTemplate:
         )
         self.check_model(M(), example_args)
 
+    @unittest.skip("npu not support")
     def test_proxy_executor_permute(self):
         class M(torch.nn.Module):
             def __init__(self) -> None:
@@ -4996,6 +5003,7 @@ class AOTInductorTestsTemplate:
         m = M()
         self.check_model(m, example_args)
 
+    @unittest.skip("npu not support")
     def test_proxy_executor_squeeze(self):
         class M(torch.nn.Module):
             def __init__(self) -> None:
@@ -5271,6 +5279,7 @@ class AOTInductorTestsTemplate:
             dynamic_shapes=dynamic_shapes,
         )
 
+    @unittest.skip("npu not support")
     # @unittest.skipIf(
     #     not PLATFORM_SUPPORTS_MEM_EFF_ATTENTION, "Some archs don't support mem eff SDPA"
     # )
@@ -5616,6 +5625,7 @@ class AOTInductorTestsTemplate:
                 inputs,
             )
 
+    @unittest.skip("npu not support")
     def test_runtime_checks_complex(self):
         class Model(torch.nn.Module):
             def __init__(self) -> None:
@@ -5789,6 +5799,7 @@ class AOTInductorTestsTemplate:
         with self.assertRaisesRegex(Exception, ""):
             aot_inductor_module(y4)
 
+    @unittest.skip("npu not support")
     def test_add_complex(self):
         class Model(torch.nn.Module):
             def forward(self, a, b):
@@ -6877,6 +6888,7 @@ class AOTInductorTestsTemplate:
         atol, rtol = 3e-4, 3e-4
         self.assertEqual(expected, output, atol=atol, rtol=rtol)
 
+    @unittest.skip("npu not support")
     @parametrize(
         "package_format",
         ["in_so", "binary_blob"],
@@ -7602,6 +7614,7 @@ class AOTInductorTestsTemplate:
         )
 
     @unittest.skipIf(IS_FBCODE, "Not runnable in fbcode")
+    @unittest.skip("npu not support")
     @unittest.skipIf(
         TEST_MPS and MACOS_VERSION < 14.0,
         "FFT operations are only supported on MacOS 14+",
@@ -7745,6 +7758,7 @@ class AOTInductorTestsTemplate:
         model = Model(b_int4pack, b_scales_and_zeros_f32)
         self.check_model(model, (a,))
 
+    @unittest.skip("npu not support")
     @parametrize("m", [32])
     @parametrize("n", [64])
     @parametrize("q_group", [32, 64])
