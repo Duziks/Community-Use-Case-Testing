@@ -284,7 +284,6 @@ with torch.xpu._DeviceGuard(0):
 
 
 @unittest.skipIf(not TEST_CUDA, "requires CUDA")
-@xfailIfNoAcceleratorTriton
 class TestUserStreamCompile(InductorTestCase):
     """End-to-end tests for torch.compile with user stream contexts."""
 
@@ -298,7 +297,7 @@ class TestUserStreamCompile(InductorTestCase):
             # Perform operation on default stream
             z = x + y
             # Order the side stream after the default-stream producer before reading z.
-            s.wait_stream(torch.cuda.current_stream())
+            s.wait_stream(torch.npu.current_stream())
             # Perform operation on side stream
             with torch.cuda.stream(s):
                 w = z * 2
@@ -463,7 +462,7 @@ class TestUserStreamCompile(InductorTestCase):
             a = x * 2
 
             # Use result on side stream
-            s.wait_stream(torch.cuda.current_stream())
+            s.wait_stream(torch.npu.current_stream())
             with torch.cuda.stream(s):
                 b = a + 1  # depends on 'a' from default stream
 
@@ -1677,7 +1676,6 @@ class GraphModule(torch.nn.Module):
 
 
 @unittest.skipUnless(TEST_CUDA, "requires CUDA")
-@xfailIfNoAcceleratorTriton
 class TestStreamOrderingStress(InductorTestCase):
     """Stress tests verifying that interleaved event record/wait ops
     produce correct ordering under compilation.  Each test uses large
@@ -1960,7 +1958,6 @@ class TestStreamOrderingStress(InductorTestCase):
 
 
 @unittest.skipUnless(TEST_CUDA, "requires CUDA")
-@xfailIfNoAcceleratorTriton
 class TestGenericStreamCompile(InductorTestCase):
     """Tests for torch.compile with device-agnostic torch.Stream API."""
 
@@ -2109,7 +2106,6 @@ class TestGenericStreamCompile(InductorTestCase):
 
 
 @unittest.skipUnless(TEST_CUDA, "requires CUDA")
-@xfailIfNoAcceleratorTriton
 class TestStreamIdentity(InductorTestCase):
     """Verify that compiled code uses the user's original stream objects."""
 
@@ -2159,8 +2155,8 @@ class TestStreamIdentity(InductorTestCase):
         self.assertNotIn("torch.cuda.Stream(device=", code)
 
 
-@xfailIfNoAcceleratorTriton
 @unittest.skipUnless(TEST_CUDA, "requires CUDA")
+@unittest.skip("PDL requires NVIDIA sm90+")
 class TestPDLWithMultiStream(InductorTestCase):
     """Tests that PDL (Programmatic Dependent Launch) composes safely with
     user-annotated multi-stream code under torch.compile.
@@ -2491,8 +2487,8 @@ class TestPDLWithMultiStream(InductorTestCase):
 
 
 @unittest.skipIf(not TEST_CUDA, "requires CUDA")
+@unittest.skip("PDL requires NVIDIA sm90+")
 @torch._inductor.config.patch({"triton.cudagraphs": True})
-@xfailIfNoAcceleratorTriton
 class TestStreamCudagraphInteraction(InductorTestCase):
     """Tests for user streams under cudagraph capture (reduce-overhead mode)."""
 
