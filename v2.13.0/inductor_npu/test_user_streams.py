@@ -487,7 +487,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             # Compute on default stream
             a = x * 2
@@ -521,7 +521,7 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             with torch.cuda.stream(s1):
                 a = x * 2
@@ -556,8 +556,8 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            event1 = torch.cuda.Event()
-            event2 = torch.cuda.Event()
+            event1 = torch.Event(device="npu")
+            event2 = torch.Event(device="npu")
 
             # Work on s1
             with torch.cuda.stream(s1):
@@ -596,7 +596,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             # Record the event first
             event.record()
@@ -627,7 +627,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             a = x * 2
             event.record()
@@ -658,8 +658,8 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            event_s1 = torch.cuda.Event()
-            event_s2 = torch.cuda.Event()
+            event_s1 = torch.Event(device="npu")
+            event_s2 = torch.Event(device="npu")
 
             # s1 does work
             with torch.cuda.stream(s1):
@@ -701,8 +701,8 @@ class TestUserStreamCompile(InductorTestCase):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             # Stage 1 on s1
             with torch.cuda.stream(s1):
@@ -746,9 +746,9 @@ class TestUserStreamCompile(InductorTestCase):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
-            e3 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
+            e3 = torch.Event(device="npu")
 
             # Parallel work on three streams
             with torch.cuda.stream(s1):
@@ -794,9 +794,9 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e_start = torch.cuda.Event()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e_start = torch.Event(device="npu")
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             # Initial work on default stream
             a = x * 2
@@ -842,9 +842,9 @@ class TestUserStreamCompile(InductorTestCase):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e_start = torch.cuda.Event()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e_start = torch.Event(device="npu")
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             # Start on default stream
             a = x + 1
@@ -891,7 +891,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
             result = x
 
             for _ in range(3):
@@ -923,8 +923,8 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             # These could be fused if on same stream, but should NOT be fused
             # since they're on different streams
@@ -965,7 +965,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             # Work on default stream
             a = x * 2
@@ -1058,7 +1058,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x, y, z, w):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             # Independent pointwise ops on different streams at the same
             # topological level — combo kernels must not merge them.
@@ -1424,7 +1424,7 @@ with torch.cuda._DeviceGuard(0):
 
         def fn(x, w1, w2):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
             a = x @ w1
             event.record()
             with torch.cuda.stream(s):
@@ -1493,8 +1493,8 @@ class GraphModule(torch.nn.Module):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
             with torch.cuda.stream(s1):
                 a = x @ w1
                 e1.record(s1)
@@ -1593,8 +1593,8 @@ class GraphModule(torch.nn.Module):
         def fn(x, w1, w2):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
             with torch.cuda.stream(s1):
                 a = x @ w1
                 e1.record(s1)
@@ -1719,7 +1719,7 @@ class TestStreamOrderingStress(InductorTestCase):
 
         def fn(x, w):
             s = torch.cuda.Stream()
-            e = torch.cuda.Event()
+            e = torch.Event(device="npu")
 
             # Heavy producer on default stream — takes real GPU time
             a = TestStreamOrderingStress._heavy_matmul_chain(x, w)
@@ -1746,8 +1746,8 @@ class TestStreamOrderingStress(InductorTestCase):
         def fn(x, w):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             with torch.cuda.stream(s1):
                 a = TestStreamOrderingStress._heavy_matmul_chain(x, w)
@@ -1781,10 +1781,10 @@ class TestStreamOrderingStress(InductorTestCase):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e = torch.cuda.Event()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
-            e3 = torch.cuda.Event()
+            e = torch.Event(device="npu")
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
+            e3 = torch.Event(device="npu")
 
             # Slow producer
             a = TestStreamOrderingStress._heavy_matmul_chain(x, w)
@@ -1829,9 +1829,9 @@ class TestStreamOrderingStress(InductorTestCase):
         def fn(x, w):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e_fork = torch.cuda.Event()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e_fork = torch.Event(device="npu")
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             base = x @ w
             e_fork.record()
@@ -1871,7 +1871,7 @@ class TestStreamOrderingStress(InductorTestCase):
 
         def fn(x, w):
             streams = [torch.cuda.Stream() for _ in range(4)]
-            events = [torch.cuda.Event() for _ in range(3)]
+            events = [torch.Event(device="npu") for _ in range(3)]
 
             with torch.cuda.stream(streams[0]):
                 h = TestStreamOrderingStress._heavy_matmul_chain(x, w, depth=4)
@@ -1907,8 +1907,8 @@ class TestStreamOrderingStress(InductorTestCase):
 
         def fn(x, w):
             s = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             a = TestStreamOrderingStress._heavy_matmul_chain(x, w)
             e1.record()
@@ -1938,7 +1938,7 @@ class TestStreamOrderingStress(InductorTestCase):
 
         def fn(x, w):
             s = torch.cuda.Stream()
-            e = torch.cuda.Event()
+            e = torch.Event(device="npu")
 
             with torch.cuda.stream(s):
                 # Heavy matmul chain produces data on user stream
@@ -2134,7 +2134,7 @@ class TestStreamIdentity(InductorTestCase):
         stream_b = torch.cuda.Stream()
 
         def fn(x):
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
             with torch.cuda.stream(stream_a):
                 a = x * 2
                 event.record()
