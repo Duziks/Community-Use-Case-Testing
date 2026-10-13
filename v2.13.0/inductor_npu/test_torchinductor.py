@@ -16828,7 +16828,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         )
         FileCheck().check(check1).check(check2).run(code)
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     @config.patch(use_fast_math=True)
     def test_prepare_softmax_with_fast_math(self):
         """
@@ -17354,7 +17354,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         inputs = (torch.randn(4, device=self.device),)
         self.common(Model(), inputs)
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     def test_triton_kernel_bool_tensor_arg(self):
         if self.device != GPU_TYPE or self.device == "mps":
             raise unittest.SkipTest("requires GPU")
@@ -17389,7 +17389,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         "https://github.com/intel/torch-xpu-ops/issues/2334"
     )
     @skipIfRocmArch(NAVI_ARCH)
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     @parametrize("use_cat", [True, False])
     def test_copy_non_blocking_is_pinned(self, use_cat):
         def f(a_list):
@@ -17435,7 +17435,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         "event sync only emitted for Python wrapper",
     )
     @skip_if_halide
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     @torch._dynamo.config.patch(capture_scalar_outputs=True)
     def test_non_blocking_d2h_event_sync(self):
         def f(x):
@@ -17544,7 +17544,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         inp = torch.randn(100, 100, device=self.device)
         self.assertTrue(CommonTemplate._is_triggering_buffer_reuse(fn, m, inp))
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     def test_cpu_scalar_with_gpu_tensor(self):
         def fn(a, b):
             return a + b[0]
@@ -17559,7 +17559,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
 
     @skipIfRocm(msg="https://github.com/pytorch/pytorch/issues/179970")
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     @torch._inductor.config.patch(cpp_wrapper=True)
     def test_cpu_scalar_with_gpu_tensor_cpp(self):
         def fn(a, b):
@@ -17572,7 +17572,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         compiled = torch.compile(fn, backend="inductor")(a, b)
         self.assertEqual(eager, compiled)
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     def test_cpu_scalar_with_gpu_tensor_dynamic(self):
         def fn(a, b):
             return a + b[0]
@@ -17597,7 +17597,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.assertEqual(eager, compiled)
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     def test_gpu_scalar_with_gpu_tensor(self):
         def fn(a, b):
             return a + b[0]
@@ -17611,7 +17611,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.assertEqual(eager, compiled)
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     def test_cpu_tensor_with_gpu_tensor(self):
         def fn(a, b):
             return a + b
@@ -17644,7 +17644,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         compiled = torch.compile(fn, backend="inductor")(a, b)
         self.assertEqual(eager, compiled)
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     def test_gpu_scalar_with_cpu_tensor(self):
         def fn(a, b):
             return a[0] + b
@@ -17655,7 +17655,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         with self.assertRaises(RuntimeError):
             compiled = torch.compile(fn, backend="inductor")(a, b)
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     @config.patch(emulate_precision_casts=True)
     def test_emulate_precision_triton_fp_fusion(self):
         def fn(a, b):
@@ -17669,7 +17669,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.assertTrue("'enable_fp_fusion': False" in code)
         torch.testing.assert_close(out, fn(a, b), atol=0, rtol=0)
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     @config.patch(runtime_triton_nan_asserts=True)
     def test_nan_assert_inside_triton_kernel(self):
         def fn(x):
@@ -17689,7 +17689,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         config.triton.autotune_at_compile_time is True,
         "autotune_at_compile_time doesn't work for test with indexing",
     )
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     def test_repeat_interleave_decomposition_has_clamp(self):
         repeat = torch.ones(2560, dtype=torch.int64, device=GPU_TYPE)
         output_size = 505450
@@ -17830,7 +17830,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.assertFalse("ReductionHint.INNER" in code)
 
     @skip_if_halide
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     def test_triton_argmin_argmax_transpose_logical_index(self):
         def fn(x):
             x.tan_()
@@ -17867,7 +17867,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.common(fn, (torch.randn(6, 4, device=GPU_TYPE).t().contiguous().t(),))
 
     @skip_if_halide
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     def test_unbacked_float_item(self):
         def fn(x, max_val):
             return torch.clamp(x, 0, max_val.item())
@@ -17907,7 +17907,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         if self.device.lower() == "cuda":
             self.assertEqual(torch._inductor.metrics.generated_kernel_count, 2)
 
-    @requires_gpu_and_triton
+    #@requires_gpu_and_triton
     @config.patch(combo_kernels=True)
     @torch._dynamo.config.patch(assume_static_by_default=False)
     def test_combo_kernel_store_mask(self):
@@ -18625,10 +18625,10 @@ if RUN_GPU:
             out[0].sum().backward()
             self.assertEqual(inp.grad, inp_ref.grad)
 
-        @unittest.skipIf(
-            not PLATFORM_SUPPORTS_MEM_EFF_ATTENTION,
-            "Does not support mem_eff_attention",
-        )
+        # @unittest.skipIf(
+        #     not PLATFORM_SUPPORTS_MEM_EFF_ATTENTION,
+        #     "Does not support mem_eff_attention",
+        # )
         def test_sdpa_inference_mode_aot_compile(self):
             class TestSDPA(torch.nn.Module):
                 def __init__(self) -> None:
@@ -19205,8 +19205,8 @@ if RUN_GPU:
             code = run_and_get_triton_code(fn_opt, x, 8)
             # load should be masked
             self.assertTrue(
-                "tl.load(in_ptr0 + (tmp0), xmask" in code
-                or "tl.load(in_ptr0 + (tmp0), (xmask).to(tl.int1)" in code
+                "tl.load(in_ptr0 + (tmp0), x0_mask" in code
+                or "tl.load(in_ptr0 + (tmp0), (x0_mask).to(tl.int1)" in code
             )
             self.assertEqual(fn(x, 8), fn_opt(x, 8))
 
@@ -19860,7 +19860,7 @@ if RUN_GPU:
                 "'XBLOCK': 'constexpr'"
             ).run(code[0])
 
-        @unittest.skipIf(TEST_WITH_ROCM or not IS_SM90, "no scaled_grouped_mm support")
+        #@unittest.skipIf(TEST_WITH_ROCM or not IS_SM90, "no scaled_grouped_mm support")
         def test_respect_scaled_grouped_mm_layout_tag(self):
             # scaled_grouped_mm needs `mat2` to be column-major
             M, K, N = 128, 64, 32  # K and N must be divisible by 16
