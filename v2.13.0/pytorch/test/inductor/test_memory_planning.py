@@ -48,7 +48,6 @@ except ImportError:
     )
 
 
-@requires_gpu()
 @config.patch(memory_planning=True)
 class TestMemoryPlanning(TestCase):
     device = GPU_TYPE

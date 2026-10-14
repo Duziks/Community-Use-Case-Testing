@@ -46,6 +46,7 @@ To run a specific test:
 import os
 import sys
 import unittest
+from unittest import skipIf
 
 import pytest
 
@@ -68,7 +69,10 @@ from torch.testing._internal.common_utils import (
     skipIfTorchDynamo,
     TEST_WITH_ASAN,
 )
-from torch.testing._internal.inductor_utils import HAS_GPU
+from torch.testing._internal.inductor_utils import (
+    HAS_GPU,
+    GPU_TYPE,
+)
 
 
 # LLM-useful op names to filter from unary_ufuncs
@@ -596,6 +600,7 @@ class TestOpInfoProperties(TestCase):
     # Batch Invariance Tests
     # =========================================================================
 
+    @skipIf(GPU_TYPE == "npu", "NPU don't support cublaslt")
     @onlyCUDA
     @skipIfTorchDynamo("Test uses dynamo already")
     @ops(llm_ops, allowed_dtypes=DTYPES)
