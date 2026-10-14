@@ -10,6 +10,31 @@ from torch._inductor import cudagraph_utils
 READY = torch.npu.is_available() and _dynamo.has_triton()
 
 
+
+def _wrapper_npu_backend_active(fn):
+    @wraps(fn)
+    def decorated(name, backend):
+        # transfer_to_npu aliases CUDA availability to NPU availability.
+        # Do not let Inductor's fallback reactivate a CUDA/HIP driver.
+        if name in ("nvidia", "amd"):
+            return False
+        return fn(name, backend)
+
+    decorated._npu_transfer_backend_probe = True
+    return decorated
+
+
+if torch.npu.is_available():
+    from torch._inductor.runtime import triton_helpers
+
+    if hasattr(triton_helpers, "_is_backend_active") and not getattr(
+        triton_helpers._is_backend_active, "_npu_transfer_backend_probe", False
+    ):
+        triton_helpers._is_backend_active = _wrapper_npu_backend_active(
+            triton_helpers._is_backend_active
+        )
+
+
 def _wrapper_check_lowering_disable_cudagraph(fn):
     @wraps(fn)
     def decorated(device_node_mapping):
