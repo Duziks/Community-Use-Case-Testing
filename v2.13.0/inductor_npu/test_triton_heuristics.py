@@ -77,6 +77,9 @@ from torch._inductor.test_case import run_tests, TestCase
 from torch._inductor.utils import fresh_cache
 
 NPU_TYPE = "npu"
+# transfer_to_npu disables the upstream CUDA/XPU Triton probe. Query the
+# registered NPU backend instead of changing that process-wide probe.
+HAS_NPU_AND_TRITON = torch.npu.is_available() and _dynamo.has_triton()
 
 @triton.jit
 def amd_sqr_kernel(in_ptr, out_ptr, numel, BLOCK_SIZE: tl.constexpr):
@@ -400,7 +403,10 @@ class TestTritonHeuristics(TestCase):
         res = torch.compile(fn)(x)
         self.assertEqual(ref, res)
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(
+        HAS_GPU_AND_TRITON and GPU_TYPE in ("cuda", "xpu"),
+        "requires CUDA/ROCm or XPU shared-memory properties and Triton",
+    )
     @parametrize("do_pruning", [False, True])
     def test_prune_configs_over_shared_memory_limit(self, do_pruning):
         from torch._inductor.template_heuristics.triton import (
@@ -433,7 +439,7 @@ class TestTritonHeuristics(TestCase):
             )
             self.assertEqual(len(configs), expected_count)
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_compile_time_autotune_not_repeated_at_runtime(self):
         def fn(x):
             return (x + 1).sum(dim=1)
@@ -746,7 +752,7 @@ class TestDumpLaunchTensors(TestCase):
             shutil.rmtree(self.test_dir)
         super().tearDown()
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires GPU and Triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_dump_launch_tensors(self):
         """
         Test that dump_launch_tensors functions correctly:
@@ -864,7 +870,7 @@ class TestRecheckAutotuneCache(TestCase):
         autotuner.compile_results = compile_results
         return autotuner
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_recheck_single_config_enters_cache_hit_block(self):
         """
         When there is exactly 1 config and the autotune cache returns a hit,
@@ -893,7 +899,7 @@ class TestRecheckAutotuneCache(TestCase):
         # And found_by_coordesc must be propagated
         self.assertTrue(autotuner.compile_results[0].config.found_by_coordesc)
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_recheck_propagates_found_by_coordesc_true(self):
         """
         When the cached best config has found_by_coordesc=True,
@@ -925,7 +931,7 @@ class TestRecheckAutotuneCache(TestCase):
         # The flag must be propagated from the cached config
         self.assertTrue(autotuner.compile_results[0].config.found_by_coordesc)
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_recheck_propagates_found_by_coordesc_false(self):
         """
         When the cached best config has found_by_coordesc=False, it must be
@@ -949,7 +955,7 @@ class TestRecheckAutotuneCache(TestCase):
         self.assertEqual(len(autotuner.compile_results), 1)
         self.assertFalse(autotuner.compile_results[0].config.found_by_coordesc)
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_recheck_no_cache_hit_leaves_results_unchanged(self):
         """
         When there's no autotune cache hit, compile_results should not change.
@@ -1001,8 +1007,7 @@ def get_hip_autotune_kernel_with_invalid_config():
 
 
 class TestHIPInvalidConfigHandling(TestCase):
-    @runOnRocm
-    @skipUnless(HAS_GPU_AND_TRITON, "requires GPU and Triton")
+    @skipUnless(torch.version.hip and HAS_GPU_AND_TRITON, "requires ROCm and Triton")
     def test_benchmark_returns_inf_on_invalid_config(self):
         from torch._inductor.runtime.benchmarking import TritonBenchmarker
 
@@ -1020,8 +1025,7 @@ class TestHIPInvalidConfigHandling(TestCase):
         )
         self.assertEqual(result, float("inf"))
 
-    @runOnRocm
-    @skipUnless(HAS_GPU_AND_TRITON, "requires GPU and Triton")
+    @skipUnless(torch.version.hip and HAS_GPU_AND_TRITON, "requires ROCm and Triton")
     def test_autotune_skips_invalid_hip_config_and_succeeds(self):
         numel = 1024 * 1024
         x = torch.randn(numel, device=GPU_TYPE, dtype=torch.float32)
@@ -1193,7 +1197,7 @@ class TestDynamicScaleRblockCacheInteraction(TestCase):
         autotuner.compile_results = compile_results
         return autotuner
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_dynamic_scale_rblock_skipped_on_cache_hit(self):
         """
         _dynamic_scale_rblock must be a no-op when the autotune cache
@@ -1210,7 +1214,7 @@ class TestDynamicScaleRblockCacheInteraction(TestCase):
 
         self.assertEqual(n_before, n_after)
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_dynamic_scale_rblock_runs_on_cache_miss(self):
         """
         _dynamic_scale_rblock should not be skipped when the autotune
@@ -1223,7 +1227,7 @@ class TestDynamicScaleRblockCacheInteraction(TestCase):
 
         autotuner._dynamic_scale_rblock()
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_dynamic_scale_rblock_runs_when_cache_info_none(self):
         """
         _dynamic_scale_rblock should not be skipped when
@@ -1236,7 +1240,7 @@ class TestDynamicScaleRblockCacheInteraction(TestCase):
 
         autotuner._dynamic_scale_rblock()
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_load_cached_autotuning_reconstructs_unknown_config(self):
         """
         When the cached best config is not in the original configs list
@@ -1272,7 +1276,7 @@ class TestDynamicScaleRblockCacheInteraction(TestCase):
         self.assertEqual(result.num_warps, 8)
         self.assertEqual(result.num_stages, 1)
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_load_cached_autotuning_still_matches_known_config(self):
         """
         When the cached best config IS in the original configs list,
@@ -1302,7 +1306,7 @@ class TestDynamicScaleRblockCacheInteraction(TestCase):
         self.assertIsNotNone(result)
         self.assertIs(result, cfg_b)
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_load_cached_autotuning_rejects_hash_mismatch(self):
         """
         When configs_hash doesn't match, _load_cached_autotuning must
@@ -1326,7 +1330,7 @@ class TestDynamicScaleRblockCacheInteraction(TestCase):
 
         self.assertIsNone(result)
 
-    @skipUnless(HAS_GPU_AND_TRITON, "requires gpu and triton")
+    @skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_recheck_autotune_cache_compiles_dynamic_config(self):
         """
         When the cached best config was added by _dynamic_scale_rblock

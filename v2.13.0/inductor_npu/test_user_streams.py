@@ -487,7 +487,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             # Compute on default stream
             a = x * 2
@@ -521,7 +521,7 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             with torch.cuda.stream(s1):
                 a = x * 2
@@ -556,8 +556,8 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            event1 = torch.cuda.Event()
-            event2 = torch.cuda.Event()
+            event1 = torch.Event(device="npu")
+            event2 = torch.Event(device="npu")
 
             # Work on s1
             with torch.cuda.stream(s1):
@@ -596,7 +596,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             # Record the event first
             event.record()
@@ -627,7 +627,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             a = x * 2
             event.record()
@@ -658,8 +658,8 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            event_s1 = torch.cuda.Event()
-            event_s2 = torch.cuda.Event()
+            event_s1 = torch.Event(device="npu")
+            event_s2 = torch.Event(device="npu")
 
             # s1 does work
             with torch.cuda.stream(s1):
@@ -701,8 +701,8 @@ class TestUserStreamCompile(InductorTestCase):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             # Stage 1 on s1
             with torch.cuda.stream(s1):
@@ -746,9 +746,9 @@ class TestUserStreamCompile(InductorTestCase):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
-            e3 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
+            e3 = torch.Event(device="npu")
 
             # Parallel work on three streams
             with torch.cuda.stream(s1):
@@ -794,9 +794,9 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e_start = torch.cuda.Event()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e_start = torch.Event(device="npu")
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             # Initial work on default stream
             a = x * 2
@@ -842,9 +842,9 @@ class TestUserStreamCompile(InductorTestCase):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e_start = torch.cuda.Event()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e_start = torch.Event(device="npu")
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             # Start on default stream
             a = x + 1
@@ -891,7 +891,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
             result = x
 
             for _ in range(3):
@@ -923,8 +923,8 @@ class TestUserStreamCompile(InductorTestCase):
         def fn(x):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             # These could be fused if on same stream, but should NOT be fused
             # since they're on different streams
@@ -965,7 +965,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             # Work on default stream
             a = x * 2
@@ -1058,7 +1058,7 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x, y, z, w):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
 
             # Independent pointwise ops on different streams at the same
             # topological level — combo kernels must not merge them.
@@ -1279,10 +1279,10 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x):
             a = x * 2
-            side.wait_stream(torch.cuda.current_stream())
+            side.wait_stream(torch.npu.current_stream())
             with torch.cuda.stream(side):
                 b = a + 1
-            torch.cuda.current_stream().wait_stream(side)
+            torch.npu.current_stream().wait_stream(side)
             return b
 
         x = torch.randn(1024, device="cuda")
@@ -1315,10 +1315,10 @@ class TestUserStreamCompile(InductorTestCase):
 
         def fn(x, y):
             a = x * 2
-            side.wait_stream(torch.cuda.current_stream())
+            side.wait_stream(torch.npu.current_stream())
             with torch.cuda.stream(side):
                 b = y + 1
-            torch.cuda.current_stream().wait_stream(side)
+            torch.npu.current_stream().wait_stream(side)
             return a + b
 
         x = torch.randn(1024, device="cuda")
@@ -1424,7 +1424,7 @@ with torch.cuda._DeviceGuard(0):
 
         def fn(x, w1, w2):
             s = torch.cuda.Stream()
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
             a = x @ w1
             event.record()
             with torch.cuda.stream(s):
@@ -1439,9 +1439,12 @@ with torch.cuda._DeviceGuard(0):
         expected = fn(x, w1, w2)
         counter = CompileCounterWithBackend("inductor")
         compiled_fn = torch.compile(fn, backend=counter)
+        current_stream = torch.npu.current_stream()
         result, (code,) = run_and_get_code(compiled_fn, x, w1, w2)
         self.assertEqual(result, expected)
+        self.assertEqual(torch.npu.current_stream(), current_stream)
 
+        # NPU stream contexts explicitly save, switch, and restore the current stream.
         self.assertExpectedInline(
             normalize_gm(counter.graphs[0].print_readable(print_output=False)),
             """\
@@ -1451,7 +1454,7 @@ class GraphModule(torch.nn.Module):
         l_w1_ = L_w1_
         l_w2_ = L_w2_
 
-        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1);  get_external_object_by_index = None
+        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1)
 
         get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2);  get_external_object_by_index_1 = None
 
@@ -1460,9 +1463,14 @@ class GraphModule(torch.nn.Module):
         get_external_object_by_index_2 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(0);  get_external_object_by_index_2 = None
         record_event = torch.ops.streams.record_event(2, 0);  record_event = None
 
+        current_stream = torch_npu_npu_utils_current_stream(None)
+        set_stream = torch_npu_npu_utils_set_stream(get_external_object_by_index);  get_external_object_by_index = set_stream = None
+
         wait_event = torch.ops.streams.wait_event(2, 1);  wait_event = None
 
         b: "f32[32, 32]" = a @ l_w2_;  a = l_w2_ = None
+
+        set_stream_1 = torch_npu_npu_utils_set_stream(current_stream);  current_stream = set_stream_1 = None
 
         synchronize_stream = torch.ops.streams.synchronize_stream(1);  synchronize_stream = None
         return (b,)
@@ -1493,8 +1501,8 @@ class GraphModule(torch.nn.Module):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
             with torch.cuda.stream(s1):
                 a = x @ w1
                 e1.record(s1)
@@ -1517,9 +1525,12 @@ class GraphModule(torch.nn.Module):
         expected = fn(x, w1, w2, w3)
         counter = CompileCounterWithBackend("inductor")
         compiled_fn = torch.compile(fn, backend=counter)
+        current_stream = torch.npu.current_stream()
         result, (code,) = run_and_get_code(compiled_fn, x, w1, w2, w3)
         self.assertEqual(result, expected)
+        self.assertEqual(torch.npu.current_stream(), current_stream)
 
+        # NPU stream contexts explicitly save, switch, and restore the current stream.
         self.assertExpectedInline(
             normalize_gm(counter.graphs[0].print_readable(print_output=False)),
             """\
@@ -1530,19 +1541,27 @@ class GraphModule(torch.nn.Module):
         l_w2_ = L_w2_
         l_w3_ = L_w3_
 
-        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1);  get_external_object_by_index = None
+        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1)
 
-        get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2);  get_external_object_by_index_1 = None
+        get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2)
 
-        get_external_object_by_index_2 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(3);  get_external_object_by_index_2 = None
+        get_external_object_by_index_2 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(3)
 
         get_external_object_by_index_3 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(4);  get_external_object_by_index_3 = None
 
         get_external_object_by_index_4 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(5);  get_external_object_by_index_4 = None
 
+        current_stream = torch_npu_npu_utils_current_stream(None)
+        set_stream = torch_npu_npu_utils_set_stream(get_external_object_by_index);  get_external_object_by_index = set_stream = None
+
         a: "f32[32, 32]" = l_x_ @ l_w1_;  l_x_ = l_w1_ = None
 
         record_event = torch.ops.streams.record_event(4, 1);  record_event = None
+
+        set_stream_1 = torch_npu_npu_utils_set_stream(current_stream);  current_stream = set_stream_1 = None
+
+        current_stream_1 = torch_npu_npu_utils_current_stream(None)
+        set_stream_2 = torch_npu_npu_utils_set_stream(get_external_object_by_index_1);  get_external_object_by_index_1 = set_stream_2 = None
 
         wait_event = torch.ops.streams.wait_event(4, 2);  wait_event = None
 
@@ -1550,9 +1569,16 @@ class GraphModule(torch.nn.Module):
 
         record_event_1 = torch.ops.streams.record_event(5, 2);  record_event_1 = None
 
+        set_stream_3 = torch_npu_npu_utils_set_stream(current_stream_1);  current_stream_1 = set_stream_3 = None
+
+        current_stream_2 = torch_npu_npu_utils_current_stream(None)
+        set_stream_4 = torch_npu_npu_utils_set_stream(get_external_object_by_index_2);  get_external_object_by_index_2 = set_stream_4 = None
+
         wait_event_1 = torch.ops.streams.wait_event(5, 3);  wait_event_1 = None
 
         c: "f32[32, 32]" = b @ l_w3_;  b = l_w3_ = None
+
+        set_stream_5 = torch_npu_npu_utils_set_stream(current_stream_2);  current_stream_2 = set_stream_5 = None
 
         synchronize_stream = torch.ops.streams.synchronize_stream(1);  synchronize_stream = None
 
@@ -1593,8 +1619,8 @@ class GraphModule(torch.nn.Module):
         def fn(x, w1, w2):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
             with torch.cuda.stream(s1):
                 a = x @ w1
                 e1.record(s1)
@@ -1614,9 +1640,12 @@ class GraphModule(torch.nn.Module):
         expected = fn(x, w1, w2)
         counter = CompileCounterWithBackend("inductor")
         compiled_fn = torch.compile(fn, backend=counter)
+        current_stream = torch.npu.current_stream()
         result, (code,) = run_and_get_code(compiled_fn, x, w1, w2)
         self.assertEqual(result, expected)
+        self.assertEqual(torch.npu.current_stream(), current_stream)
 
+        # NPU stream contexts explicitly save, switch, and restore the current stream.
         self.assertExpectedInline(
             normalize_gm(counter.graphs[0].print_readable(print_output=False)),
             """\
@@ -1626,21 +1655,31 @@ class GraphModule(torch.nn.Module):
         l_w1_ = L_w1_
         l_w2_ = L_w2_
 
-        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1);  get_external_object_by_index = None
+        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1)
 
-        get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2);  get_external_object_by_index_1 = None
+        get_external_object_by_index_1 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(2)
 
         get_external_object_by_index_2 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(3);  get_external_object_by_index_2 = None
 
         get_external_object_by_index_3 = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(4);  get_external_object_by_index_3 = None
 
+        current_stream = torch_npu_npu_utils_current_stream(None)
+        set_stream = torch_npu_npu_utils_set_stream(get_external_object_by_index);  get_external_object_by_index = set_stream = None
+
         a: "f32[32, 32]" = l_x_ @ l_w1_;  l_w1_ = None
 
         record_event = torch.ops.streams.record_event(3, 1);  record_event = None
 
+        set_stream_1 = torch_npu_npu_utils_set_stream(current_stream);  current_stream = set_stream_1 = None
+
+        current_stream_1 = torch_npu_npu_utils_current_stream(None)
+        set_stream_2 = torch_npu_npu_utils_set_stream(get_external_object_by_index_1);  get_external_object_by_index_1 = set_stream_2 = None
+
         b: "f32[32, 32]" = l_x_ @ l_w2_;  l_x_ = l_w2_ = None
 
         record_event_1 = torch.ops.streams.record_event(4, 2);  record_event_1 = None
+
+        set_stream_3 = torch_npu_npu_utils_set_stream(current_stream_1);  current_stream_1 = set_stream_3 = None
 
         wait_event = torch.ops.streams.wait_event(3, 0);  wait_event = None
 
@@ -1667,7 +1706,8 @@ class GraphModule(torch.nn.Module):
 # CHECK: extern_kernels.mm(
 # CHECK: record_event
 # CHECK: with default_stream:
-# CHECK: wait_event
+# CHECK: wait_event.default(3, 0)
+# CHECK: wait_event.default(4, 0)
 # CHECK: triton_kernel.run(
 # CHECK: synchronize_stream
 # CHECK: synchronize_stream""",
@@ -1719,7 +1759,7 @@ class TestStreamOrderingStress(InductorTestCase):
 
         def fn(x, w):
             s = torch.cuda.Stream()
-            e = torch.cuda.Event()
+            e = torch.Event(device="npu")
 
             # Heavy producer on default stream — takes real GPU time
             a = TestStreamOrderingStress._heavy_matmul_chain(x, w)
@@ -1746,8 +1786,8 @@ class TestStreamOrderingStress(InductorTestCase):
         def fn(x, w):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             with torch.cuda.stream(s1):
                 a = TestStreamOrderingStress._heavy_matmul_chain(x, w)
@@ -1781,10 +1821,10 @@ class TestStreamOrderingStress(InductorTestCase):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
             s3 = torch.cuda.Stream()
-            e = torch.cuda.Event()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
-            e3 = torch.cuda.Event()
+            e = torch.Event(device="npu")
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
+            e3 = torch.Event(device="npu")
 
             # Slow producer
             a = TestStreamOrderingStress._heavy_matmul_chain(x, w)
@@ -1829,9 +1869,9 @@ class TestStreamOrderingStress(InductorTestCase):
         def fn(x, w):
             s1 = torch.cuda.Stream()
             s2 = torch.cuda.Stream()
-            e_fork = torch.cuda.Event()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e_fork = torch.Event(device="npu")
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             base = x @ w
             e_fork.record()
@@ -1871,7 +1911,7 @@ class TestStreamOrderingStress(InductorTestCase):
 
         def fn(x, w):
             streams = [torch.cuda.Stream() for _ in range(4)]
-            events = [torch.cuda.Event() for _ in range(3)]
+            events = [torch.Event(device="npu") for _ in range(3)]
 
             with torch.cuda.stream(streams[0]):
                 h = TestStreamOrderingStress._heavy_matmul_chain(x, w, depth=4)
@@ -1907,8 +1947,8 @@ class TestStreamOrderingStress(InductorTestCase):
 
         def fn(x, w):
             s = torch.cuda.Stream()
-            e1 = torch.cuda.Event()
-            e2 = torch.cuda.Event()
+            e1 = torch.Event(device="npu")
+            e2 = torch.Event(device="npu")
 
             a = TestStreamOrderingStress._heavy_matmul_chain(x, w)
             e1.record()
@@ -1938,7 +1978,7 @@ class TestStreamOrderingStress(InductorTestCase):
 
         def fn(x, w):
             s = torch.cuda.Stream()
-            e = torch.cuda.Event()
+            e = torch.Event(device="npu")
 
             with torch.cuda.stream(s):
                 # Heavy matmul chain produces data on user stream
@@ -1966,7 +2006,7 @@ class TestGenericStreamCompile(InductorTestCase):
         from torch._inductor.utils import run_and_get_code
 
         # Create stream outside compiled function
-        stream = torch.Stream("cuda")
+        stream = torch.Stream("npu")
 
         def fn(x):
             with stream:
@@ -1992,7 +2032,7 @@ class TestGenericStreamCompile(InductorTestCase):
         from torch._inductor.utils import run_and_get_code
 
         # Create stream and event outside compiled function
-        stream = torch.Stream("cuda")
+        stream = torch.Stream("npu")
         event = torch.Event("cuda")
         cuda_stream = torch.cuda.Stream(
             stream_id=stream.stream_id,
@@ -2028,8 +2068,8 @@ class TestGenericStreamCompile(InductorTestCase):
         from torch._inductor.utils import run_and_get_code
 
         # Create streams and event outside compiled function
-        stream1 = torch.Stream("cuda")
-        stream2 = torch.Stream("cuda")
+        stream1 = torch.Stream("npu")
+        stream2 = torch.Stream("npu")
         event = torch.Event("cuda")
         cuda_stream1 = torch.cuda.Stream(
             stream_id=stream1.stream_id,
@@ -2073,7 +2113,7 @@ class TestGenericStreamCompile(InductorTestCase):
         from torch._inductor.utils import run_and_get_code
 
         # Create stream and event outside compiled function
-        stream = torch.Stream("cuda")
+        stream = torch.Stream("npu")
         event = torch.Event("cuda")
         cuda_stream = torch.cuda.Stream(
             stream_id=stream.stream_id,
@@ -2134,7 +2174,7 @@ class TestStreamIdentity(InductorTestCase):
         stream_b = torch.cuda.Stream()
 
         def fn(x):
-            event = torch.cuda.Event()
+            event = torch.Event(device="npu")
             with torch.cuda.stream(stream_a):
                 a = x * 2
                 event.record()
