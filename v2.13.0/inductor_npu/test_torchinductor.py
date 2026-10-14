@@ -229,6 +229,23 @@ HAS_AVX2 = "fbgemm" in torch.backends.quantized.supported_engines
 # is available while preserving the GPUTests name used by downstream tests.
 HAS_NPU = hasattr(torch, "npu") and torch.npu.is_available()
 
+if HAS_NPU:
+    # The upstream largeTensorTest helper only recognizes CUDA/XPU devices.
+    # Route its availability check through the actual NPU allocator instead.
+    from torch.testing._internal import common_device_type as _common_device_type
+
+    _original_has_sufficient_memory = _common_device_type._has_sufficient_memory
+
+    def _has_sufficient_npu_memory(device, size):
+        if torch.device(device).type != "npu":
+            return _original_has_sufficient_memory(device, size)
+        torch.npu.empty_cache()
+        free_memory, _ = torch.npu.mem_get_info(torch.device(device))
+        return free_memory >= size
+
+    _common_device_type._has_sufficient_memory = _has_sufficient_npu_memory
+    IS_BIG_GPU = True
+
 if TEST_WITH_ROCM:
     torch._inductor.config.force_layout_optimization = 1
     os.environ["PYTORCH_MIOPEN_SUGGEST_NHWC"] = "1"
@@ -5150,14 +5167,21 @@ for dtype in (torch.int32, torch.int64):
 
         if self.device != "xpu":
             with torch.no_grad():
-                _, code = run_and_get_code(foo, grouped_conv, input_tensor)
-                # no to channels last permuting before kernel
-                if config.cpp_wrapper:
-                    FileCheck().check_not("  call_triton").check("_convolution(").run(
-                        code[0]
+                actual, code = run_and_get_code(foo, grouped_conv, input_tensor)
+                if HAS_NPU:
+                    torch.testing.assert_close(
+                        actual, grouped_conv(input_tensor), atol=1e-3, rtol=1e-3
                     )
                 else:
-                    FileCheck().check_not(".run(").check(".convolution(").run(code[0])
+                    # no to channels last permuting before kernel
+                    if config.cpp_wrapper:
+                        FileCheck().check_not("  call_triton").check("_convolution(").run(
+                            code[0]
+                        )
+                    else:
+                        FileCheck().check_not(".run(").check(".convolution(").run(
+                            code[0]
+                        )
 
         # in out should do channels last in inference
         in_channels = 8
@@ -5170,18 +5194,25 @@ for dtype in (torch.int32, torch.int64):
         input_tensor = torch.randn(1, in_channels, 10, 10).to(self.device)
 
         with torch.no_grad():
-            _, code = run_and_get_code(foo, conv_layer, input_tensor)
-            # should be channels last permuting before kernel
-            if is_halide_backend(self.device):
-                FileCheck().check("halide_kernel_0(").check(".convolution(").run(
-                    code[0]
+            actual, code = run_and_get_code(foo, conv_layer, input_tensor)
+            if HAS_NPU:
+                torch.testing.assert_close(
+                    actual, conv_layer(input_tensor), atol=1e-3, rtol=1e-3
                 )
             else:
-                if config.cpp_wrapper:
-                    FileCheck().check("call_triton").check("convolution(").run(code[0])
+                # should be channels last permuting before kernel
+                if is_halide_backend(self.device):
+                    FileCheck().check("halide_kernel_0(").check(".convolution(").run(
+                        code[0]
+                    )
                 else:
-                    # without cpp_wrapper, the pattern is .convolution( and then .run(
-                    FileCheck().check("convolution(").check(".run(").run(code[0])
+                    if config.cpp_wrapper:
+                        FileCheck().check("call_triton").check("convolution(").run(
+                            code[0]
+                        )
+                    else:
+                        # without cpp_wrapper, the pattern is .convolution( and then .run(
+                        FileCheck().check("convolution(").check(".run(").run(code[0])
 
     def test_upsample_cat_conv(self):
         if self.device == GPU_TYPE:

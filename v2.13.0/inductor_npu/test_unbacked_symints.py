@@ -33,6 +33,8 @@ from torch.testing._internal.common_utils import parametrize, skipIfXpu
 from torch.testing._internal.inductor_utils import HAS_GPU
 import torch_npu._inductor
 
+IS_NPU = hasattr(torch, "npu") and torch.npu.is_available()
+
 
 class TestUnbackedSymints(InductorTestCase):
     @skipGPUIf(not HAS_GPU, "requires gpu and triton")
@@ -236,7 +238,12 @@ class TestUnbackedSymints(InductorTestCase):
         actual = torch.compile(fn, fullgraph=True)(*example_inputs)
         expected = fn(*example_inputs)
         torch.testing.assert_close(actual, expected)
-        self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
+        # NPU's reduction scheduler keeps the pointwise and reduction stages
+        # separate, while CUDA fuses them into one Triton kernel.
+        expected_kernel_count = 2 if IS_NPU else 1
+        self.assertEqual(
+            torch._inductor.metrics.generated_kernel_count, expected_kernel_count
+        )
 
     @skipGPUIf(not HAS_GPU, "requires gpu and triton")
     @dynamo_config.patch({"capture_scalar_outputs": True})
