@@ -6,6 +6,10 @@ _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
+# Restore the device-aware torch.utils._triton.has_triton (transfer_to_npu
+# forces it to False), so Dynamo's triton kernel wrapping and HAS_GPU work
+# on NPU.
+_dynamo.patch_has_triton()
 # Owner(s): ["module: inductor"]
 # ruff: noqa: F841
 # flake8: noqa: E731
@@ -85,7 +89,17 @@ if HAS_GPU or torch.npu.is_available():
     import triton
     from triton import language as tl
 
-    if HAS_CUDA_AND_TRITON:
+    if torch.npu.is_available():
+        # NPU first: the generic libdevice dispatcher is not implemented by
+        # the ascend frontend (extern tracing returns None -> "cannot
+        # convert None of type NoneType to tensor"); HAS_CUDA_AND_TRITON is
+        # True on NPU with _dynamo.patch_has_triton(), so it must not take
+        # precedence.
+        from triton.language.extra.cann.libdevice import (  # @manual
+            fast_dividef,
+            fast_dividef as my_fast_dividef,
+        )
+    elif HAS_CUDA_AND_TRITON:
         try:
             from triton.language.extra.libdevice import (  # @manual
                 fast_dividef,
@@ -96,11 +110,6 @@ if HAS_GPU or torch.npu.is_available():
                 fast_dividef,
                 fast_dividef as my_fast_dividef,
             )
-    elif torch.npu.is_available():
-        from triton.language.extra.cann.libdevice import (  # @manual
-            fast_dividef,
-            fast_dividef as my_fast_dividef,
-        )
     elif HAS_XPU_AND_TRITON:
         from triton.language.extra.intel.libdevice import (  # @manual
             fast_dividef,
@@ -2681,6 +2690,12 @@ def forward(self, arg0_1, arg1_1):
 
     @parametrize("dtype", (torch.float16, torch.float32, torch.float64))
     def test_triton_kernel_float64_constant(self, dtype):
+        if dtype == torch.float64:
+            # Ascend Triton hfusion pipeline does not support f64 kernels
+            # (MLIRCompilationError in ConvertLinalgIRToBinary); skip until
+            # the backend supports float64.
+            self.skipTest("float64 not supported by Ascend Triton backend")
+
         def f(x):
             return x * (0.12 * x.shape[0])
 
@@ -3038,6 +3053,12 @@ def forward(self, arg0_1, arg1_1):
     @inductor_config.patch({"triton.autotune_at_compile_time": True})
     @parametrize("quotes", ["single", "double"])
     def test_kernel_inline_asm(self, quotes):
+        if torch.npu.is_available():
+            # Aligned with the XPU skip above: `tl.inline_asm_elementwise`
+            # is not supported by the Ascend backend (bisheng cannot
+            # allocate output registers for inline-asm constraints).
+            self.skipTest("`tl.inline_asm_elementwise` is not yet supported on Ascend")
+
         if torch.version.cuda:
             kernel = (
                 kernel_inline_asm_single_quotes
@@ -5062,6 +5083,13 @@ else:
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     @common_utils.parametrize("with_perf_model", [True, False])
     def test_triton_kernel_prune_configs_by(self, backend, with_perf_model, non_strict):
+        if torch.npu.is_available() and backend == "inductor" and with_perf_model:
+            # The perf_model selects BLOCK_SIZE=128, so the kernel executes
+            # `x + add_float` (a Python float64 constant); the Ascend Triton
+            # hfusion pipeline does not support the resulting f64->f32
+            # arith::ExtFOp (bishengir-compile aborts).
+            self.skipTest("f64 ExtFOp not supported by Ascend Triton hfusion pipeline")
+
         # for non-strict mode
         libname = "my_cool_namespace"
         opname = "my_triton_operator"
@@ -5153,6 +5181,12 @@ else:
     @common_utils.parametrize("backend", ["eager", "aot_eager", "inductor"])
     @common_utils.parametrize("with_perf_model", [True, False])
     def test_triton_kernel_prune_configs_by_recompile(self, backend, with_perf_model):
+        if torch.npu.is_available() and backend == "inductor" and with_perf_model:
+            # Same as test_triton_kernel_prune_configs_by: the perf_model
+            # path generates an f64->f32 arith::ExtFOp that the Ascend
+            # Triton hfusion pipeline does not support.
+            self.skipTest("f64 ExtFOp not supported by Ascend Triton hfusion pipeline")
+
         """
         We want to recompile if anyone changes configs in the autotuner object
         In short if for example the following sequence of events happens:

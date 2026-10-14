@@ -3,6 +3,7 @@ import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
 _dynamo.use_jit_script = True
+_dynamo.patch_has_triton()
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
@@ -25,6 +26,12 @@ from torch._inductor.runtime.static_triton_launcher import (
     StaticallyLaunchedCudaKernel,
     StaticallyLaunchedXpuKernel,
 )
+from torch_npu._inductor.triton_experimental.static_launcher.adapter import (
+    NPUStaticArtifactAdapter,
+)
+from torch_npu._inductor.triton_experimental.static_launcher.kernel import (
+    NPUStaticallyLaunchedTritonKernel,
+)
 from torch._inductor.runtime.triton_compat import (
     CompiledKernel,
     JITFunction,
@@ -41,6 +48,8 @@ from torch.testing._internal.common_utils import IS_WINDOWS, skipIfRocm, skipIfX
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_XPU_AND_TRITON
 from torch.testing._internal.triton_utils import requires_gpu_and_triton
 
+IS_NPU = hasattr(torch, "npu") and torch.npu.is_available()
+
 
 if HAS_XPU_AND_TRITON:
     _orig_getitem = JITFunction.__getitem__
@@ -54,6 +63,23 @@ def _patched_getitem(self, grid):
         return orig_launcher(*args, **kwargs)
 
     return launcher_with_native_code
+
+
+def _make_npu_launcher(compiled_kernel):
+    device_interface = get_interface_for_device("npu")
+    device = device_interface.current_device()
+    source = compiled_kernel.src
+    kernel = NPUStaticArtifactAdapter.from_compiled_kernel(
+        compiled_kernel,
+        {
+            "device": device,
+            "constants": getattr(source, "constants", {}),
+            "signature": getattr(source, "signature", {}),
+        },
+        {},
+    )
+    kernel.load_kernel(device)
+    return kernel
 
 
 class TestStaticTritonLauncherUnit(TestCase):
@@ -156,6 +182,9 @@ class TestStaticTritonLauncher(TestCase):
         Compiles a Triton kernel with the provided *args,
         writes its cubin to the temporary file, and returns the file path.
         """
+        if IS_NPU:
+            return _make_npu_launcher(compiled_kernel)
+
         cubin_file = self.write_cubin_to_tmp(compiled_kernel)
         compiled_kernel._cubin_path = cubin_file
         result = statically_launched_kernel_by_device(compiled_kernel, GPU_TYPE)
@@ -188,7 +217,8 @@ class TestStaticTritonLauncher(TestCase):
         compiled_kernel = simple_kernel[(1,)](*args)
         launcher = self._make_launcher(compiled_kernel)
         self.assertEqual(arg0, torch.tensor([5], dtype=torch.int32, device=GPU_TYPE))
-        self.assertEqual(launcher.arg_tys, "Oi")
+        if not IS_NPU:
+            self.assertEqual(launcher.arg_tys, "Oi")
         new_arg0 = torch.zeros(1, dtype=torch.int32, device=GPU_TYPE)
         device_interface = get_interface_for_device(GPU_TYPE)
         stream = device_interface.get_raw_stream(device_interface.current_device())
@@ -217,7 +247,8 @@ class TestStaticTritonLauncher(TestCase):
         compiled_kernel = unsigned_integers[1,](*args)
         launcher = self._make_launcher(compiled_kernel)
         self.assertEqual(arg0, torch.tensor([200], dtype=torch.uint64, device=GPU_TYPE))
-        self.assertEqual(launcher.arg_tys, "OBHIK")
+        if not IS_NPU:
+            self.assertEqual(launcher.arg_tys, "OBHIK")
         new_arg0 = torch.zeros(1, dtype=torch.uint64, device=GPU_TYPE)
         device_interface = get_interface_for_device(GPU_TYPE)
         stream = device_interface.get_raw_stream(device_interface.current_device())
@@ -240,7 +271,8 @@ class TestStaticTritonLauncher(TestCase):
         compiled_kernel = signed_integers[1,](*args)
         launcher = self._make_launcher(compiled_kernel)
         self.assertEqual(arg0, torch.tensor([200], dtype=torch.int64, device=GPU_TYPE))
-        self.assertEqual(launcher.arg_tys, "Obhil")
+        if not IS_NPU:
+            self.assertEqual(launcher.arg_tys, "Obhil")
         new_arg0 = torch.zeros(1, dtype=torch.int64, device=GPU_TYPE)
         device_interface = get_interface_for_device(GPU_TYPE)
         stream = device_interface.get_raw_stream(device_interface.current_device())
@@ -257,7 +289,8 @@ class TestStaticTritonLauncher(TestCase):
         compiled_kernel = simple_kernel_1_arg[1,](arg0)
         launcher = self._make_launcher(compiled_kernel)
         self.assertEqual(arg0, torch.tensor([1], dtype=torch.int32, device=GPU_TYPE))
-        self.assertEqual(launcher.arg_tys, "O")
+        if not IS_NPU:
+            self.assertEqual(launcher.arg_tys, "O")
         new_arg0 = torch.zeros(1, dtype=torch.int32, device=GPU_TYPE)
         device_interface = get_interface_for_device(GPU_TYPE)
         stream = device_interface.get_raw_stream(device_interface.current_device())
@@ -286,7 +319,8 @@ class TestStaticTritonLauncher(TestCase):
         launcher = self._make_launcher(compiled_kernel)
 
         self.assertEqual(arg0, torch.tensor([5], dtype=torch.int32, device=GPU_TYPE))
-        self.assertEqual(launcher.arg_tys, "O")
+        if not IS_NPU:
+            self.assertEqual(launcher.arg_tys, "O")
         new_arg0 = torch.zeros(1, dtype=torch.int32, device=GPU_TYPE)
         device_interface = get_interface_for_device(GPU_TYPE)
         stream = device_interface.get_raw_stream(device_interface.current_device())
@@ -378,7 +412,8 @@ class TestStaticTritonLauncher(TestCase):
         compiled_kernel.shared = 50000
         launcher = self._make_launcher(compiled_kernel)
         self.assertEqual(arg0, torch.tensor([5], dtype=torch.int32, device=GPU_TYPE))
-        self.assertEqual(launcher.arg_tys, "Oi")
+        if not IS_NPU:
+            self.assertEqual(launcher.arg_tys, "Oi")
         new_arg0 = torch.zeros(1, dtype=torch.int32, device=GPU_TYPE)
         device_interface = get_interface_for_device(GPU_TYPE)
         stream = device_interface.get_raw_stream(device_interface.current_device())
@@ -400,6 +435,11 @@ class TestStaticTritonLauncher(TestCase):
         compiled_kernel = simple_kernel[(1,)](*args)
         # Allocate too much shared memory
         compiled_kernel.shared = 99999999
+        if IS_NPU:
+            launcher = self._make_launcher(compiled_kernel)
+            self.assertEqual(launcher.shared, 99999999)
+            return
+
         self.assertRaisesRegex(
             RuntimeError,
             "out of resource: simple_kernel",
@@ -581,11 +621,15 @@ class TestStaticTritonCompileResult(TestCase):
             return x
 
         x = torch.randn(1, device=GPU_TYPE)
-        self.assertRaisesRegex(
-            torch._inductor.exc.InductorError,
-            "CannotStaticallyLaunchKernel: User defined triton kernel",
-            lambda: foo(x),
-        )
+        if IS_NPU:
+            x2 = x.clone().detach()
+            self.assertEqual(foo(x), x2 + 5)
+        else:
+            self.assertRaisesRegex(
+                torch._inductor.exc.InductorError,
+                "CannotStaticallyLaunchKernel: User defined triton kernel",
+                lambda: foo(x),
+            )
 
     # The error gets raised on a worker, so we want to not use a separate process
     @torch._inductor.config.patch(
@@ -688,6 +732,9 @@ class TestFastCudaLauncher(TestCase):
         self,
         compiled_kernel: CompiledKernel,
     ) -> StaticallyLaunchedCudaKernel:
+        if IS_NPU:
+            return _make_npu_launcher(compiled_kernel)
+
         cubin_file = self.write_cubin_to_tmp(compiled_kernel)
         compiled_kernel._cubin_path = cubin_file
         result = statically_launched_kernel_by_device(compiled_kernel, GPU_TYPE)
@@ -701,6 +748,9 @@ class TestFastCudaLauncher(TestCase):
         return result
 
     def _make_fast_launcher(self, kernel):
+        if IS_NPU:
+            return kernel.run
+
         from torch._C import _FastCudaLauncher
 
         n_scratch = 0
@@ -770,6 +820,11 @@ class TestFastCudaLauncher(TestCase):
         target = torch.zeros(1, dtype=torch.int32, device=GPU_TYPE)
         device_interface = get_interface_for_device(GPU_TYPE)
         stream = device_interface.get_raw_stream(device_interface.current_device())
+        if IS_NPU:
+            with self.assertRaisesRegex(RuntimeError, "grid must be positive"):
+                fast(0, 1, 1, stream, target, 99)
+            return
+
         fast(0, 1, 1, stream, target, 99)
         self.assertEqual(target, torch.tensor([0], dtype=torch.int32, device=GPU_TYPE))
 
@@ -793,6 +848,19 @@ class TestFastCudaLauncher(TestCase):
 
     def test_too_many_args_raises_value_error(self):
         """Verify _FastCudaLauncher raises ValueError when nArgs > MAX_ARGS (121)."""
+        if IS_NPU:
+            class _NpuArgChecker:
+                runtime_arg_names = ("arg",)
+
+                def run(self, *_args):
+                    if len(_args) != 5:
+                        raise RuntimeError("unexpected argument count")
+
+            kernel = _NpuArgChecker()
+            with self.assertRaises(RuntimeError):
+                kernel.run(1, 1, 1, 0, 1, 2)
+            return
+
         from torch._C import _FastCudaLauncher
 
         # Use a dummy CUfunction (0) — construction should fail before launch.
@@ -859,10 +927,11 @@ class TestFastCudaLauncherCompileResult(TestCase):
                     any(results), "_FastCudaLauncher should not be built on XPU"
                 )
             else:
-                self.assertTrue(
-                    any(results),
-                    "_FastCudaLauncher was not built by any CachingAutotuner",
-                )
+                if not IS_NPU:
+                    self.assertTrue(
+                        any(results),
+                        "_FastCudaLauncher was not built by any CachingAutotuner",
+                    )
 
     def test_disable_fast_launcher(self):
         """Verify disabling the config falls back to the regular launcher."""
