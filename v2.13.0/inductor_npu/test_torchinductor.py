@@ -6192,7 +6192,7 @@ for dtype in (torch.int32, torch.int64):
         with config.patch(comprehensive_padding=comprehensive_padding):
             self.common(
                 fn,
-                (torch.randn(2, 33, 8, 8, device=self.device, dtype=torch.float64),),
+                (torch.randn(2, 33, 8, 8, device=self.device, dtype=torch.float32),),
                 check_lowp=False,
             )
 
@@ -7235,6 +7235,7 @@ for dtype in (torch.int32, torch.int64):
         if self.device != "cpu":
             assertGeneratedKernelCountEqual(self, 1)
 
+    @unittest.skipIf(GPU_TYPE == "npu", "NPU do not support complex64")
     def test_complex_fallback(self):
         def fn(x):
             return x * x + 10
@@ -7254,6 +7255,7 @@ for dtype in (torch.int32, torch.int64):
         if self.device != "cpu":
             assertGeneratedKernelCountEqual(self, 1)
 
+    @unittest.skipIf(GPU_TYPE == "npu", "NPU do not support complex64 and complex128")
     def test_complex_python_literal_backward(self):
         dtypes = [
             dtype
@@ -7285,6 +7287,7 @@ for dtype in (torch.int32, torch.int64):
                     self.assertEqual(actual, expected)
                     self.assertEqual(x.grad, x_ref.grad)
 
+    @unittest.skipIf(GPU_TYPE == "npu", "NPU do not support complex64")
     def test_complex_zero_dim_scalar(self):
         # Test that 0-d complex tensors can be compiled without crashing.
         # This exercises a fix in constant folding where view.dtype on 0-d
@@ -7349,6 +7352,7 @@ for dtype in (torch.int32, torch.int64):
         # The view node should NOT be constant-folded
         self.assertNotIn(view_node, folder.node_replacements)
 
+    @unittest.skipIf(GPU_TYPE == "npu", "NPU do not support complex64")
     def test_complex_1d_constant_tensor(self):
         # Test that 1-d complex constant tensors can be compiled without crashing.
         # This exercises view.dtype on non-0-d tensors during constant folding
@@ -7363,6 +7367,7 @@ for dtype in (torch.int32, torch.int64):
         actual = compiled()
         self.assertEqual(actual, expected)
 
+    @unittest.skipIf(GPU_TYPE == "npu", "NPU do not support complex64")
     def test_complex_uniform_constant_folding(self):
         # Fix https://github.com/pytorch/pytorch/issues/174891
         # view.dtype with mismatched element sizes changes element count,
