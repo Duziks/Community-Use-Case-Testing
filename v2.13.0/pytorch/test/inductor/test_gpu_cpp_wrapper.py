@@ -437,6 +437,14 @@ instantiate_parametrized_tests(TestGpuWrapper)
 # Run as a subprocess so dlopen truly re-runs .so static initializers.
 _LAZY_COMPILE_COLLISION_SCRIPT = """\
 import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from torch_npu.utils import _dynamo
+_dynamo.use_jit_script = True
+_dynamo.patch_has_triton()
+torch.cuda.get_device_capability = lambda :(10, 0)
+import torch_npu.testing
+import torch_npu._inductor
 from torch.testing._internal.inductor_utils import GPU_TYPE
 
 from torch._inductor import config
@@ -463,9 +471,11 @@ compiled_fn = torch.compile(fn)
 res = compiled_fn(*args)
 res.backward()
 
-assert torch.allclose(res.detach(), ref.detach()), f"Forward mismatch: {res} vs {ref}"
+# NPU float32 differs from eager by reduction order: elements whose grad is
+# close to zero see amplified relative error, so loosen default tolerances.
+assert torch.allclose(res.detach(), ref.detach(), rtol=1e-4, atol=1e-4), f"Forward mismatch: {res} vs {ref}"
 for i, (a, r) in enumerate(zip(args, ref_args)):
-    assert torch.allclose(a.grad, r.grad), f"Grad mismatch for arg {i}"
+    assert torch.allclose(a.grad, r.grad, rtol=1e-4, atol=1e-4), f"Grad mismatch for arg {i}"
 """
 
 
