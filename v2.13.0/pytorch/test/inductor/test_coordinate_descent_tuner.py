@@ -67,6 +67,9 @@ class TestCoordinateDescentTuner(TestCase):
         """
         The benchmark result is simply abs(XBLOCK - 15)
         """
+        import torch._inductor.runtime.coordinate_descent_tuner as _cdt
+        _cdt.get_max_numwarps = lambda : 32
+
         tuner = CoordescTuner()
         baseline_config = triton.Config({"XBLOCK": 1}, num_warps=8, num_stages=1)
 
@@ -80,6 +83,8 @@ class TestCoordinateDescentTuner(TestCase):
         """
         Test the case that there is no available neighbor values for a field.
         """
+        import torch._inductor.runtime.coordinate_descent_tuner as _cdt
+        _cdt.get_max_numwarps = lambda : 32
 
         # size hint for x being 1 limits the max XBLOCK we try to be 1
         tuner = CoordescTuner(size_hints={"x": 1})
@@ -92,6 +97,9 @@ class TestCoordinateDescentTuner(TestCase):
         self.assertTrue(best_config.kwargs.get("XBLOCK") == 1, str(best_config))
 
     def test_get_neighbour_values(self):
+        import torch._inductor.runtime.coordinate_descent_tuner as _cdt
+        _cdt.get_max_numwarps = lambda : 32
+
         tuner = CoordescTuner()
 
         neighbours = tuner.get_neighbour_values("num_stages", 2, radius=2)
