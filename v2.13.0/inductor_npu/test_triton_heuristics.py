@@ -1,6 +1,8 @@
 import torch
 import torch_npu
 from torch_npu.utils import _dynamo
+_dynamo.has_triton = lambda *args, **kwargs: False
+_dynamo.patch_has_triton()
 import torch_npu._inductor
 
 # Owner(s): ["module: inductor"]
