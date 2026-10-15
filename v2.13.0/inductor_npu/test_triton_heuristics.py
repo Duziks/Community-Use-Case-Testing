@@ -1,11 +1,6 @@
 import torch
 import torch_npu
-import torch_npu._inductor
-from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
-_dynamo.use_jit_script = True
-torch.cuda.get_device_capability = lambda :(10, 0)
-import torch_npu.testing
 import torch_npu._inductor
 
 # Owner(s): ["module: inductor"]
@@ -31,10 +26,7 @@ from torch.testing._internal.common_utils import (
     skipIfRocm,
 )
 from torch.testing._internal.inductor_utils import (
-    GPU_TYPE,
-    HAS_GPU,
     HAS_GPU_AND_TRITON,
-    requires_gpu_with_enough_memory,
 )
 
 
@@ -77,9 +69,12 @@ from torch._inductor.test_case import run_tests, TestCase
 from torch._inductor.utils import fresh_cache
 
 NPU_TYPE = "npu"
-# transfer_to_npu disables the upstream CUDA/XPU Triton probe. Query the
-# registered NPU backend instead of changing that process-wide probe.
+# Query the registered NPU backend without changing process-wide CUDA APIs.
 HAS_NPU_AND_TRITON = torch.npu.is_available() and _dynamo.has_triton()
+HAS_NPU_10GB = (
+    torch.npu.is_available()
+    and torch.npu.get_device_properties().total_memory >= 1e10
+)
 
 @triton.jit
 def amd_sqr_kernel(in_ptr, out_ptr, numel, BLOCK_SIZE: tl.constexpr):
@@ -282,7 +277,7 @@ class TestTritonHeuristics(TestCase):
 
         triton_meta = {
             "signature": {"in_ptr0": "*fp32", "out_ptr0": "*fp32", "xnumel": "i32"},
-            "device": DeviceProperties.create(torch.device(GPU_TYPE)),
+            "device": DeviceProperties.create(torch.device(NPU_TYPE)),
             "constants": {},
             "configs": [
                 AttrsDescriptorWrapper(divisible_by_16=(0, 1, 2), equal_to_1=())
@@ -398,15 +393,11 @@ class TestTritonHeuristics(TestCase):
         def fn(x):
             return triton_sqr(x)
 
-        x = torch.randn(32, device=GPU_TYPE)
+        x = torch.randn(32, device=NPU_TYPE)
         ref = fn(x)
         res = torch.compile(fn)(x)
         self.assertEqual(ref, res)
 
-    @skipUnless(
-        HAS_GPU_AND_TRITON and GPU_TYPE in ("cuda", "xpu"),
-        "requires CUDA/ROCm or XPU shared-memory properties and Triton",
-    )
     @parametrize("do_pruning", [False, True])
     def test_prune_configs_over_shared_memory_limit(self, do_pruning):
         from torch._inductor.template_heuristics.triton import (
@@ -426,7 +417,7 @@ class TestTritonHeuristics(TestCase):
         with config.patch(
             {"max_autotune_prune_choices_based_on_shared_mem": do_pruning}
         ):
-            if GPU_TYPE == "xpu":
+            if NPU_TYPE == "xpu":
                 config_heuristic = XPUConfigHeuristic()
             elif torch.version.hip:
                 config_heuristic = ROCmConfigHeuristic()
@@ -444,7 +435,7 @@ class TestTritonHeuristics(TestCase):
         def fn(x):
             return (x + 1).sum(dim=1)
 
-        x = torch.randn(2048, 2048, device=GPU_TYPE)
+        x = torch.randn(2048, 2048, device=NPU_TYPE)
         benchmark_calls = []
 
         def fake_benchmark_all_configs(autotuner, *args, **kwargs):
@@ -487,19 +478,19 @@ _PLUGIN_FACTORY_PATH = (
 # used by these tests. CUDA paths are unaffected.
 @skipIfRocm
 class TestCachingAutotunerPlugin(TestCase):
-    device_type = GPU_TYPE
+    device_type = NPU_TYPE
 
     @staticmethod
     def _get_stream():
         from torch._dynamo.device_interface import get_interface_for_device
 
-        device_interface = get_interface_for_device(GPU_TYPE)
+        device_interface = get_interface_for_device(NPU_TYPE)
         return device_interface.get_raw_stream(device_interface.current_device())
 
     @staticmethod
     def _make_kernel_inputs():
-        in_ptr = torch.zeros(16, device=GPU_TYPE, dtype=torch.float32)
-        out_ptr = torch.zeros(16, device=GPU_TYPE, dtype=torch.float32)
+        in_ptr = torch.zeros(16, device=NPU_TYPE, dtype=torch.float32)
+        out_ptr = torch.zeros(16, device=NPU_TYPE, dtype=torch.float32)
         return (in_ptr, out_ptr, 16)
 
     def _make_autotuner(self, plugins, configs=None):
@@ -680,13 +671,13 @@ class TestArgumentCloneAndRestore(TestCase):
         return out
 
     def _do_test(self, gpu_tensor):
-        torch.get_device_module(GPU_TYPE).reset_peak_memory_stats()
+        torch.get_device_module(NPU_TYPE).reset_peak_memory_stats()
         autotuner = self._create_caching_autotuner()
 
         old_storage_offset = gpu_tensor.storage_offset()
         gpu_tensor_clone = clone_preserve_strides(gpu_tensor)
 
-        peak_mem_before = torch.get_device_module(GPU_TYPE).max_memory_allocated()
+        peak_mem_before = torch.get_device_module(NPU_TYPE).max_memory_allocated()
         cpu_copies = autotuner.copy_args_to_cpu_if_needed(gpu_tensor)
         self.assertTrue(len(cpu_copies) == 1)
 
@@ -702,7 +693,7 @@ class TestArgumentCloneAndRestore(TestCase):
 
         # Note: torch.allclose somehow allocates large amount of extra memory.
         # Record peak memory before that.
-        peak_mem_after = torch.get_device_module(GPU_TYPE).max_memory_allocated()
+        peak_mem_after = torch.get_device_module(NPU_TYPE).max_memory_allocated()
 
         self.assertTrue(torch.allclose(gpu_tensor, gpu_tensor_clone))
         self.assertTrue(
@@ -713,21 +704,21 @@ class TestArgumentCloneAndRestore(TestCase):
         # Avoid OOM in CI
         self.assertTrue(peak_mem_after < 1e10)
 
-    @requires_gpu_with_enough_memory(1e10)
+    @skipUnless(HAS_NPU_10GB, "requires NPU with at least 10 GB memory")
     def test_clone_contiguous_args(self):
         arg = self._create_tensor(pad=0)
         self.assertTrue(arg.is_contiguous())
         self.assertTrue(arg.storage_offset() == 0)
         self._do_test(arg)
 
-    @requires_gpu_with_enough_memory(1e10)
+    @skipUnless(HAS_NPU_10GB, "requires NPU with at least 10 GB memory")
     def test_clone_non_contiguous_args(self):
         arg = self._create_tensor(pad=1)
         self.assertFalse(arg.is_contiguous())
         self.assertTrue(arg.storage_offset() == 0)
         self._do_test(arg)
 
-    @requires_gpu_with_enough_memory(1e10)
+    @skipUnless(HAS_NPU_10GB, "requires NPU with at least 10 GB memory")
     def test_clone_args_with_non_zero_offset(self):
         arg = self._create_tensor(pad=1, with_offset=True)
         self.assertFalse(arg.is_contiguous())
@@ -783,7 +774,7 @@ class TestDumpLaunchTensors(TestCase):
             max_runs = inductor_triton_config.max_kernel_dump_occurrences
 
             for i in range(max_runs + 2):
-                test_input = torch.randn(100, 100, device=GPU_TYPE) * (i + 1)
+                test_input = torch.randn(100, 100, device=NPU_TYPE) * (i + 1)
                 _ = compiled_fn(test_input)
 
             # After multiple runs, verify rotation and tensor correctness
@@ -818,7 +809,7 @@ class TestDumpLaunchTensors(TestCase):
 
                             # Verify it's a valid tensor with expected properties
                             self.assertIsInstance(loaded_tensor, torch.Tensor)
-                            self.assertEqual(loaded_tensor.device.type, GPU_TYPE)
+                            self.assertEqual(loaded_tensor.device.type, NPU_TYPE)
                             verified_tensor_load = True
 
             # Verify rotation constraints
@@ -1020,7 +1011,7 @@ class TestHIPInvalidConfigHandling(TestCase):
 
         result = benchmarker.benchmark(
             fn=failing_callable,
-            device=GPU_TYPE,
+            device=NPU_TYPE,
             is_vetted_benchmarking=True,
         )
         self.assertEqual(result, float("inf"))
@@ -1028,7 +1019,7 @@ class TestHIPInvalidConfigHandling(TestCase):
     @skipUnless(torch.version.hip and HAS_GPU_AND_TRITON, "requires ROCm and Triton")
     def test_autotune_skips_invalid_hip_config_and_succeeds(self):
         numel = 1024 * 1024
-        x = torch.randn(numel, device=GPU_TYPE, dtype=torch.float32)
+        x = torch.randn(numel, device=NPU_TYPE, dtype=torch.float32)
         y = torch.empty_like(x)
 
         kernel = get_hip_autotune_kernel_with_invalid_config()
