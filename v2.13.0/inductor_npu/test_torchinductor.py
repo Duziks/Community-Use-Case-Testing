@@ -257,6 +257,9 @@ HAS_AVX2 = "fbgemm" in torch.backends.quantized.supported_engines
 HAS_NPU = hasattr(torch, "npu") and torch.npu.is_available()
 # The upstream CUDA/XPU Triton probe is disabled by transfer_to_npu.
 HAS_NPU_AND_TRITON = HAS_NPU and _dynamo.has_triton()
+requires_cuda_and_triton_or_npu = (
+    (lambda fn: fn) if HAS_NPU_AND_TRITON else requires_cuda_and_triton
+)
 
 if HAS_NPU:
     # The upstream largeTensorTest helper only recognizes CUDA/XPU devices.
@@ -3804,7 +3807,7 @@ class CommonTemplate:
             self.assertEqual(cfn(x, i), fn(x, i))
 
     @skipCPUIf(True, "requires CUDA/Triton")
-    @requires_cuda_and_triton
+    @requires_cuda_and_triton_or_npu
     def test_builtins_round_float_ndigits_neg_uses_value_expr(self):
         def fn(x, i):
             return x + round(i / 2 * 123.4567, -1)
