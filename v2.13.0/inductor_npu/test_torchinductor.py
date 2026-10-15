@@ -258,7 +258,7 @@ HAS_NPU = hasattr(torch, "npu") and torch.npu.is_available()
 # The upstream CUDA/XPU Triton probe is disabled by transfer_to_npu.
 HAS_NPU_AND_TRITON = HAS_NPU and _dynamo.has_triton()
 requires_cuda_and_triton_or_npu = (
-    (lambda fn: fn) if HAS_NPU_AND_TRITON else requires_cuda_and_triton
+    (lambda fn: fn) if HAS_NPU else requires_cuda_and_triton
 )
 
 if HAS_NPU:
