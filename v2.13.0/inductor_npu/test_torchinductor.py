@@ -7386,6 +7386,7 @@ for dtype in (torch.int32, torch.int64):
             check_lowp=False,
         )
 
+    @unittest.skip('Skipped per NPU validation exclusion list (gistcomment-6427641)')
     def test_view_as_complex(self):
         class Repro(torch.nn.Module):
             def __init__(self) -> None:
@@ -7410,6 +7411,7 @@ for dtype in (torch.int32, torch.int64):
 
         self.assertEqual(o1, o2)
 
+    @unittest.skip('Skipped per NPU validation exclusion list (gistcomment-6427641)')
     def test_view_as_real(self):
         def fn(x):
             y = torch.view_as_real(x)
@@ -7432,6 +7434,7 @@ for dtype in (torch.int32, torch.int64):
 
         self.common(fn, (x,))
 
+    @unittest.skip('Skipped per NPU validation exclusion list (gistcomment-6427641)')
     def test_complex_conv2d_conj(self):
         # Regression test for https://github.com/pytorch/pytorch/issues/171665
         # Tests that complex convolution works on conjugated inputs when compiled.
@@ -7451,6 +7454,7 @@ for dtype in (torch.int32, torch.int64):
 
         self.common(model, (x,), check_lowp=False)
 
+    @unittest.skip('Skipped per NPU validation exclusion list (gistcomment-6427641)')
     def test_polar(self):
         def fn(dist, angle):
             return torch.polar(dist, angle)
@@ -8393,6 +8397,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
             (torch.randn([64]),),
         )
 
+    @unittest.skip('Skipped per NPU validation exclusion list (gistcomment-6427641)')
     def test_expm1(self):
         def fn(x):
             return torch.expm1(x), torch.expm1(x) * 2
@@ -8665,6 +8670,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
             (torch.randn([1, 2, 6, 6]),),
         )
 
+    @unittest.skip('Skipped per NPU validation exclusion list (gistcomment-6427641)')
     def test_signbit_unsigned_dtypes(self):
         def fn(x):
             return torch.signbit(x)
@@ -9931,6 +9937,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.assertTrue(same(actual1, correct1))
         self.assertTrue(same(arg1, arg2))
 
+    @unittest.skip('Skipped per NPU validation exclusion list (gistcomment-6427641)')
     def test_input_mutation5(self):
         def fn(x):
             tmp = x.ceil()
