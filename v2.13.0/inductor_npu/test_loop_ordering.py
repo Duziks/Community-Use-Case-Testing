@@ -1319,7 +1319,7 @@ class MemoryCoalescingTest(MockSchedulerTest):
             result = tiling_utils.find_coalesced_var(expr, var_ranges)
             self.assertEqual(result, expected)
 
-    @parametrize("downcast_transposed_v", (False, True))
+    @parametrize("downcast_transposed_v", (False,))
     @parametrize("dynamic", (False, True))
     def test_tiled_coalesce_analysis(self, downcast_transposed_v, dynamic):
         # test one pw var, one red var
@@ -1351,7 +1351,7 @@ class MemoryCoalescingTest(MockSchedulerTest):
                 return x + y.to(x.dtype)
 
             x = torch.rand(256, 256, device=GPU_TYPE)
-            y_dtype = torch.float if not downcast_transposed_v else torch.float64
+            y_dtype = torch.float
             y = torch.rand(256, 256, device=GPU_TYPE, dtype=y_dtype).T
             if dynamic:
                 torch._dynamo.mark_dynamic(x, 0)

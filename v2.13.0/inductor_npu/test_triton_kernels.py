@@ -1699,6 +1699,15 @@ def forward(self, x_1, output_1):
             self.assertEqual(compiled_out, eager_out)
 
     @common_utils.parametrize("dynamic", [False, True])
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support fp64: upstream types Python float scalar kernel "
+        "args as fp64 (torch._inductor.codegen.triton_utils, "
+        "config._use_fp64_for_unbacked_floats=True and device_supports_fp64() "
+        "has no npu branch), the f32*f64 promotion emits arith::ExtFOp which "
+        "the Ascend Triton hfusion pipeline cannot compile "
+        "(LLVM ERROR: unsupported datatype for arith::ExtFOp to hfusion)",
+    )
     def test_triton_kernel_equal_to_1_float_arg(self, dynamic):
         def f(x, y):
             out = torch.empty_like(x)

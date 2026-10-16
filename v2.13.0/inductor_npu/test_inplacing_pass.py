@@ -34,8 +34,8 @@ import torch_npu._inductor
 aten = torch.ops.aten
 
 
-const = torch.tensor(0.0)
 device = GPU_TYPE
+const = torch.tensor(0.0, device=device)
 
 
 def num_reinplacing_failures():
