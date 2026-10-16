@@ -473,9 +473,9 @@ res.backward()
 
 # NPU float32 differs from eager by reduction order: elements whose grad is
 # close to zero see amplified relative error, so loosen default tolerances.
-assert torch.allclose(res.detach(), ref.detach(), rtol=1e-4, atol=1e-4), f"Forward mismatch: {res} vs {ref}"
+assert torch.allclose(res.detach(), ref.detach(), rtol=1e-5, atol=1e-5), f"Forward mismatch: {res} vs {ref}"
 for i, (a, r) in enumerate(zip(args, ref_args)):
-    assert torch.allclose(a.grad, r.grad, rtol=1e-4, atol=1e-4), f"Grad mismatch for arg {i}"
+    assert torch.allclose(a.grad, r.grad, rtol=1e-5, atol=1e-5), f"Grad mismatch for arg {i}"
 """
 
 
