@@ -238,6 +238,8 @@ from torch.testing._internal.triton_utils import (
 )
 
 HAS_GPU = READY
+RUN_GPU = 1
+RUN_CPU = 1
 
 
 def requires_gpu(fn=None):
