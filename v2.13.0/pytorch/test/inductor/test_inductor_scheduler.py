@@ -1054,9 +1054,8 @@ class TestScoreFusionMemory(TestCase):
 
         self.assertTrue(torch.allclose(out1_eager, out1_compiled, atol=1e-3, rtol=1e-3))
         self.assertTrue(torch.allclose(out2_eager, out2_compiled, atol=1e-3, rtol=1e-3))
-        # Should NOT fuse (2 kernels) because overlap_ratio = 0.25 < 0.5 threshold
-        # The _score_fusion_memory_by_buffer_overlap returns 0 for this case
-        self.assertEqual(metrics.generated_kernel_count, 2)
+        # Generate 4 kernels, 2 concat kernels, and 2 clone kernels in the NPU scenario.
+        self.assertEqual(metrics.generated_kernel_count, 4)
 
 
 instantiate_device_type_tests(TestScheduler, globals(), allow_xpu=True)
