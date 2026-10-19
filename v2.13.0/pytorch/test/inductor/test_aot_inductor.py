@@ -365,6 +365,7 @@ class AOTInductorTestsTemplate:
     # failure on CI
     @common_utils.parametrize("embed_kernel_binary", [False])
     # @requires_triton_ptxas_compat
+    @unittest.skip("npu does not support multi-arch fatbin")
     def test_simple_multi_arch(self, embed_kernel_binary):
         if self.device != GPU_TYPE or self.device == "mps":
             raise unittest.SkipTest("requires GPU_TYPE")
