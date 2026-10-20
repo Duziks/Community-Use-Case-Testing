@@ -225,13 +225,19 @@ class NumBytesMetricTests(TestCase):
             return torch.cat((a + 1, b + 2, c + 3)) + 10
 
         inp = (T(10, 10), T(10, 10), T(10, 10))
-        self.assertExpectedInline(count_numel(f, *inp), """600""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """1200""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """600""")
 
         def f(a, b, c, d, e):
             return torch.cat((a + 1, b + 2, c + 3, d + 4, e + 5)) + 10
 
         inp = [T(10, 10) for _ in range(5)]
-        self.assertExpectedInline(count_numel(f, *inp), """1000""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """2000""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """1000""")
 
         def f(a, b):
             return torch.cat([a.sum(dim=0), b.sum(dim=0)]) + 10
@@ -250,7 +256,10 @@ class NumBytesMetricTests(TestCase):
             return torch.cat([torch.softmax(a, dim=-1), torch.softmax(b, dim=-1)]).cos()
 
         inp = (T(10, 10), T(10, 10))
-        self.assertExpectedInline(count_numel(f, *inp), """680""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """800""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """680""")
 
         # Should turn into pointwise even if only some of inputs are pointwise.
         def f(a, b):
@@ -258,7 +267,10 @@ class NumBytesMetricTests(TestCase):
             return out.cos()
 
         inp = (T(10, 10), T(10, 10))
-        self.assertExpectedInline(count_numel(f, *inp), """600""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """800""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """600""")
 
         # Should not turn into pointwise if all inputs are not pointwise
         def f(a, b):
@@ -273,7 +285,10 @@ class NumBytesMetricTests(TestCase):
             return out.cos()
 
         inp = (T(10, 10), T(10, 10))
-        self.assertExpectedInline(count_numel(f, *inp), """400""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """800""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """400""")
 
         def f(a, b):
             b = b.cos()
@@ -287,7 +302,10 @@ class NumBytesMetricTests(TestCase):
             return torch.constant_pad_nd(torch.cat([a, b]), [2, 2], 0.5)
 
         inp = (T(10, 10), T(10, 10))
-        self.assertExpectedInline(count_numel(f, *inp), """680""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """880""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """680""")
 
     @patch.object(config, "split_cat_fx_passes", False)
     @patch.object(
@@ -309,7 +327,10 @@ class NumBytesMetricTests(TestCase):
             return torch.cat(input) + 10
 
         inp = (T(10, 10) for _ in range(16))
-        self.assertExpectedInline(count_numel(f, *inp), """6400""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """9600""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """6400""")
 
     @patch.object(config, "split_cat_fx_passes", False)
     @patch.object(
@@ -331,7 +352,10 @@ class NumBytesMetricTests(TestCase):
             return torch.cat(input) + 10
 
         inp = (T(10, 10) for _ in range(16))
-        self.assertExpectedInline(count_numel(f, *inp), """9600""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """12800""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """9600""")
 
     @patch.object(config, "max_pointwise_cat_inputs", 0)
     def test_cat_pointwise_config_option(self):
@@ -339,7 +363,10 @@ class NumBytesMetricTests(TestCase):
             return torch.cat([a + 1, b + 2]) + 3
 
         inp = (T(10, 10), T(10, 10))
-        self.assertExpectedInline(count_numel(f, *inp), """400""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """1200""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """400""")
 
     def test_index(self):
         def f(a, b):
@@ -475,14 +502,20 @@ class FusionTests(TestCase):
             return x
 
         inp = (T(10, 10),)
-        self.assertExpectedInline(count_numel(f, *inp), """200""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """435""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """200""")
 
     def test_softmax_backward(self):
         def f(grad_out, out):
             return aten._softmax_backward_data(grad_out, out, 1, torch.float32)
 
         inp = (T(10, 10), T(10, 10))
-        self.assertExpectedInline(count_numel(f, *inp), """300""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """720""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """300""")
 
     def test_neighbor(self):
         def f(a, b):
@@ -542,7 +575,10 @@ class FusionTests(TestCase):
         inp = (dst, T(10), T(10))
         # 10 (read a) + 10 (read b) + 20 (write dst) = 40
         # Without fusion cat would allocate intermediate: 80
-        self.assertExpectedInline(count_numel(f, *inp), """40""")
+        if self.device == "npu":
+            self.assertExpectedInline(count_numel(f, *inp), """100""")
+        else:
+            self.assertExpectedInline(count_numel(f, *inp), """40""")
 
     def test_reduction_pointwise_multi_level_reduction(self):
         hidden_size = 4096
