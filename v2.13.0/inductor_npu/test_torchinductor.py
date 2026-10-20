@@ -1738,6 +1738,10 @@ class CommonTemplate:
 
         self.common(fn, (x, y))
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex comparison: aclnnIsClose not implemented for DT_COMPLEX64",
+    )
     def test_add_complex(self):
         def fn(a, b, alpha):
             return torch.add(a, b, alpha=alpha)
@@ -1747,6 +1751,10 @@ class CommonTemplate:
 
         self.common(fn, (x, y, 2))
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex randn: aclnnInplaceNormal not implemented for complex64",
+    )
     def test_add_complex3(self):
         # fix https://github.com/pytorch/pytorch/issues/115071
         @torch.compile
@@ -1761,6 +1769,10 @@ class CommonTemplate:
         fn(x)
         self.assertEqual(x, y)
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex32: aclnnAdds not implemented for DT_COMPLEX32",
+    )
     def test_add_complex4(self):
         @torch.compile
         def fn(a, b):
@@ -1794,6 +1806,10 @@ class CommonTemplate:
                 code.count("view_dtype" if config.cpp_wrapper else "aten.view"), 3
             )
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex randn: aclnnInplaceNormal not implemented for complex64",
+    )
     def test_add_complex_strided_fallback(self):
         @torch.compile
         def fn(a, b):
@@ -1827,6 +1843,10 @@ class CommonTemplate:
             msg=f"Expected complex add with strided inputs to fall back to extern kernels, got:\n{code}",
         )
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex comparison: aclnnIsClose not implemented for DT_COMPLEX64",
+    )
     def test_add_complex5(self):
         def fn(a, b, alpha):
             return torch.add(a, b, alpha=alpha)
@@ -1836,6 +1856,10 @@ class CommonTemplate:
 
         self.common(fn, (x, y, 2))
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex comparison: aclnnIsClose not implemented for DT_COMPLEX64",
+    )
     def test_add_complex6(self):
         # Fix https://github.com/pytorch/pytorch/issues/125745.
         # Add complex tensors with broadcasting.
@@ -1847,6 +1871,10 @@ class CommonTemplate:
 
         self.common(fn, (x, y, 2))
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex rand: aclnnInplaceUniform not implemented for complex64",
+    )
     def test_add_complex7(self):
         # Fix https://github.com/pytorch/pytorch/issues/160495
         # Test scalar (0-dimensional) complex tensor addition: 0D + 0D
@@ -1858,6 +1886,10 @@ class CommonTemplate:
 
         self.common(fn, (x, y, 2))
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex rand: aclnnInplaceUniform not implemented for complex64",
+    )
     def test_add_complex8(self):
         # Fix https://github.com/pytorch/pytorch/issues/160495
         # Test scalar complex addition: 1D + 0D
@@ -1869,6 +1901,10 @@ class CommonTemplate:
 
         self.common(fn, (x, y, 2))
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex rand: aclnnInplaceUniform not implemented for complex64",
+    )
     def test_add_complex9(self):
         # Fix https://github.com/pytorch/pytorch/issues/160495
         # Test scalar complex addition: 0D + 1D
@@ -1880,6 +1916,10 @@ class CommonTemplate:
 
         self.common(fn, (x, y, 2))
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support complex randn: aclnnInplaceNormal not implemented for complex64",
+    )
     def test_add_complex10(self):
         # Fix https://github.com/pytorch/pytorch/issues/160495
         # Test scalar complex broadcasting
@@ -1968,6 +2008,10 @@ class CommonTemplate:
         t2[1] = float("nan")
         self.common(fn, (t1, t2))
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support neg on uint8: aclnnNeg not implemented for DT_UINT8",
+    )
     def test_neg_max_uint8(self):
         # https://github.com/pytorch/pytorch/issues/93380
         def fn(a, b):
