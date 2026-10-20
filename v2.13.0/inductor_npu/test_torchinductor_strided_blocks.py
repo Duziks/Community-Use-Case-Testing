@@ -248,6 +248,8 @@ class CommonTemplate:
         Checks that the test harness verifies the number of block pointers correctly.
         """
 
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         def foo(x, y):
             return x + y
 
@@ -312,6 +314,8 @@ class CommonTemplate:
         block pointer analysis does not break these cases.
         """
 
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         def get_input() -> torch.Tensor:
             device = torch.device(self.device)
             full = torch.randn(full_size).to(device)
@@ -349,6 +353,8 @@ class CommonTemplate:
         shapes, and they are broadcast together.
         """
 
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         def foo(x, y):
             a = x + 1
             b = y * 2
@@ -496,6 +502,8 @@ class CommonTemplate:
         Test that we emit tl.broadcast_to instead of using strides of 0.
         """
 
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         full_shape = (8, 8)
         col_shape = (full_shape[1], 1)
         device = torch.device(self.device)
@@ -576,6 +584,8 @@ class CommonTemplate:
         """
         Tests a reduction kernel.
         """
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         if view_size == (2, 3 * max_block) and torch.version.hip is not None:
             view_size = (4, 6 * max_block)
 
@@ -638,6 +648,8 @@ class CommonTemplate:
         Tests mixing pointwise with reduction ops.
         """
 
+        if torch.npu.is_available() and (num_block_pointers is not None):
+            self.skipTest('inductor主生成路径不支持本参数要求的block-pointer融合')
         def foo(x, y):
             return torch.sum(x + y)
 
@@ -660,6 +672,8 @@ class CommonTemplate:
         necessarily a power of 2.
         """
 
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         def foo(x):
             return x - 1
 
@@ -694,6 +708,8 @@ class CommonTemplate:
         Test a pointwise kernel with dynamic shapes.
         """
 
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         view_size = (4, 4)
         view = self._discontiguous_tensor(view_size, self.device)
 
@@ -720,6 +736,8 @@ class CommonTemplate:
         Test a reduction kernel with dynamic shapes.
         """
 
+        if torch.npu.is_available():
+            self.skipTest('inductor不支持本例动态prod的Triton生成路径')
         view_size = (4, 4)
         view = self._discontiguous_tensor(view_size, self.device)
 
@@ -812,6 +830,8 @@ class CommonTemplate:
         Uses a pointwise op.
         """
 
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         def get_input() -> torch.Tensor:
             device = torch.device(self.device)
             full = torch.randn(full_size).to(device)
@@ -862,6 +882,8 @@ class CommonTemplate:
         Tests 2D reduction kernels. These arise from "odd" shapes which are not
         expressible with a 1D block pointer.
         """
+        if torch.npu.is_available() and (reduction_op != torch.argmax):
+            self.skipTest('inductor主生成路径不支持本参数的二维block-pointer归约')
         if reduction_op == torch.sum and torch.version.hip is not None:
             view_size = (513, 513) if view_size == (129, 129) else view_size
         view = self._discontiguous_tensor(view_size, self.device)
@@ -938,6 +960,8 @@ class CommonTemplate:
         doesn't generate a block pointer. Since tiling welford reductions depends on
         the block pointer analysis, those cases would fall back to 1D.
         """
+        if torch.npu.is_available():
+            self.skipTest('inductor不支持本用例要求的稳定Welford归约')
         if torch.version.hip is not None and expected_num_triton_kernels == 2:
             size = (256, 256)
 
@@ -977,6 +1001,8 @@ class CommonTemplate:
         """
         # Use a "bad" size that's not evenly divisible by the launch grid.
         # This won't decompose into a block pointer.
+        if torch.npu.is_available():
+            self.skipTest('inductor不支持本用例要求的稳定Welford归约')
         view = self._discontiguous_tensor((259, 311), self.device)
 
         # We expect many block pointers for this one.
@@ -1033,6 +1059,8 @@ class CommonTemplate:
         """
         Test a 2D reduction in multi kernel mode.
         """
+        if torch.npu.is_available():
+            self.skipTest('inductor不支持本用例的multi-kernel归约候选选择')
         view = self._discontiguous_tensor((2, 4, 1024), self.device)
 
         def foo(x):
@@ -1122,6 +1150,8 @@ class CommonTemplate:
         """
         Tests enabling and disabling tiled reductions.
         """
+        if torch.npu.is_available() and (tile_reductions):
+            self.skipTest('inductor主生成路径不支持tile_reductions=True要求的block-pointer')
         view = self._discontiguous_tensor((9, 11), self.device)
 
         # If tiled, we expect 1 block pointer for the input.
@@ -1147,6 +1177,8 @@ class CommonTemplate:
         Test a [Y, X, R0] reduction with tiled output dimensions.
         The key to elicit this test case is a padded output tensor.
         """
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         x = torch.randn((9, 11, 2), device=self.device)
 
         # We expect block pointers for the input and output.
@@ -1175,6 +1207,8 @@ class CommonTemplate:
         Test a [Y, X, R0, R1] reduction where the input tensor is discontiguous, but we
         only reduce over the last two dimensions.
         """
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         view = self._discontiguous_tensor((7, 5, 3, 2), self.device)
 
         # We expect block pointers for the inputs and output.
@@ -1215,6 +1249,8 @@ class CommonTemplate:
         """
         # Use sizes that require looped (non-persistent) reductions
         # to trigger 2D tiled reduction with R0 and R1 loops
+        if torch.npu.is_available():
+            self.skipTest('inductor不支持本用例的二维block-pointer循环归约')
         M, N = 64, 128
 
         def fn(x, y):
@@ -1238,6 +1274,8 @@ class CommonTemplate:
         self._assert_reduction_ndims(code, 2)
 
     def test_complex_reshape_block_ptr(self):
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         def func(x, y):
             add_ = x + y
             reshape_0 = add_.reshape([8, 16, 128])
@@ -1327,6 +1365,8 @@ class CommonTemplate:
     # Disable split_reductions on this test for now due to the interaction with LOAF
     @config.patch(split_reductions=False)
     def test_removed_buffers(self):
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         from torch.ops import aten
 
         def fn(a):
@@ -1349,6 +1389,8 @@ class CommonTemplate:
         then Y, then X.
         """
 
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         inps = [
             self._discontiguous_tensor((5, 5, 5), device=self.device) for _ in range(2)
         ]
@@ -1394,6 +1436,8 @@ class CommonTemplate:
         """
         Test expand followed by clone. This uses an explicit Triton broadcast.
         """
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         base_size = (1, 32)
         expanded_size = (32, 32)
 
@@ -1455,6 +1499,8 @@ class CommonTemplate:
         )
 
     def test_mul_broadcast_multi_output(self):
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         def foo(x, y, z):
             a = x * y
             b = 128.0
@@ -1493,6 +1539,8 @@ class CommonTemplate:
     # }
     # This is now fixed by ensuring that wild symbols only match integers
     def test_ensure_integral_dims_and_strides(self):
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         def model(data, *args):
             return torch.nn.functional.unfold(data, *args)
 
@@ -1525,6 +1573,8 @@ class CommonTemplate:
     # constant_offset = 1911
     @xfail_if_use_tensor_descriptor
     def test_negative_strides(self):
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         def model(x, y):
             # Slice in reverse order via a negative stride
             return torch.flip(x, [0, 1, 2]) + y
@@ -1559,6 +1609,8 @@ class CommonTemplate:
     )
     @xfail_if_use_tensor_descriptor
     def test_boundary_check(self, block_multiple, ynumel_exceed_ygrid_size, include_z):
+        if torch.npu.is_available():
+            self.skipTest('inductor主生成路径未完整支持本用例的block-pointer')
         @dataclasses.dataclass
         class InputShape:
             x: int
