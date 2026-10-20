@@ -3,6 +3,7 @@ import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
 _dynamo.use_jit_script = True
+_dynamo.patch_has_triton()
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 
@@ -477,6 +478,7 @@ class AOTInductorTestsTemplate:
         self.assertEqual(len(inps), 0)
         self.assertTrue(sentinel_seen)
 
+    @unittest.skip("npu not support")
     def test_custom_op_with_dtype_arg_various_dtypes(self) -> None:
         class Model(torch.nn.Module):
             def forward(self, x):

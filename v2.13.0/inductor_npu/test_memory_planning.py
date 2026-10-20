@@ -48,7 +48,6 @@ except ImportError:
     )
 
 
-@requires_gpu()
 @config.patch(memory_planning=True)
 class TestMemoryPlanning(TestCase):
     device = GPU_TYPE
@@ -120,10 +119,6 @@ class TestMemoryPlanning(TestCase):
         ).check_next("aoti_torch__alloc_from_pool(pool1, 0").run(code)
         self.assertTrue(same(f(*args), result))
 
-    @unittest.skipIf(
-        IS_LINUX or TEST_WITH_ROCM or TEST_WITH_SLOW,
-        "https://github.com/pytorch/pytorch/issues/168171",
-    )
     @config.patch({"triton.autotune_at_compile_time": False})
     def test_unbacked_symint(self):
         # when allocation's size has unbacked symints
