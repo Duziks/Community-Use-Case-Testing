@@ -887,8 +887,6 @@ class TestFxGraphCache(TestCase):
     ):
         from unittest.mock import patch
 
-        if device == GPU_TYPE and not HAS_GPU:
-            raise unittest.SkipTest(f"requires {GPU_TYPE}")
         if (
             device == "cuda"
             and torch.version.hip is None
@@ -896,12 +894,6 @@ class TestFxGraphCache(TestCase):
             and not SM80OrLater
         ):
             raise unittest.SkipTest("requires SM80 or later")
-        if use_static_triton_launcher and not (
-            device in STATIC_LAUNCHER_DEVICES and bundle_triton
-        ):
-            raise unittest.SkipTest(
-                "Static cuda launcher requires cuda and triton bundling"
-            )
 
         def fn(x, y):
             return (x * 2, y @ y)
@@ -958,15 +950,6 @@ class TestFxGraphCache(TestCase):
         """
         Verify that we can populate and hot load functions from the cache.
         """
-        if device == GPU_TYPE and not HAS_GPU:
-            raise unittest.SkipTest(f"requires {GPU_TYPE}")
-        if (
-            device == "cuda"
-            and torch.version.hip is None
-            and dtype == torch.bfloat16
-            and not SM80OrLater
-        ):
-            raise unittest.SkipTest("requires SM80 or later")
 
         def fn(x, y):
             return x.sin() @ y
@@ -1083,7 +1066,6 @@ class TestFxGraphCache(TestCase):
             self.assertIsNotNone(cache_info)
             self.assertGreater(len(self._find_triton_kernel_binaries()), 0)
 
-    @requires_triton()
     @config.patch(
         {
             "fx_graph_cache": True,
@@ -1103,16 +1085,6 @@ class TestFxGraphCache(TestCase):
         """
         Verify that we can populate and hot load functions from the cache.
         """
-
-        if device == GPU_TYPE and not HAS_GPU:
-            raise unittest.SkipTest(f"requires {GPU_TYPE}")
-        if (
-            device == "cuda"
-            and torch.version.hip is None
-            and dtype == torch.bfloat16
-            and not SM80OrLater
-        ):
-            raise unittest.SkipTest("requires SM80 or later")
 
         def fn(x, y):
             return x.sin() @ y
@@ -2411,19 +2383,6 @@ class TestFxGraphCache(TestCase):
     @parametrize("device", (GPU_TYPE, "cpu"))
     @parametrize("inlinable", (True, False))
     def test_freezing(self, device, inlinable):
-        if device == GPU_TYPE and not HAS_GPU:
-            raise unittest.SkipTest(f"requires {GPU_TYPE}")
-
-        # For machines with mkldnn_fp16 support, weight_pack in mkldnn_fusion.py causes
-        # the creation of a mkldnn format tensor which the current implementation does
-        # not support.
-        if (
-            device == "cpu"
-            and torch.backends.mkldnn.is_available()
-            and torch.ops.mkldnn._is_mkldnn_fp16_supported()
-        ):
-            raise unittest.SkipTest("mkldnn tensors unsupported")
-
         # The shape of the frozen constant determines if it will be inlined.
         shape = (4,) if inlinable else (8, 8)
 
@@ -4654,8 +4613,6 @@ class TestAutotuneCache(TestCase):
         for k in global_stats.triton.cache:
             self.assertRegex(k, r"triton:[0-9a-f]{64}::[0-9a-f]{64}:c[0-9]+")
 
-    @requires_gpu_and_triton
-    @unittest.skipIf(not HAS_XPU_AND_TRITON and not SM80OrLater, "Requires SM80+")
     @config.patch({"fx_graph_cache": False})
     @config.patch({"fx_graph_remote_cache": False})
     @config.patch({"autotune_local_cache": False})
@@ -5216,7 +5173,6 @@ class TestAutotuneCacheExtraOptions(TestCase):
     extra_options is correctly preserved when saving and loading from cache.
     """
 
-    @requires_triton()
     def test_load_cached_autotuning_preserves_extra_options_with_coordesc(self):
         """
         Test that extra_options is preserved when loading a config that was
