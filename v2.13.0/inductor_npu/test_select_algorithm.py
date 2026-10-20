@@ -790,7 +790,6 @@ class TestSelectAlgorithmCleanup(TestCase):
 
 
 class TestExternKernelCaller(TestCase):
-    @requires_gpu()
     @patches
     @torch._inductor.config.patch(max_autotune_gemm_backends="ATEN")
     def test_extern_kernel_tensor_meta_failure(self):
@@ -1001,7 +1000,6 @@ def patch_lowering(lowering_overrides) -> Callable[[], None]:
 
 
 class TestDtypeViewAutotuning(TestCase):
-    @requires_gpu()
     @unittest.skipIf(
         not hasattr(torch, "float4_e2m1fn_x2"),
         "float4_e2m1fn_x2 dtype not available",
@@ -1158,8 +1156,6 @@ class TestTemplateRender(TestCase):
             for kernel in template_kernels
         )
 
-    @requires_gpu()
-    @requires_triton()
     @config.patch(cuda_backend="triton")
     def test_finalized_subclass_hooks(self):
         """
@@ -1459,8 +1455,6 @@ class TestTemplateRender(TestCase):
             "max_autotune_gemm_backends": "TRITON",
         }
     )
-    @requires_gpu()
-    @requires_triton()
     @patches
     def test_template_atomic_add_epilogue_fusion_disabled(self):
         from torch._inductor.utils import run_and_get_code
