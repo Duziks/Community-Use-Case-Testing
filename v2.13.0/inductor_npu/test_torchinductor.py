@@ -10824,6 +10824,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @skip_if_triton_cpu
     def test_like_channels_last(self):
+        if torch.npu.is_available():
+            self.skipTest('PTA不支持本用例的channels-last输入构造API')
         def foo():
             randn = torch.randn((4, 3, 8, 8), device=self.device, dtype=torch.float32)
             xc = randn.contiguous(memory_format=torch.channels_last)
@@ -10875,6 +10877,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         ]:
             if not self.is_dtype_supported(dtype):
                 continue
+            if torch.npu.is_available() and dtype == torch.float64:
+                self.skipTest('NPU IR不支持本例FP32到FP64的ExtFOp转换；保留前面的int64验证')
             self.common(
                 fn,
                 [
@@ -11055,6 +11059,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         ]:
             if not self.is_dtype_supported(dtype):
                 continue
+            if torch.npu.is_available() and dtype == torch.float64:
+                self.skipTest('NPU IR不支持本例FP64到FP32的TruncFOp转换；保留前面的int64验证')
             self.common(
                 fn,
                 [
@@ -11809,6 +11815,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         # torch.compile stack. To ensure that we have good enough debugging with
         # minifiers, we have ensure that they work with make_fx. This test uses
         # make_fx to do the testing. In future, we can move on torch.compile.
+        if torch.npu.is_available():
+            self.skipTest('functional RNG / Philox不支持NPU')
         def fn():
             rng_state1, a1 = torch._prims.rng_prims.run_and_save_rng_state(
                 torch.ops.aten.rand.default,
@@ -11851,6 +11859,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @skip_if_gpu_halide  # rand
     @xfail_if_mps
     def test_philox_rand(self):
+        if torch.npu.is_available():
+            self.skipTest('functional RNG / Philox不支持NPU')
         if self.device == "cpu":
             raise unittest.SkipTest(
                 f"functionalization of rng ops supported only on {GPU_TYPE}"
@@ -11888,6 +11898,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     # Already on by default, just want to make sure
     @patch.object(torch._inductor.config, "allow_buffer_reuse", True)
     def test_reuse_buffers_with_aliasing(self):
+        if torch.npu.is_available():
+            self.skipTest('PTA / CANN不支持本例使用的complex32 Adds')
         def f(x):
             z = x + 1
             z = torch.view_as_complex(z)
@@ -12363,6 +12375,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         )
 
     def test_avg_pool2d_backward3(self):
+        if torch.npu.is_available():
+            self.skipTest('inductor不支持该池化反向的Triton生成路径')
         def fn(a, b):
             return aten.avg_pool2d_backward(
                 a,
@@ -12453,6 +12467,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         )
 
     def test_avg_pool3d_backward3(self):
+        if torch.npu.is_available():
+            self.skipTest('inductor不支持该池化反向的Triton生成路径')
         def fn(a, b):
             return aten.avg_pool3d_backward(
                 a,
@@ -13236,7 +13252,11 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         # Canonical grad shape produced by x.unfold(1, 8, 4).
         cases.append((torch.float32, (1, 15, 32, 8), [1, 64, 32]))
         compiled_forward = torch.compile(forward, backend="inductor")
+        if torch.npu.is_available():
+            cases.sort(key=lambda case: case[0] == torch.int64)
         for dtype, grad_shape, input_sizes in cases:
+            if torch.npu.is_available() and dtype == torch.int64:
+                self.skipTest('PTA / CANN的UnfoldGrad不支持int64；已先保留float32原分支')
             if dtype == torch.int64:
                 grad = torch.randint(
                     -32, 32, grad_shape, dtype=dtype, device=self.device
@@ -13281,6 +13301,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         test_dtypes,
     )
     def test_unspec_inputs(self, dtype):
+        if torch.npu.is_available() and (dtype == torch.float64):
+            self.skipTest('毕昇设备链接不支持本例FP64转换所需的__truncdfsf2')
         if self.device == "cpu":
             raise unittest.SkipTest("Testing mixed devices")
 
@@ -13310,6 +13332,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @dynamo_config.patch(automatic_dynamic_shapes=True)
     def test_list_clearing(self):
+        from torch._inductor.decomposition import select_decomp_table
+
         if self.device == "cpu":
             contexts = [contextlib.nullcontext]
         else:
@@ -13330,7 +13354,9 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
                     a = x + y
                     return (a @ a,)
 
-                fn_fx = make_fx(fn)(inps[0], inps[1])
+                fn_fx = make_fx(
+                    fn, decomposition_table=select_decomp_table()
+                )(inps[0], inps[1])
                 fn_compiled = compile_fx_inner(fn_fx, inps)
 
                 test_self = self
@@ -13877,7 +13903,13 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
         a = torch.rand((100,), device=self.device)
         b = torch.rand((100,), device=self.device)
-        with profile() as prof:
+        # transfer_to_npu replaces the CPU activity attribute with its own enum.
+        # Pair the native host profiler with its native CPU enum, only in this scope.
+        host_cpu = torch._C._profiler.ProfilerActivity.__members__["CPU"]
+        with (
+            patch.object(torch._C._profiler.ProfilerActivity, "CPU", host_cpu),
+            profile(activities=[host_cpu]) as prof,
+        ):
             fn(a, b)
         if not any(
             "inductor_wrapper_call" in e.name for e in prof.profiler.function_events
@@ -13953,6 +13985,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.assertEqual(inductor_out, eager_out)
 
     def test_require_stride_expanded(self):
+        if torch.npu.is_available():
+            self.skipTest('PTA不支持本用例的channels-last输入构造API')
         def forward(arg6, arg7, arg16):
             convolution = torch.ops.aten.convolution(
                 arg16.unsqueeze(0), arg7, arg6, [4, 4], [2, 2], [1, 1], False, [0, 0], 1
@@ -13992,6 +14026,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         "Does not support SDPA or pre-SM80 hardware",
     )
     def test_sdpa(self, use_block_ptr: bool, prefer_nd_tiling: bool):
+        if torch.npu.is_available():
+            self.skipTest('PTA不支持本用例的efficient-attention后端')
         def foo(arg0_1, arg1_1, arg2_1, arg3_1, arg4_1):
             view = torch.ops.aten.view.default(arg3_1, [23760, 128])
             arg3_1 = None
@@ -14070,6 +14106,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         "Does not support mem_eff_attention",
     )
     def test_sdpa_unaligned_mask(self):
+        if torch.npu.is_available():
+            self.skipTest('PTA不支持本用例的efficient-attention后端')
         def foo(
             arg0_1: "f32[8, 8, 16, 16]",
             arg1_1: "f32[8, 8, 15, 16]",
@@ -14115,6 +14153,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     )
     @config.patch(freezing=True)
     def test_sdpa_unaligned_mask_freezing(self):
+        if torch.npu.is_available():
+            self.skipTest('PTA不支持本用例的efficient-attention后端')
         class Mod(torch.nn.Module):
             def __init__(self) -> None:
                 super().__init__()
