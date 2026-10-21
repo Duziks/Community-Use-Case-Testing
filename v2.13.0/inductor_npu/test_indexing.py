@@ -413,7 +413,6 @@ class TestIndexingSimplification(InductorTestCase):
         expr = s * x + FloorDiv(y, 3)
         self.assertFalse(sizevars.expand_floor_div(expr, (x,)))
 
-    @unittest.skipUnless(HAS_GPU, "Need GPU for this test")
     def test_int8_unpack(self):
         @torch.compile
         def f(x):
@@ -434,7 +433,6 @@ class TestIndexingSimplification(InductorTestCase):
             ms = benchmarker.benchmark_gpu(lambda: f(x))
             print(f"{ms=:.03f}")
 
-    @unittest.skipUnless(HAS_GPU, "Need GPU for this test")
     def test_int8_unpack_dynamic_shape(self):
         @torch.compile(dynamic=True)
         def f(x):
