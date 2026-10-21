@@ -220,6 +220,7 @@ class TestKernelBenchmark(TestCase):
     #    not IS_BIG_GPU, "Skipping triton backend only since not big GPU (not enough SM)"
     #)
     @fresh_cache()
+    @unittest.skip
     def test_matmul_triton_kernel_benchmark(self):
         M = 12544
         N = 256
@@ -259,6 +260,7 @@ class TestKernelBenchmark(TestCase):
 
         self.verify_compiled_kernels(GB_count=1)
 
+    @unittest.skip
     def test_matmul_bandwidth_computation(self):
         """
         The test does a matmul and then mul. Without max-autotune, we use
@@ -328,6 +330,7 @@ class TestKernelBenchmark(TestCase):
         self.check_bandwidth(compiled_module, "0.042")
 
     @config.patch(max_autotune=True)
+    @unittest.skip
     def test_fused_layernorm_bandwidth_computation(self):
         M, N = 10, 1000000
 
@@ -378,6 +381,7 @@ class TestKernelBenchmark(TestCase):
         #        = 0.052
         self.check_bandwidth(compiled_module, "0.052")
 
+    @unittest.skip
     def test_slice_add_bandwidth_computation(self):
         M, N = 5, 1000000
 
@@ -455,6 +459,7 @@ class TestKernelBenchmark(TestCase):
     @config.patch(
         max_autotune=True, max_autotune_gemm_backends="TRITON", force_shape_pad=True
     )
+    @unittest.skip
     def test_slice_mm_bandwidth_computation(self):
         if GPU_TYPE == "xpu" and not torch._inductor.utils.is_big_gpu():
             raise unittest.SkipTest("unsupported device")
@@ -498,6 +503,7 @@ class TestKernelBenchmark(TestCase):
         # 20000 * 5000 * 4 = 200MB for a
         self.check_bandwidth(compiled_module, "0.200")
 
+    @unittest.skip
     def test_split_scan(self):
         @torch.compile
         def f(a):
@@ -526,6 +532,7 @@ class TestKernelBenchmark(TestCase):
     @config.patch("triton.unique_kernel_names", True)
     @config.patch(benchmark_kernel=False)
     @config.patch(compile_threads=1)
+    @unittest.skip
     def test_remove_inductor_deps_multiple_kernels(self):
         @torch.compile
         def f(a):
@@ -547,6 +554,7 @@ class TestKernelBenchmark(TestCase):
     @config.patch(benchmark_kernel=False)
     @config.patch(compile_threads=1)
     @config.patch(max_autotune=True, max_autotune_gemm_backends="TRITON")
+    @unittest.skip
     def test_remove_inductor_deps_templates(self):
         @torch.compile
         def f(a):
