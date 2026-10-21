@@ -395,7 +395,6 @@ class TestCase(InductorTestCase):
         self.assertIn("'ks0': 'i64'", code)
         self.assertIn(".to(tl.int32)", code)
 
-    @requires_gpu()
     @config.patch("test_configs.runtime_triton_dtype_assert", True)
     @config.patch("test_configs.runtime_triton_shape_assert", True)
     def test_index_expr_ks_arg_dtype_float(self):
