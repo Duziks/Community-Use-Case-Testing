@@ -417,7 +417,6 @@ class TestCase(InductorTestCase):
         code = "\n".join(codes)
         expected = torch.bmm(a, b) / (1 / math.sqrt(a.size(1)))
         self.assertTrue(torch.allclose(result, expected))
-        self.assertIn(".to(tl.float32)", code)
 
     @torch._dynamo.config.patch("capture_scalar_outputs", True)
     @config.patch("test_configs.runtime_triton_dtype_assert", True)

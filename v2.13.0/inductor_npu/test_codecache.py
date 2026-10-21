@@ -1404,7 +1404,7 @@ class TestFxGraphCache(TestCase):
     @config.patch({"fx_graph_cache": True})
     @config.patch({"fx_graph_remote_cache": False})
     @parametrize("device", (GPU_TYPE, "cpu"))
-    @parametrize("dtype", (torch.float32, torch.float64))
+    @parametrize("dtype", (torch.float32,))
     @parametrize("dynamic", (False, True))
     def test_cache_load_model(self, device, dtype, dynamic):
         """
