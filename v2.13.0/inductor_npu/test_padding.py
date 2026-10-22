@@ -753,7 +753,7 @@ class PaddingTest(TestCaseBase):
         self.do_profiling(lambda: f(x), lambda: opt_f(x), "Eager Cat", "Compiled Cat")
 
     def test_pad_channels_last(self):
-        t = torch.randn(2, 3, 5, 1025)
+        t = torch.randn(2, 3, 5, 1025, device="cpu")
         in_strides = t.stride()
         out_strides = ir.Layout._pad_strides(in_strides, t.shape, torch.float32)
         self.assertTrue(in_strides != out_strides)
