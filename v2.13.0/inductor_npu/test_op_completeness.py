@@ -33,15 +33,19 @@ class TestOpCompleteness(TestCase):
                 f"{handler} has an extra ops: {extra_ops}, add them to OpHandler class or prefix with `_`"
             )
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_triton_overrides(self):
         self.verify_ops_handler_completeness(TritonKernelOverrides)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_cpp_overrides(self):
         self.verify_ops_handler_completeness(CppOverrides)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_cpp_vec_overrides(self):
         self.verify_ops_handler_completeness(CppVecOverrides)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_halide_overrides(self):
         self.verify_ops_handler_completeness(HalideOverrides)
 

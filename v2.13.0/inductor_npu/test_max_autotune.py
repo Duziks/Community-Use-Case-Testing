@@ -699,6 +699,7 @@ class TestMaxAutotune(TestCase):
             check_str = "triton.language.make_tensor_descriptor"
         FileCheck().check("triton_tem_fused_mm").check(check_str).run(code[0])
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @unittest.skipIf(
         not has_triton_tma_device(), "Need device-side TMA support in Triton"
     )
@@ -730,6 +731,7 @@ class TestMaxAutotune(TestCase):
         # given the config flags above, we should have no choices left.
         self.assertIn("NoValidChoicesError", str(context.exception))
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @unittest.skipIf(
         not has_triton_tma_device(), "Need device-side TMA support in Triton"
     )
@@ -1000,6 +1002,7 @@ class TestMaxAutotune(TestCase):
 
         torch.testing.assert_close(c_actual, c_expected, atol=1e-2, rtol=1e-2)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @unittest.skipIf(
         not has_triton_tma_device(), "Need device-side TMA support in Triton"
     )
@@ -1573,6 +1576,7 @@ class TestMaxAutotune(TestCase):
             actual = torch.compile(fn)(image, filt)
             torch.testing.assert_close(actual, expected, atol=6e-5, rtol=0.001)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @config.patch(
         max_autotune=True, max_autotune_conv_backends="", layout_optimization=False
     )

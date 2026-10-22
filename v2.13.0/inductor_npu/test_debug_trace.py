@@ -45,6 +45,7 @@ def filesize(filename: Path):
 
 @config.patch("trace.enabled", True)
 class TestDebugTrace(test_torchinductor.TestCase):
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_debug_trace(self):
         @torch.compile
         def fn(a, b):

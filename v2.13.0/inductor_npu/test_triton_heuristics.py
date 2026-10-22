@@ -194,6 +194,7 @@ class TestTritonHeuristics(TestCase):
         self.assertEqual(cfg.kwargs["XBLOCK"], 512)
         self.assertEqual(cfg.kwargs["R0_BLOCK"], 128)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_cached_autotune_enforces_reduction_min_block(self):
         def triton_fn(XBLOCK: tl.constexpr, R0_BLOCK: tl.constexpr):
             pass

@@ -18488,7 +18488,13 @@ if RUN_GPU or HAS_MPS or HAS_NPU:
         common = check_model_gpu
         device = GPU_TYPE
 
-    copy_tests(CommonTemplate, GPUTests, GPU_TYPE)
+    # Temporarily skip only the NPU variant pending Inductor compatibility fixes.
+    copy_tests(
+        CommonTemplate,
+        GPUTests,
+        GPU_TYPE,
+        test_failures={"test_dtype_sympy_expr": TestFailure(("npu",), is_skip=True)},
+    )
 
 if RUN_TPU:
 

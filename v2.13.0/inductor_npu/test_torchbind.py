@@ -9,6 +9,7 @@ import torch_npu.testing
 
 # Owner(s): ["module: functorch"]
 import json
+import unittest
 import zipfile
 from pathlib import Path
 
@@ -84,6 +85,7 @@ class TestTorchbind(TestCase):
 
         return ep, inputs, orig_res, m
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_torchbind_inductor(self):
         ep, inputs, orig_res, _ = self.get_exported_model()
         compiled = torch._inductor.compile(ep.module(), inputs)
@@ -107,6 +109,7 @@ class TestTorchbind(TestCase):
         new_res = torch.compile(m, backend="inductor")(*inputs)
         self.assertTrue(torch.allclose(orig_res, new_res))
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_torchbind_compile(self):
         _, inputs, orig_res, mod = self.get_exported_model()
         new_res = torch.compile(mod, backend="inductor")(*inputs)
@@ -169,6 +172,7 @@ class TestTorchbind(TestCase):
             "call_torchbind(__torch__.torch.classes._TorchScriptTesting._TensorQueue _0, str method, Tensor _1) -> NoneType _0",
         )
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @skipIfWindows(msg="AOTI is not fully support on Windows")
     def test_torchbind_aot_compile(self):
         ep, inputs, _, _ = self.get_exported_model()

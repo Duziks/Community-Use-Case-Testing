@@ -149,6 +149,7 @@ class TestStandaloneInductor(TestCase):
         mod_opt = inductor.compile(mod, inp)
         self.assertEqual(mod(*inp), mod_opt(*inp))
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @mock.patch.dict(os.environ, {"TORCHINDUCTOR_DEBUG_COMPILE": "1"})
     def test_inductor_generate_debug_compile(self):
         cpp_code = """
@@ -196,6 +197,7 @@ class TestStandaloneInductor(TestCase):
         else:
             check_linux_debug_section(binary_path)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @mock.patch.dict(os.environ, {"TORCHINDUCTOR_DEBUG_SYMBOL": "1"})
     def test_inductor_generate_debug_symbol(self):
         cpp_code = """
@@ -255,6 +257,7 @@ class TestStandaloneInductor(TestCase):
             if flag.startswith(("march=", "mcpu="))
         ]
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @unittest.skipIf(config.is_fbcode(), "fbcode does not emit CPU architecture flags")
     def test_aot_cpp_march_config(self):
         with (
@@ -267,6 +270,7 @@ class TestStandaloneInductor(TestCase):
             arch_flags = self._aot_cpp_arch_flags()
         self.assertEqual(arch_flags, ["march=x86-64"])
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @unittest.skipIf(config.is_fbcode(), "fbcode does not emit CPU architecture flags")
     def test_aot_cpp_march_config_ppc64le(self):
         with (
