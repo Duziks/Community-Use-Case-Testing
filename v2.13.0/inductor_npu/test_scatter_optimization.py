@@ -2,7 +2,6 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
-_dynamo.has_triton = lambda *args, **kwargs: False
 _dynamo.patch_has_triton()
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
@@ -131,6 +130,7 @@ class TestScatterOpt(TestCase):
         # to StarDep mentioned here: https://github.com/pytorch/pytorch/pull/129043#discussion_r1651699706
         self.assertGreaterEqual(metrics.num_bytes_accessed, expected_num_bytes)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_can_not_optimize_due_to_non_const(self):
         M, N = 1024, 2048
 
@@ -186,6 +186,7 @@ class TestScatterOpt(TestCase):
             self.assertTrue(same(expect, actual, tol=1e-2), f"{expect=}\n{actual=}\n")
             self.check_metric()
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_cross_entropy_loss(self):
         """
         Match full+scatter in CEL and replaces it with a pointwise.

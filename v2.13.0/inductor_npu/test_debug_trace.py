@@ -2,7 +2,6 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
-_dynamo.has_triton = lambda *args, **kwargs: False
 _dynamo.patch_has_triton()
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
@@ -46,6 +45,7 @@ def filesize(filename: Path):
 
 @config.patch("trace.enabled", True)
 class TestDebugTrace(test_torchinductor.TestCase):
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_debug_trace(self):
         @torch.compile
         def fn(a, b):

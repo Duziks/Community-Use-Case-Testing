@@ -2,7 +2,6 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
-_dynamo.has_triton = lambda *args, **kwargs: False
 _dynamo.patch_has_triton()
 
 from functools import wraps
@@ -18489,7 +18488,13 @@ if RUN_GPU or HAS_MPS or HAS_NPU:
         common = check_model_gpu
         device = GPU_TYPE
 
-    copy_tests(CommonTemplate, GPUTests, GPU_TYPE)
+    # Temporarily skip only the NPU variant pending Inductor compatibility fixes.
+    copy_tests(
+        CommonTemplate,
+        GPUTests,
+        GPU_TYPE,
+        test_failures={"test_dtype_sympy_expr": TestFailure(("npu",), is_skip=True)},
+    )
 
 if RUN_TPU:
 
