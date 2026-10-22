@@ -1,42 +1,21 @@
-# 29 个旧兼容节点的隔离入口
+# 29 个旧兼容节点的自动隔离
 
-这 29 项由 `legacy_29_nodes.json` 的完整 node ID 限定，包括具体参数实例。
-测试文件头部保留 `_dynamo.patch_has_triton()`，将公共检测入口接到 NPU 的实际检测函数；
-不再把 `_dynamo.has_triton` 强制改为 False。普通 `pytest` 保持正常后端行为；
-需要保留旧兼容验证时，使用下面的独立入口。
-
-在当前目录及匹配的 Python/CANN 环境中，设置当时空闲的物理卡：
+沿用流水线原有的 `python -m pytest ...` 命令，无需专用脚本或额外参数。
+例如在本目录运行单个节点：
 
 ```bash
-export ASCEND_RT_VISIBLE_DEVICES=<空闲物理卡号>
-python run_legacy_29.py --output-dir /你的证据目录/legacy29
-python run_legacy_29.py --normal --output-dir /你的证据目录/normal -- test_compile.py test_torchinductor.py -v
+python -m pytest test_compile.py::TestStandaloneInductor::test_aot_cpp_march_config -v
 ```
 
-正常组的文件列表应换为流水线原有测试范围；入口会精确排除清单中的 29 项，
-不会排除它们所在的整个文件、类或参数化方法。两条命令使用不同的新进程，
-各自有独立的 Inductor/Triton/XDG 缓存。指定的输出目录必须事先不存在。
-不要忽略任一命令的退出码。
+`conftest.py` 自动识别 `legacy_29_nodes.json` 中的 29 个完整 node ID，包括具体参数实例。
+只有这些节点会在全新 Python 子进程中执行，并在导入测试之前设置 `has_triton=False`。
+其他节点继续使用 pytest 原有执行流程，父进程不修改门控。
+11 个测试文件头部保留 `patch_has_triton()`，不再全局强制 False。
 
-旧兼容组在子进程导入测试前将 NPU 与公共 `has_triton` 置为 False，进程退出即结束。
-这个组的 PASS 仅表示旧兼容模式通过，不代表完整 NPU Inductor 编译能力通过。
-正常组不会设置此门控；导入测试 helper 也不会再因此切换到旧模式。
+子进程的 setup/call/teardown 报告回传给原 pytest，保留 PASS、FAIL、SKIP、XFAIL 及错误详情，
+继续由原 pytest 汇总退出码和 `--junitxml` 报告。崩溃或缺失报告会记为失败。
+每个节点独立缓存，运行结束后清理；POSIX 下取消入口时同时终止子进程及其编译进程组。
 
-仅运行清单中的部分节点、检查收集结果：
-
-```bash
-python run_legacy_29.py --list
-python run_legacy_29.py -- 'test_compile.py::TestStandaloneInductor::test_aot_cpp_march_config'
-python run_legacy_29.py --collect-only
-python run_legacy_29.py --normal --collect-only -- test_compile.py
-```
-
-旧兼容入口拒绝清单外节点、文件级/类级选择、重复节点及扩大收集范围的 pytest 参数。
-正常入口允许在 `--` 后传递 pytest 选择与输出参数；本入口串行执行，拒绝 xdist `-n`。
-使用普通 `python -m pytest` 时，
-29 项仍会走正常模式，不会自动获得兼容门控；完整流水线应使用上述两组入口。
-
-每组保存 `run.json`（模式、进程、收集节点、排除节点、逐阶段结果、门控状态）
-和 `exit-code.txt`。正常组若没有导入 torch，门控字段为 null；这不等于 False。
-不得通过同一 pytest 进程内的 fixture 或临时 monkeypatch 来混跑两种模式，
-因为后端注册及 Python 模块缓存不会随一个布尔值恢复而撤销。
+节点选择（如 `-k`、完整 node ID）仍由父 pytest 完成；子进程只执行选中的一个节点。
+保留正常的 conftest 自动加载，不使用 `--noconftest`。
+这只验证旧兼容模式，不代表这些节点在完整 NPU Inductor 模式下通过。
