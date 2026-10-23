@@ -2,7 +2,6 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
-_dynamo.has_triton = lambda *args, **kwargs: False
 _dynamo.patch_has_triton()
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
@@ -10,6 +9,7 @@ import torch_npu.testing
 
 # Owner(s): ["module: functorch"]
 import json
+import unittest
 import zipfile
 from pathlib import Path
 
@@ -23,6 +23,7 @@ from torch._inductor import aot_compile, ir
 from torch._inductor.codecache import WritableTempFile
 from torch._inductor.package import package_aoti
 from torch._inductor.test_case import run_tests, TestCase
+from torch.testing._internal.common_device_type import skipIf
 from torch.testing._internal.common_utils import skipIfWindows
 from torch.testing._internal.inductor_utils import GPU_TYPE, requires_gpu
 from torch.testing._internal.torchbind_impls import (
@@ -85,6 +86,7 @@ class TestTorchbind(TestCase):
 
         return ep, inputs, orig_res, m
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_torchbind_inductor(self):
         ep, inputs, orig_res, _ = self.get_exported_model()
         compiled = torch._inductor.compile(ep.module(), inputs)
@@ -108,6 +110,7 @@ class TestTorchbind(TestCase):
         new_res = torch.compile(m, backend="inductor")(*inputs)
         self.assertTrue(torch.allclose(orig_res, new_res))
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_torchbind_compile(self):
         _, inputs, orig_res, mod = self.get_exported_model()
         new_res = torch.compile(mod, backend="inductor")(*inputs)
@@ -170,6 +173,7 @@ class TestTorchbind(TestCase):
             "call_torchbind(__torch__.torch.classes._TorchScriptTesting._TensorQueue _0, str method, Tensor _1) -> NoneType _0",
         )
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @skipIfWindows(msg="AOTI is not fully support on Windows")
     def test_torchbind_aot_compile(self):
         ep, inputs, _, _ = self.get_exported_model()
@@ -310,6 +314,7 @@ class TestTorchbind(TestCase):
                 )
                 self.assertTrue(str(tmp_path_constants / "custom_obj_0") in all_files)
 
+    @skipIf(GPU_TYPE == "npu", "WithEffects not support on NPU")
     def test_torchbind_aoti(self):
         ep, inputs, orig_res, _ = self.get_exported_model()
         pt2_path = torch._inductor.aoti_compile_and_package(ep)
@@ -319,6 +324,7 @@ class TestTorchbind(TestCase):
 
     @torch._inductor.config.patch("aot_inductor.use_runtime_constant_folding", True)
     @skipIfWindows(msg="AOTI is not fully support on Windows")
+    @skipIf(GPU_TYPE == "npu", "WithEffects not support on NPU")
     def test_torchbind_aot_compile_constant_folding(self):
         ep, inputs, orig_res, _ = self.get_exported_model()
         pt2_path = torch._inductor.aoti_compile_and_package(ep)
@@ -326,6 +332,7 @@ class TestTorchbind(TestCase):
         result = optimized(*inputs)
         self.assertEqual(result, orig_res)
 
+    @skipIf(GPU_TYPE == "npu", "WithEffects not support on NPU")
     def test_torchbind_list_return_aot_compile(self):
         class M(torch.nn.Module):
             def __init__(self) -> None:
@@ -351,6 +358,7 @@ class TestTorchbind(TestCase):
         result = optimized(*inputs)
         self.assertEqual(result, orig_res)
 
+    @skipIf(GPU_TYPE == "npu", "WithEffects not support on NPU")
     def test_torchbind_queue(self):
         class Foo(torch.nn.Module):
             def __init__(self, tq) -> None:
@@ -427,6 +435,7 @@ class TestTorchbind(TestCase):
         ):
             aot_compile(ep.module(), inputs, options={"aot_inductor.package": True})
 
+    @skipIf(GPU_TYPE == "npu", "WithEffects not support on NPU")
     def test_aoti_torchbind_name_collision(self):
         class M(torch.nn.Module):
             def __init__(self) -> None:

@@ -1,5 +1,6 @@
 import torch
 import torch_npu
+import unittest
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
 from torch_npu.utils._dynamo import has_triton

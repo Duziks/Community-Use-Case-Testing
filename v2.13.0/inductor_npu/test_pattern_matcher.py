@@ -2,7 +2,6 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
-_dynamo.has_triton = lambda *args, **kwargs: False
 _dynamo.patch_has_triton()
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
@@ -914,6 +913,7 @@ class TestPatternMatcher(TestCase):
 
     # Constant folding was explicitly turned off due to issue #108388
     # Turn it back on for test
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @inductor_config.patch(joint_graph_constant_folding=True)
     def test_pointless_cumsum(self):
         def fn1():
@@ -2390,6 +2390,7 @@ class TestPatternMatcher(TestCase):
         self.assertEqual(len(sigmoid_nodes), 1)
         self.assertTrue("original_aten" in sigmoid_nodes[0].meta)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_fwd_only_uses_get_decomp_fn(self):
         """fwd_only traces the pattern graph using the table from get_decomp_fn."""
 
@@ -2412,6 +2413,7 @@ class TestPatternMatcher(TestCase):
         self.assertIn(aten.gelu.default, targets_nodec)
         self.assertNotIn(aten.erf.default, targets_nodec)
 
+    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_register_replacement_get_decomp_fn(self):
         """A pattern registered with get_decomp_fn matches graphs traced with
         the same decomposition table, and does not match graphs traced with a

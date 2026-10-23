@@ -434,13 +434,6 @@ UNARY_NUMERICAL_XFAILS = {
 }
 
 BINARY_NUMERICAL_XFAILS = {
-    "inductor_default": {
-        "fmod": {bf16, fp32},
-        "remainder": {ALL},
-    },
-    "inductor_numerics": {
-        "remainder": {ALL},
-    },
 }
 
 XFAIL_DICTS = {

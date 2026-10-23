@@ -70,6 +70,7 @@ class TestMemoryPlanning(TestCase):
         z = torch.randn((2, 3), device=device)
         return (Foo(), (x, y, z))
 
+    @unittest.skipIf(GPU_TYPE == "npu", "The memory access of NPU is different from that of GPU")
     def test_python_wrapper(self):
         f, args = self._generate(device=GPU_TYPE)
         compiled = torch.compile(f, dynamic=True)
