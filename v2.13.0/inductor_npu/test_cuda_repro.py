@@ -3043,12 +3043,15 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
         )
         # make sure the identity is maintained
         if device_type == "npu":
+            allocation_fn = (
+                "empty_strided_npu" if "empty_strided_npu(" in code[0] else "empty_strided"
+            )
             # NPU materializes the concatenation before loading its last element.
             # Check the bounded slice and the size-32 buffer/offset-31 dataflow.
             FileCheck().check("x0_mask = x0 < min(X0BLOCK+x0_offset, x0_numel)").check(
                 "tl.load(in_ptr0 + (1 + x0), x0_mask)"
             ).check("tl.load(in_ptr0 + tl.arange(0,1) +  (31))").check(
-                "buf2 = empty_strided((1, 32), (32, 1)"
+                f"buf2 = {allocation_fn}((1, 32), (32, 1)"
             ).check("triton_poi_fused_add_cat_slice_unsqueeze_0.run(arg0_1, buf0, buf3, 31").check(
                 "buf1 = reinterpret_tensor(buf2, (1, 1), (32, 1), 31)"
             ).check(
