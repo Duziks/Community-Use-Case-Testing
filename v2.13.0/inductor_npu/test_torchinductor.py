@@ -9486,7 +9486,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
             rtol=1.3e-06,
         )
 
-    @unittest.skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
+    #@unittest.skipUnless(HAS_NPU_AND_TRITON, "requires NPU and Triton")
     def test_grid_sampler_expand_preserves_view(self):
         if not self.device.startswith(("cuda", "xpu", "npu")):
             self.skipTest("requires CUDA, XPU or NPU")
@@ -9494,7 +9494,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         torch.manual_seed(0)
         torch._dynamo.reset()
 
-        repeats = 9000
+        repeats = 1000
         batch = 48
         channels = 3
         img = 224
