@@ -18481,6 +18481,9 @@ if RUN_CPU:
         device = "cpu"
 
     copy_tests(CommonTemplate, CpuTests, "cpu")
+    CpuTests.test_max_min_bool_cpu = unittest.skip(
+        "NPU adaptation suite validates only the NPU variant of this regression"
+    )(CpuTests.test_max_min_bool_cpu)
 
 if RUN_GPU or HAS_MPS or HAS_NPU:
 
