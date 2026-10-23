@@ -126,7 +126,7 @@ class TestDecomp(NNTestCase):
     _do_cuda_memory_leak_check = GPU_TYPE == "cuda"
     _do_cuda_non_default_stream = GPU_TYPE == "cuda"
 
-    @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
+    # @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
     @parametrize("dtype", [torch.float, torch.bfloat16])
     def test_simple_mm(self, device, dtype):
         fudge = 10
@@ -143,7 +143,7 @@ class TestDecomp(NNTestCase):
             run_comp_nocomp(torch_mm, t1, t2, rtol=rtol, atol=atol)
             run_comp_nocomp(torch_addmm, tadd, t1, t2, rtol=rtol, atol=atol)
 
-    @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
+    # @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
     @parametrize(
         "dtype",
         [torch.float, torch.bfloat16] if SM80OrLater or TEST_XPU else [torch.float],
@@ -169,7 +169,7 @@ class TestDecomp(NNTestCase):
                         torch_baddbmm, tadd, t1, t2, alpha, beta, rtol=rtol, atol=atol
                     )
 
-    @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
+    # @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
     @config.patch(coordinate_descent_tuning=True)
     def test_bmm_batch2_last_dim_size_is_one(self, device):
         fudge = 3
@@ -192,7 +192,7 @@ class TestDecomp(NNTestCase):
         self.assertIsNot(out, NotImplemented)
         self.assertEqual(expected, out)
 
-    @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
+    # @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
     def test_bmm_outer_product_k_is_one_with_unbacked_k(self, device):
         if device == "cpu":
             self.skipTest("unbacked symints require GPU fake tensors")
@@ -259,7 +259,7 @@ class TestDecomp(NNTestCase):
             self.assertIsNot(out, NotImplemented)
             self.assertEqual(expected, out, exact_stride=True)
 
-    @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
+    # @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
     @parametrize("dtype", [torch.float, torch.bfloat16, torch.int])
     def test_some(self, device, dtype):
         # this Pytorch data type is not fully supported on cuda today
@@ -278,7 +278,7 @@ class TestDecomp(NNTestCase):
             init_tensor([[1], [2], [3], [4]], dtype=dtype, device=device),
         )
 
-    @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
+    # @unittest.skipIf(not HAS_GPU, "GPU tests require triton")
     @parametrize("dtype", [torch.float, torch.bfloat16, torch.int])
     @parametrize("bs", [1, 2, 4, 10])
     def test_some_batched(self, device, dtype, bs):
