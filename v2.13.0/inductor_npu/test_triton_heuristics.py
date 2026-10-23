@@ -531,6 +531,7 @@ class TestCachingAutotunerPlugin(TestCase):
                 return sentinel
 
         autotuner = self._make_autotuner([_Plugin()])
+        autotuner.launchers = [object(), object()]
         with patch.object(autotuner, "autotune_to_one_config") as mock_autotune:
             result = autotuner.run(
                 *self._make_kernel_inputs(), stream=self._get_stream()
