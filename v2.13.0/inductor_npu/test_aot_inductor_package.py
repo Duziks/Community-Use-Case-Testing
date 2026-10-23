@@ -423,6 +423,7 @@ class TestAOTInductorPackage(TestCase):
 
     # @requires_triton_ptxas_compat
     @unittest.skipIf(IS_FBCODE, "cmake won't work in fbcode")
+    @unittest.skip("npu does not support multi-arch fatbin")
     def test_compile_after_package_multi_arch(self):
         if self.device != GPU_TYPE:
             raise unittest.SkipTest(f"Only meant to test {GPU_TYPE}")
@@ -465,6 +466,7 @@ class TestAOTInductorPackage(TestCase):
                 self.assertTrue(torch.allclose(actual, expected))
 
     @unittest.skipIf(IS_FBCODE, "cmake won't work in fbcode")
+    @unittest.skip("npu does not support multi-arch fatbin")
     # @requires_triton_ptxas_compat
     @torch._inductor.config.patch("test_configs.use_libtorch", True)
     def test_compile_after_package_static(self):
@@ -524,6 +526,7 @@ class TestAOTInductorPackage(TestCase):
                 self.cmake_compile(model, example_inputs, options, "")
 
     @unittest.skipIf(IS_FBCODE, "cmake won't work in fbcode")
+    @unittest.skip("npu does not support multi-arch fatbin")
     # @requires_triton_ptxas_compat
     @torch._inductor.config.patch("test_configs.use_libtorch", True)
     def test_compile_standalone_cos(self):
@@ -557,6 +560,7 @@ class TestAOTInductorPackage(TestCase):
                 self.assertTrue(a_path.exists())
 
     @unittest.skipIf(IS_FBCODE, "cmake won't work in fbcode")
+    @unittest.skip("npu does not support multi-arch fatbin")
     # @requires_triton_ptxas_compat
     @torch._inductor.config.patch("test_configs.use_libtorch", True)
     def test_compile_with_exporter(self):

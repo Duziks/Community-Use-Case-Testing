@@ -361,6 +361,7 @@ class AOTInductorTestsTemplate:
         IS_FBCODE,
         "toolchain doesn't support ptx to fatbin",
     )
+    @unittest.skip("npu does not support multi-arch fatbin")
     # Skip embed_kernel_binary == True for now as it shows random
     # failure on CI
     @common_utils.parametrize("embed_kernel_binary", [False])
@@ -4501,6 +4502,7 @@ class AOTInductorTestsTemplate:
         example_inputs = (torch.randn(1023, device=self.device),)
         self.check_model(Model(), example_inputs)
 
+    @unittest.skip("npu not support fp64")
     @common_utils.parametrize("dynamic", [False, True])
     def test_triton_kernel_equal_to_1_float_arg(self, dynamic):
         if self.device != GPU_TYPE:
@@ -4538,6 +4540,7 @@ class AOTInductorTestsTemplate:
             dynamic_shapes=dynamic_shapes,
         )
 
+    @unittest.skip("npu not support fp64")
     @common_utils.parametrize("threshold", [float("inf"), float("-inf"), float("nan")])
     def test_triton_kernel_inf_float_arg(self, threshold):
         if self.device != GPU_TYPE or self.device == "mps":
