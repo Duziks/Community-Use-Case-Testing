@@ -6,7 +6,7 @@ _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
-
+import unittest
 # Owner(s): ["module: inductor"]
 from typing import Any
 
@@ -43,6 +43,7 @@ class TestVarianceReductionHeuristic(TestCase):
             dtypes.append(torch.bfloat16)
         return dtypes
 
+    @unittest.skip("CUDA-specific test, not needed for NPU")
     def test_var_mean_uses_two_step_for_non_split_reductions(self):
         self._skip_if_not_cuda()
 
@@ -60,6 +61,7 @@ class TestVarianceReductionHeuristic(TestCase):
             self.assertIn("tl.sum", source_code)
             self.assertNotIn("welford_reduce", source_code)
 
+    @unittest.skip("CUDA-specific test, not needed for NPU")
     def test_var_mean_keeps_welford_for_float32_reductions(self):
         self._skip_if_not_cuda()
 
@@ -73,6 +75,7 @@ class TestVarianceReductionHeuristic(TestCase):
         self.assertEqual(result, expected)
         self.assertIn("welford_", source_code)
 
+    @unittest.skip("CUDA-specific test, not needed for NPU")
     @config.patch("triton.force_cooperative_reductions", True)
     def test_var_mean_keeps_welford_for_small_reductions(self):
         self._skip_if_not_cuda()
@@ -90,6 +93,7 @@ class TestVarianceReductionHeuristic(TestCase):
             self.assertEqual(result, expected)
             self.assertIn("welford_", source_code)
 
+    @unittest.skip("CUDA-specific test, not needed for NPU")
     @config.patch(
         {
             "triton.cooperative_reductions": False,
