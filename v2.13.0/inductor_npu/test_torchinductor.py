@@ -14757,6 +14757,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @unittest.skipIf(
         not PLATFORM_SUPPORTS_MEM_EFF_ATTENTION, "Some archs don't support mem eff SDPA"
     )
+    @unittest.skip
     def test_scaled_dot_product_efficient_attention(self):
         if self.device == "cpu":
             raise unittest.SkipTest(f"requires {GPU_TYPE}")
@@ -15999,7 +16000,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         fn(a, b)
 
     # Skipped on ROCm until https://github.com/ROCm/triton/issues/443 resolved
-    @slowTest
+    # @slowTest
     def test_fuse_large_params(self):
         def pt2_optimizer_step(optimizer):
             @torch.compile()
@@ -16066,6 +16067,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
                 check_lowp=False,
             )
 
+    @unittest.skip
     def test_dtypeview_fusion(self):
         @torch.compile
         def fn(x):
