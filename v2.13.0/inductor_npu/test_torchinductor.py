@@ -15445,13 +15445,16 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
                 "assert_size_stride", 2, exactly=True
             ).check("extern_kernels.mm(").run(code[0])
 
-    @requires_gpu()
-    @skip_if_not_triton
-    @unittest.skipIf(
-        config.cpp_wrapper,
-        "Deferred alignment copies are not generated for cpp_wrapper",
-    )
+    # @requires_gpu()
+    # @skip_if_not_triton
+    # @unittest.skipIf(
+    #     config.cpp_wrapper,
+    #     "Deferred alignment copies are not generated for cpp_wrapper",
+    # )
     def test_alignment_copy_deferred_to_first_use(self):
+        if self.device == "cpu":
+            self.skipTest("copy_if_misaligned is only generated for GPU/NPU devices")
+            
         def fn(x, y, z):
             a = torch.mm(x, y)
             b = torch.mm(a, z)
