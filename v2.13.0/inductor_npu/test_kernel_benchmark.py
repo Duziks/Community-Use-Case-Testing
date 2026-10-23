@@ -33,12 +33,27 @@ inductor_config.compile_threads = 1
 # 4. 允许 GEMM 调优回退到 ATen
 inductor_config.max_autotune_gemm_backends = "ATEN"
 
-# 5. 【核心修复】彻底屏蔽 len(avail_gpus) <= 1 断言
+# 5. NPU benchmark 设备选择：
+#    未指定设备时默认使用 NPU；显式指定设备时保留其设备类型。
 import torch._inductor.runtime.benchmarking as inductor_benchmarking
-inductor_benchmarking._get_default_gpu_device_type = lambda: "cuda"
-inductor_benchmarking._normalize_gpu_device_type = lambda device_type=None: "cuda"
 
-# Owner(s): ["module: inductor"]
+
+def _npu_benchmark_default_device_type():
+    return "npu"
+
+
+def _npu_benchmark_normalize_device_type(device_type=None):
+    if device_type is None:
+        return "npu"
+    return torch.device(device_type).type
+
+
+inductor_benchmarking._get_default_gpu_device_type = (
+    _npu_benchmark_default_device_type
+)
+inductor_benchmarking._normalize_gpu_device_type = (
+    _npu_benchmark_normalize_device_type
+)
 
 # Owner(s): ["module: inductor"]
 # ruff: noqa: F841
