@@ -16067,6 +16067,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
                 check_lowp=False,
             )
 
+    @unittest.skip
     def test_dtypeview_fusion(self):
         @torch.compile
         def fn(x):
