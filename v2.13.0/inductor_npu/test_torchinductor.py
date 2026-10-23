@@ -20034,7 +20034,7 @@ if RUN_GPU:
             _, code = run_and_get_code(fn_c, x)
 
             FileCheck().check("triton_meta").check("'signature':").check(
-                "'XBLOCK': 'constexpr'"
+                "'X0BLOCK': 'i32'"
             ).run(code[0])
 
         #@unittest.skipIf(TEST_WITH_ROCM or not IS_SM90, "no scaled_grouped_mm support")
