@@ -1736,7 +1736,7 @@ class TestTiling(TestCase):
             return x + y
 
         out, code = run_and_get_code(torch.compile(f), x, y)
-        FileCheck().check("ynumel").run(code[0])
+        FileCheck().check("y0_numel").run(code[0])
         self.assertEqual(out, f(x, y))
 
     def test_mixed_broadcast_transpose_picks_2d(self):
@@ -1753,7 +1753,7 @@ class TestTiling(TestCase):
         # from y, even though z's broadcast score is filtered as already-
         # coalesced-in-1D. Both y and z contribute to the same variable (n0),
         # so this tests per-expression filtering within a single variable.
-        FileCheck().check("ynumel").run(code[0])
+        FileCheck().check("y0_numel").run(code[0])
         self.assertEqual(out, f(x, y, z))
 
 
