@@ -1035,6 +1035,15 @@ class AOTFxirTestCase(InductorTestCase):
             dynamic_shapes=({0: Dim.DYNAMIC}, {0: Dim.DYNAMIC}),
         )
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "AOT fx_wrapper=True path is not supported on NPU yet: "
+        "get_wrapper_codegen_for_device('npu', fx_wrapper=True) returns None "
+        "(device_codegens['npu'].fx_wrapper_codegen is not registered), which "
+        "trips 'AssertionError: Device npu not supported' in "
+        "torch/_inductor/graph.py. Even with a registered fx wrapper the NPU "
+        "block constexprs (X0BLOCK) are missing from triton_meta constants.",
+    )
     def test_custom_triton_autotune_dynamic(self):
         class Model(torch.nn.Module):
             def forward(self, x, y):
