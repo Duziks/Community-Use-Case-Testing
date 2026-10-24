@@ -109,12 +109,11 @@ class TestOnlineSoftmax(TestCase):
         out, source_codes = run_and_get_code(f, x)
         return source_codes[0]
 
-    @unittest.skip
     def test_codegen_3pass_softmax_due_to_disable(self):
         with inductor_config.patch(online_softmax=False):
             wrapper_code = self.get_softmax_wrapper()
 
-        self.assertEqual(wrapper_code.count("for r0_offset in"), 3)
+        self.assertEqual(wrapper_code.count("for loop_r1 in"), 3)
 
     @parametrize("V", [2048, 50304])
     @parametrize("use_log_softmax", [False, True])
