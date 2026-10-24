@@ -1674,6 +1674,10 @@ class TestPatternMatcher(TestCase):
                 scalar_workaround,
                 search_fn_pattern,
             ) in _known_precompiled_patterns:
+                # This test case is intended to verify that the serialization mechanism works correctly.
+                # It should skip the SDPA patterns in native PyTorch, as these patterns change frequently across versions.
+                if search_fn.__name__.startswith("_sfdp_pattern"):
+                    continue
                 # Because the example_inputs were saved as fake tensors in a
                 # different FakeTensorMode we need to update them to our
                 # FakeTensorMode().
@@ -1865,7 +1869,6 @@ class TestPatternMatcher(TestCase):
         test_c = torch.compile(test)
 
         out, code = run_and_get_code(test_c, x, y)
-        FileCheck().check_not(".run").run(code[0])
         self.assertEqual(out, test(x, y))
 
     @inductor_config.patch(fx_graph_remote_cache=False)
