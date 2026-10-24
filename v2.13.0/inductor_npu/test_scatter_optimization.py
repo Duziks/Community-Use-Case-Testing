@@ -46,7 +46,7 @@ class TestScatterOpt(TestCase):
         L, M, N = 2, 1024, 2048
 
         def f(x):
-            y = torch.full([L, M, N], 3.14, dtype=torch.float)
+            y = torch.full([L, M, N], 3.14, dtype=torch.float, device=x.device)
             y.scatter_(2, x.unsqueeze(2), 2.718)
             return y
 
@@ -64,7 +64,7 @@ class TestScatterOpt(TestCase):
         M, N = 1024, 2048
 
         def f(x):
-            y = torch.full([M, N], 3.14, dtype=torch.float)
+            y = torch.full([M, N], 3.14, dtype=torch.float, device=x.device)
             y.scatter_(0, x.unsqueeze(0), 2.718)
             return y
 
@@ -77,7 +77,7 @@ class TestScatterOpt(TestCase):
         M, N = 1024, 2048
 
         def f(x):
-            y = torch.full([M, N], 3.14, dtype=torch.float)
+            y = torch.full([M, N], 3.14, dtype=torch.float, device=x.device)
             y.scatter_(-1, x.unsqueeze(1), 2.718)
             return y
 
@@ -90,7 +90,7 @@ class TestScatterOpt(TestCase):
         M, N = 1024, 2048
 
         def f(x):
-            y = torch.full([M, N], 3.14, dtype=torch.float)
+            y = torch.full([M, N], 3.14, dtype=torch.float, device=x.device)
             y.scatter_(1, x.unsqueeze(1), 2.718)
             return y
 
@@ -104,7 +104,7 @@ class TestScatterOpt(TestCase):
         M, N = 1024, 2048
 
         def f(x):
-            y = torch.full([M, N], 3.14, dtype=torch.float)
+            y = torch.full([M, N], 3.14, dtype=torch.float, device=x.device)
             y.scatter_(1, x.unsqueeze(1), 2.718)
             return y
 
@@ -117,7 +117,7 @@ class TestScatterOpt(TestCase):
         M, N = 1024, 2048
 
         def f(x):
-            y = torch.full([M, N], 0, dtype=torch.float)
+            y = torch.full([M, N], 0, dtype=torch.float, device=x.device)
             y.scatter_(1, x, 0.618)
             return y
 
@@ -174,7 +174,7 @@ class TestScatterOpt(TestCase):
             metrics.reset()
 
             def f(x):
-                y = torch.full([M, N], 3.14, dtype=dtype)
+                y = torch.full([M, N], 3.14, dtype=dtype, device=x.device)
                 y.scatter_(1, x.unsqueeze(1), 2.718)
                 return y
 
