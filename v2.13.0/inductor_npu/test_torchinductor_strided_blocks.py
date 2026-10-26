@@ -1041,6 +1041,9 @@ class CommonTemplate:
         won't generate a block pointer, since we don'allow enough tiling dimensions.
         """
         # Use odd shapes to frustrate block pointer analysis.
+        if torch.device(self.device).type == "npu":
+            self.skipTest("暂不支持社区特性：block-pointer")
+
         view = self._discontiguous_tensor((3, 7, 11), self.device)
 
         result, (code,) = self._run_and_compare(
@@ -1095,6 +1098,9 @@ class CommonTemplate:
         Tests fusing multiple reductions on the same input, with 2D tiling.
         """
 
+        if torch.device(self.device).type == "npu":
+            self.skipTest("暂不支持社区特性：block-pointer")
+
         def foo(x):
             return torch.sum(x) + torch.argmax(x)
 
@@ -1124,6 +1130,9 @@ class CommonTemplate:
         These might not be fused.
         """
 
+        if torch.device(self.device).type == "npu":
+            self.skipTest("暂不支持社区特性：block-pointer")
+
         def foo(*args):
             return sum(reduction_op(arg) for arg in args)
 
@@ -1150,8 +1159,8 @@ class CommonTemplate:
         """
         Tests enabling and disabling tiled reductions.
         """
-        if torch.npu.is_available() and (tile_reductions):
-            self.skipTest('inductor主生成路径不支持tile_reductions=True要求的block-pointer')
+        if torch.device(self.device).type == "npu":
+            self.skipTest("暂不支持社区特性：block-pointer")
         view = self._discontiguous_tensor((9, 11), self.device)
 
         # If tiled, we expect 1 block pointer for the input.
