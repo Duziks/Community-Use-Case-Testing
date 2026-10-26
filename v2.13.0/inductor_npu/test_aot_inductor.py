@@ -1967,6 +1967,7 @@ class AOTInductorTestsTemplate:
         not SM80OrLater and not HAS_XPU_AND_TRITON,
         "bfloat16 only supported in sm80+ or XPU",
     )
+    @unittest.skip("npu not support sdpa")
     def test_sdpa(self):
         class Model(torch.nn.Module):
             def __init__(self) -> None:
@@ -1992,6 +1993,7 @@ class AOTInductorTestsTemplate:
     #     not PLATFORM_SUPPORTS_FLASH_ATTENTION,
     #     "Some archs don't support SDPA with bfloat16",
     # )
+    @unittest.skip("npu not support sdpa")
     def test_sdpa_2(self):
         class Model(torch.nn.Module):
             def __init__(self) -> None:
