@@ -12,6 +12,10 @@ if torch.npu.is_available() and not hasattr(torch._C, "_cuda_cudaCachingAllocato
     torch._C._cuda_cudaCachingAllocator_is_enabled = lambda: True
 import torch_npu.testing
 import torch_npu._inductor
+# Restore the device-aware torch.utils._triton.has_triton (transfer_to_npu
+# forces it to False). pad_mm.can_pad() bails out when has_triton() is False,
+# so test_mm_padding(deterministic=False) would never benchmark (pad_mm_bench==0).
+_dynamo.patch_has_triton()
 
 # Owner(s): ["module: inductor"]
 import contextlib

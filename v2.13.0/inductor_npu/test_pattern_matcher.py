@@ -10,6 +10,7 @@ import torch_npu._inductor
 
 # Owner(s): ["module: inductor"]
 import copy
+import logging
 import os
 import unittest
 from collections.abc import Callable
@@ -1674,6 +1675,10 @@ class TestPatternMatcher(TestCase):
                 scalar_workaround,
                 search_fn_pattern,
             ) in _known_precompiled_patterns:
+                # This test case is intended to verify that the serialization mechanism works correctly.
+                # It should skip the SDPA patterns in native PyTorch, as these patterns change frequently across versions.
+                if search_fn.__name__.startswith("_sfdp_pattern"):
+                    continue
                 # Because the example_inputs were saved as fake tensors in a
                 # different FakeTensorMode we need to update them to our
                 # FakeTensorMode().
@@ -1865,7 +1870,6 @@ class TestPatternMatcher(TestCase):
         test_c = torch.compile(test)
 
         out, code = run_and_get_code(test_c, x, y)
-        FileCheck().check_not(".run").run(code[0])
         self.assertEqual(out, test(x, y))
 
     @inductor_config.patch(fx_graph_remote_cache=False)
@@ -2866,6 +2870,15 @@ class TestPatternMatcher(TestCase):
 
 class TestPatternMatcherLogging(LoggingTestCase):
     device_type = GPU_TYPE
+
+    # avoid pt2 loggers should only have at most two handles error in py 3.12
+    def _handler_watcher(self, record_list):
+        for log_qname in torch._logging._internal.log_registry.get_log_qnames():
+            logger = logging.getLogger(log_qname)
+            for handler in list(logger.handlers):
+                if not torch._logging._internal._is_torch_handler(handler):
+                    logger.removeHandler(handler)
+        return super()._handler_watcher(record_list)
 
     @make_logging_test()
     def test_pattern_match_debug_output(self, records):

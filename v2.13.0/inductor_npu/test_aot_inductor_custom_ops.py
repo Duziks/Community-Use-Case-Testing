@@ -553,6 +553,15 @@ class AOTInductorTestsTemplate:
 
 
 class AOTInductorLoggingTest(LoggingTestCase):
+    # avoid pt2 loggers should only have at most two handles error in py 3.12
+    def _handler_watcher(self, record_list):
+        for log_qname in torch._logging._internal.log_registry.get_log_qnames():
+            logger = logging.getLogger(log_qname)
+            for handler in list(logger.handlers):
+                if not torch._logging._internal._is_torch_handler(handler):
+                    logger.removeHandler(handler)
+        return super()._handler_watcher(record_list)
+
     @make_logging_test(dynamic=logging.DEBUG)
     def test_shape_env_reuse(self, records):
         # make sure ShapeEnv is only created once and reused afterwards

@@ -6,6 +6,10 @@ _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
+# Restore the device-aware torch.utils._triton.has_triton (transfer_to_npu
+# forces it to False). Otherwise HAS_GPU is False and this test class falls
+# back to self.device = "cpu", so the cases would never run on NPU.
+_dynamo.patch_has_triton()
 
 # Owner(s): ["module: inductor"]
 """

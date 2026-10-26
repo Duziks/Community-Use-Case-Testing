@@ -904,7 +904,7 @@ class PaddingTest(TestCaseBase):
         # "= empty_strided_<device>(" pattern.
         import re
 
-        num_allocs = len(re.findall(rf"= empty_strided\([^\n]*device='{GPU_TYPE}'", code[0]))
+        num_allocs = len(re.findall(rf"= (?:empty_strided_{GPU_TYPE}\(|empty_strided\([^\n]*device='{GPU_TYPE}')", code[0]))
         self.assertEqual(
             num_allocs,
             1,
