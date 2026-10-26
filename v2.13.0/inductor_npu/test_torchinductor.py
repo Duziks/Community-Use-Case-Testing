@@ -9224,6 +9224,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @skipCUDAIf(not TEST_CUDNN, "CUDNN not available")
     @skipIfXpu
     def test_cudnn_rnn(self):
+        if torch.npu.is_available():
+            self.skipTest("CUDA用例无需支持")
         if self.device == "cpu":
             raise unittest.SkipTest(f"requires {GPU_TYPE}")
 
@@ -14026,7 +14028,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     )
     def test_sdpa(self, use_block_ptr: bool, prefer_nd_tiling: bool):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的efficient-attention后端')
+            self.skipTest("CUDA用例无需支持")
         def foo(arg0_1, arg1_1, arg2_1, arg3_1, arg4_1):
             view = torch.ops.aten.view.default(arg3_1, [23760, 128])
             arg3_1 = None
@@ -14106,7 +14108,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     )
     def test_sdpa_unaligned_mask(self):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的efficient-attention后端')
+            self.skipTest("CUDA用例无需支持")
         def foo(
             arg0_1: "f32[8, 8, 16, 16]",
             arg1_1: "f32[8, 8, 15, 16]",
@@ -14153,7 +14155,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @config.patch(freezing=True)
     def test_sdpa_unaligned_mask_freezing(self):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的efficient-attention后端')
+            self.skipTest("CUDA用例无需支持")
         class Mod(torch.nn.Module):
             def __init__(self) -> None:
                 super().__init__()

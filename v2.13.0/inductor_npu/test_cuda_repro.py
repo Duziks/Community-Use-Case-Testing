@@ -294,7 +294,7 @@ class CudaReproTests(TestCase):
 
     def test_effn_attn_bias_padding(self):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的efficient-attention后端')
+            self.skipTest("CUDA用例无需支持")
         batch_size, num_heads, seq_len, head_dim = 2, 32, 512, 128
 
         def fn(
@@ -348,6 +348,8 @@ class CudaReproTests(TestCase):
     @skipIfRocmArch(MI350_ARCH)
     @skipIfXpu(msg="RuntimeError, torch-xpu-ops: 2697")
     def test_effn_attn_bias_padding_misaligned(self):
+        if torch.npu.is_available():
+            self.skipTest("CUDA用例无需支持")
         seqlen_start = 1008
 
         for offset in range(-1, 2):
@@ -3071,7 +3073,7 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
     def test_qwen2_7b_sdpa_input_alignment_requires_recompile(self):
         # SDPA constraints ensures inputs have alignment (8).
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的efficient-attention后端')
+            self.skipTest("CUDA用例无需支持")
         device = device_type
 
         def forward(q_proj, k_proj, attn_mask):
