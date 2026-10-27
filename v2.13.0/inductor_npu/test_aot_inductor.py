@@ -1967,6 +1967,7 @@ class AOTInductorTestsTemplate:
         not SM80OrLater and not HAS_XPU_AND_TRITON,
         "bfloat16 only supported in sm80+ or XPU",
     )
+    @unittest.skip("npu not support sdpa")
     def test_sdpa(self):
         class Model(torch.nn.Module):
             def __init__(self) -> None:
@@ -1992,6 +1993,7 @@ class AOTInductorTestsTemplate:
     #     not PLATFORM_SUPPORTS_FLASH_ATTENTION,
     #     "Some archs don't support SDPA with bfloat16",
     # )
+    @unittest.skip("npu not support sdpa")
     def test_sdpa_2(self):
         class Model(torch.nn.Module):
             def __init__(self) -> None:
@@ -6720,6 +6722,7 @@ class AOTInductorTestsTemplate:
     @skipIfWindows(
         msg="OpenMP crashed application on windows"
     )  # TODO: (xuhancn) need to root cause and fix.
+    @unittest.skip("npu not support sdpa")
     def test_issue_140766(self):
         class Model(torch.nn.Module):
             def __init__(self):
@@ -8968,6 +8971,14 @@ torch._inductor.aoti_load_package("{model_path}")
 
 
 class AOTInductorLoggingTest(LoggingTestCase):
+    # avoid pt2 loggers should only have at most two handles error in py 3.12
+    def _handler_watcher(self, record_list):
+        for log_qname in torch._logging._internal.log_registry.get_log_qnames():
+            logger = logging.getLogger(log_qname)
+            for handler in list(logger.handlers):
+                if not torch._logging._internal._is_torch_handler(handler):
+                    logger.removeHandler(handler)
+        return super()._handler_watcher(record_list)
     @make_logging_test(dynamic=logging.DEBUG)
     def test_shape_env_reuse(self, records):
         # make sure ShapeEnv is only created once and reused afterwards

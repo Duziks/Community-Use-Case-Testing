@@ -2872,7 +2872,7 @@ class TestPatternMatcherLogging(LoggingTestCase):
     device_type = GPU_TYPE
 
     # avoid pt2 loggers should only have at most two handles error in py 3.12
-    def _handle_watcher(self, record_list):
+    def _handler_watcher(self, record_list):
         for log_qname in torch._logging._internal.log_registry.get_log_qnames():
             logger = logging.getLogger(log_qname)
             for handler in list(logger.handlers):

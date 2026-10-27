@@ -294,7 +294,7 @@ class CudaReproTests(TestCase):
 
     def test_effn_attn_bias_padding(self):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的efficient-attention后端')
+            self.skipTest("CUDA用例无需支持")
         batch_size, num_heads, seq_len, head_dim = 2, 32, 512, 128
 
         def fn(
@@ -348,6 +348,8 @@ class CudaReproTests(TestCase):
     @skipIfRocmArch(MI350_ARCH)
     @skipIfXpu(msg="RuntimeError, torch-xpu-ops: 2697")
     def test_effn_attn_bias_padding_misaligned(self):
+        if torch.npu.is_available():
+            self.skipTest("CUDA用例无需支持")
         seqlen_start = 1008
 
         for offset in range(-1, 2):
@@ -1963,7 +1965,9 @@ class CudaReproTests(TestCase):
                 atol=1e-1,
             )
 
-    @torch._inductor.config.patch(emulate_precision_casts=True)
+    @torch._inductor.config.patch(
+        emulate_precision_casts=True, force_pointwise_cat=True
+    )
     def test_dont_inplace_disjoint_accesses(self):
         # TODO - would not need mms if we could annotate donated buffer..
         def forward(
@@ -2172,10 +2176,20 @@ class CudaReproTests(TestCase):
         x = torch.rand([255, 255], device=device_type)
         y = torch.rand([255, 255], device=device_type)
 
+        if device_type == "npu":
+            # Static NPU tiling can omit the reduction mask for this shape.
+            # Keep both masks present so their load-expression order is tested.
+            for tensor in (x, y):
+                torch._dynamo.mark_dynamic(tensor, 0)
+                torch._dynamo.mark_dynamic(tensor, 1)
+            reduction_mask, pointwise_mask = "r1_mask", "x0_mask"
+        else:
+            reduction_mask, pointwise_mask = "r0_mask", "xmask"
+
         _, code = run_and_get_code(foo, x, y)
-        FileCheck().check("tl.load").check_same("r0_mask").check_same("xmask").run(
-            code[0]
-        )
+        FileCheck().check("tl.load").check_same(reduction_mask).check_same(
+            pointwise_mask
+        ).run(code[0])
 
     def test_cat_int8_one_kernel(self):
         @torch.compile()
@@ -2537,6 +2551,21 @@ class CudaReproTests(TestCase):
 import os
 os.environ["TRITON_INTERPRET"] = "1"
 import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from functools import wraps
+from torch._inductor.runtime import triton_helpers
+torch.cuda.get_device_capability = lambda: (8, 0)
+
+def _wrap_active(fn):
+    @wraps(fn)
+    def decorated(name, backend):
+        if name in ("nvidia", "amd"):
+            return False
+        return fn(name, backend)
+    return decorated
+
+triton_helpers._is_backend_active = _wrap_active(triton_helpers._is_backend_active)
 
 @torch.compile()
 def foo(x):
@@ -3071,7 +3100,7 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
     def test_qwen2_7b_sdpa_input_alignment_requires_recompile(self):
         # SDPA constraints ensures inputs have alignment (8).
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的efficient-attention后端')
+            self.skipTest("CUDA用例无需支持")
         device = device_type
 
         def forward(q_proj, k_proj, attn_mask):

@@ -402,8 +402,23 @@ class TestPyCodeCache(TestCase):
                 import glob
                 import os
                 import torch
+                import torch_npu
+                from torch_npu.contrib import transfer_to_npu
+                from functools import wraps
+                from torch._inductor.runtime import triton_helpers
                 import warnings
                 from torch._inductor import config
+
+                torch.cuda.get_device_capability = lambda: (8, 0)
+
+                def _wrap_active(fn):
+                    @wraps(fn)
+                    def decorated(name, backend):
+                        if name in ("nvidia", "amd"):
+                            return False
+                        return fn(name, backend)
+                    return decorated
+                triton_helpers._is_backend_active = _wrap_active(triton_helpers._is_backend_active)
 
                 warnings.filterwarnings("ignore")
                 config.fx_graph_cache = True
@@ -429,10 +444,25 @@ class TestPyCodeCache(TestCase):
             step2 = textwrap.dedent(
                 """
                 import torch
+                import torch_npu
+                from torch_npu.contrib import transfer_to_npu
+                from functools import wraps
+                from torch._inductor.runtime import triton_helpers
                 import warnings
                 from torch._dynamo.utils import counters
                 from torch._inductor import config
 
+                torch.cuda.get_device_capability = lambda: (8, 0)
+
+                def _wrap_active(fn):
+                    @wraps(fn)
+                    def decorated(name, backend):
+                        if name in ("nvidia", "amd"):
+                            return False
+                        return fn(name, backend)
+                    return decorated
+                triton_helpers._is_backend_active = _wrap_active(triton_helpers._is_backend_active)
+    
                 warnings.filterwarnings("ignore")
                 config.fx_graph_cache = True
                 config.fx_graph_remote_cache = False
@@ -466,8 +496,23 @@ class TestPyCodeCache(TestCase):
             step3 = textwrap.dedent(
                 """
                 import torch
+                import torch_npu
+                from torch_npu.contrib import transfer_to_npu
+                from functools import wraps
+                from torch._inductor.runtime import triton_helpers
                 import warnings
                 from torch._inductor import config
+
+                torch.cuda.get_device_capability = lambda: (8, 0)
+
+                def _wrap_active(fn):
+                    @wraps(fn)
+                    def decorated(name, backend):
+                        if name in ("nvidia", "amd"):
+                            return False
+                        return fn(name, backend)
+                    return decorated
+                triton_helpers._is_backend_active = _wrap_active(triton_helpers._is_backend_active)
 
                 warnings.filterwarnings("ignore")
                 config.fx_graph_cache = True
@@ -556,9 +601,24 @@ class TestFxGraphCache(TestCase):
             f"""
             import os
             import torch
+            import torch_npu
+            from torch_npu.contrib import transfer_to_npu
+            from functools import wraps
+            from torch._inductor.runtime import triton_helpers
             import warnings
             from torch._dynamo.utils import counters
             from torch._inductor import config
+
+            torch.cuda.get_device_capability = lambda: (8, 0)
+
+            def _wrap_active(fn):
+                @wraps(fn)
+                def decorated(name, backend):
+                    if name in ("nvidia", "amd"):
+                        return False
+                    return fn(name, backend)
+                return decorated
+            triton_helpers._is_backend_active = _wrap_active(triton_helpers._is_backend_active)
 
             warnings.filterwarnings("ignore")
             config.fx_graph_cache = True
