@@ -391,11 +391,7 @@ class TestKernelBenchmark(TestCase):
         out = f(*inputs)
 
         compiled_module = self.get_compiled_module()
-        # we overestimate the size of "slice_b" due to torch.cat
-        # num_gp = size_a + size_slice_b + size_c + size_out
-        # num_gb = (5 * 1000000 + 5 * 2000000 + 1000000 + 5 * 2000000) * 2 / 1e9
-        #        = 0.052
-        self.check_bandwidth(compiled_module, "0.052")
+        self.check_bandwidth(compiled_module, "0.020")
 
     @unittest.skip
     def test_slice_add_bandwidth_computation(self):
