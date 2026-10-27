@@ -301,6 +301,7 @@ class LoopOrderingTest(TestCase):
         self.do_acc_test(f, x, y)
         self.assertEqual(1, metrics.generated_kernel_count)
 
+    @unittest.skip("NPU does not support")
     def test_sum_and_t(self):
         N = 1024
 
@@ -394,6 +395,7 @@ class LoopOrderingTest(TestCase):
         # some buffer is used before being defined.
         f(input_ids, labels, position_ids)
 
+    @unittest.skip("NPU does not support")
     def test_different_broadcast_shapes(self):
         def f(x, y, c):
             return x + c, y + c
@@ -425,6 +427,7 @@ class LoopOrderingTest(TestCase):
         self.do_acc_test(f, x)
         self.assertEqual(1, metrics.generated_kernel_count)
 
+    @unittest.skip("NPU does not support")
     def test_reshape_reindexing_for_reduction(self):
         """
         RMS norm pattern where reshape(-1, head_dim) changes the loop
@@ -463,6 +466,7 @@ class LoopOrderingTest(TestCase):
             optf = torch.compile(f)
             print(f"ms={do_bench(lambda: optf(x))}")
 
+    @unittest.skip("NPU does not support")
     def test_reshape_reindexing_transposed_input(self):
         """
         Same RMS norm pattern but with a transposed input. The reshape
@@ -490,6 +494,7 @@ class LoopOrderingTest(TestCase):
         self.assertEqual(1, metrics.generated_kernel_count)
 
     @inductor_config.patch("loop_ordering_after_fusion", False)
+    @unittest.skip("NPU does not support")
     def test_reshape_reindexing_without_loop_ordering(self):
         """
         Reindexing should enable fusion even when loop ordering is
@@ -514,6 +519,7 @@ class LoopOrderingTest(TestCase):
         torch.testing.assert_close(actual, ref, atol=1e-2, rtol=1e-2)
         self.assertEqual(1, metrics.generated_kernel_count)
 
+    @unittest.skip("NPU does not support")
     def test_reindex_unfusable_write_read_dep(self):
         """
         Grouped quantization where a custom op consumes both the
@@ -582,6 +588,7 @@ class LoopOrderingTest(TestCase):
         x = torch.randn(M, N * 2, device=GPU_TYPE)
         self.do_acc_test(f, x)
 
+    @unittest.skip("NPU does not support")
     def test_floordiv_broadcast_vertical_fusion(self):
         """
         Block-wise quantization pattern: a reduction produces per-block
@@ -885,6 +892,7 @@ class LoopOrderingTest(TestCase):
             "test_configs.max_mm_configs": 4,
         }
     )
+    @unittest.skip("NPU does not support")
     def test_interaction_with_triton_template(self):
         """
         Make sure the dependency prefix for TritonTempalate and its
@@ -1506,9 +1514,9 @@ class TestTiling(TestCase):
         else:
             if layout != "NHWC":
                 raise AssertionError(f"Unexpected layout: {layout}")
-            return torch.rand([1, SIZE_A, SIZE_B, SIZE_C], device=GPU_TYPE).to(
+            return torch.rand([1, SIZE_A, SIZE_B, SIZE_C]).to(
                 memory_format=torch.channels_last
-            )
+            ).to(GPU_TYPE)
 
     @parametrize("a", layouts)
     @parametrize("b", layouts)
@@ -1521,9 +1529,9 @@ class TestTiling(TestCase):
         res, code = run_and_get_code(torch.compile(foo, dynamic=dynamic), x, y)
 
         if a != b:
-            FileCheck().check("ynumel").run(code[0])
+            FileCheck().check("y0_numel").run(code[0])
         else:
-            FileCheck().check_not("ynumel").run(code[0])
+            FileCheck().check_not("y0_numel").run(code[0])
 
         self.assertEqual(res, foo(x, y))
 
@@ -1539,8 +1547,8 @@ class TestTiling(TestCase):
         f_c = torch.compile(f)
         out, code = run_and_get_code(f_c, *inps)
 
-        FileCheck().check_dag("xnumel = 512").check_dag("ynumel = 512").check_dag(
-            "rnumel"
+        FileCheck().check_dag("'x1': 512").check_dag("'y0': 512").check_dag(
+            "r2_numel"
         ).run(code[0])
         self.assertEqual(out, f(*inps), atol=0.001, rtol=0.04)
 
@@ -1554,7 +1562,7 @@ class TestTiling(TestCase):
         f_c = torch.compile(f, dynamic=dynamic)
         out, code = run_and_get_code(f_c, *inps)
 
-        FileCheck().check_dag("znumel").check_dag("ynumel").check_dag("xnumel").run(
+        FileCheck().check_dag("y1_numel").check_dag("y0_numel").check_dag("x2_numel").run(
             code[0]
         )
         self.assertEqual(out, f(*inps))

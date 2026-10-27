@@ -17477,6 +17477,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @skip_if_triton
     @skip_if_halide
     @config.patch({"freezing": True})
+    @unittest.skip("NPU does not support")
     def test_dont_constant_fold(self):
         from torch._inductor.constant_folding import (
             add_dont_constant_fold,
@@ -17569,6 +17570,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @skipIfRocmArch(NAVI_ARCH)
     #@requires_gpu_and_triton
     @parametrize("use_cat", [True, False])
+    @unittest.skip("NPU does not support")
     def test_copy_non_blocking_is_pinned(self, use_cat):
         def f(a_list):
             a_cpu_list = []
@@ -17615,6 +17617,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @skip_if_halide
     #@requires_gpu_and_triton
     @torch._dynamo.config.patch(capture_scalar_outputs=True)
+    @unittest.skip("NPU does not support")
     def test_non_blocking_d2h_event_sync(self):
         def f(x):
             s = x.abs().sum().to("cpu", non_blocking=True).item()
@@ -17977,6 +17980,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.assertTrue(same((ref, ref_grad), (act, act_grad), tol=1e-3))
 
     @xfail_if_mps  # MPS codegen does not emit ReductionHint.OUTER
+    @unittest.skip("NPU does not support")
     def test_inner_reduction_detection(self):
         if self.device == "cpu":
             self.skipTest("Skip for CPU device")
@@ -17993,6 +17997,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @config.patch(force_disable_caches=True)
     @xfail_if_mps  # MPS codegen does not emit ReductionHint.OUTER
+    @unittest.skip("NPU does not support")
     def test_broadcasted_inner_reduction_detection(self):
         if self.device == "cpu":
             self.skipTest("Skip for CPU device")
@@ -18046,6 +18051,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @skip_if_halide
     #@requires_gpu_and_triton
+    @unittest.skip("NPU does not support")
     def test_unbacked_float_item(self):
         def fn(x, max_val):
             return torch.clamp(x, 0, max_val.item())
@@ -18059,6 +18065,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         )
 
     @config.patch(combo_kernels=True)
+    @unittest.skip("NPU does not support")
     def test_combo_kernel_filter_cpu(self):
         def fn(a, b, c, d):
             a = a * 4
@@ -18088,6 +18095,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     #@requires_gpu_and_triton
     @config.patch(combo_kernels=True)
     @torch._dynamo.config.patch(assume_static_by_default=False)
+    @unittest.skip("NPU does not support")
     def test_combo_kernel_store_mask(self):
         def fn(x):
             return (
@@ -18157,6 +18165,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @requires_cuda_and_triton
     @config.patch({"emulate_precision_casts": True})
+    @unittest.skip("NPU does not support")
     def test_addcmul_type_promotion(self):
         """Test that addcmul correctly promotes types when inputs have different dtypes."""
         # Test int + float promotion
@@ -18241,6 +18250,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @requires_cuda_and_triton
     @skipCUDAIf(not SM90OrLater or TEST_WITH_ROCM, "PDL requires NVIDIA sm90+")
     @config.patch({"triton.enable_pdl": True})
+    @unittest.skip("NPU does not support")
     def test_pdl_mutation(self):
         def fn(a, b, c):
             b.copy_(c)  # second kernel
@@ -18280,6 +18290,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         }
     )
     @xfailIf(not IS_BIG_GPU)  # templates require big gpu
+    @unittest.skip("NPU does not support")
     def test_pdl_template_and_delay(self):
         def fn(a, b):
             a = (a / (a**2).sum(-1, keepdim=True)) ** 2  # first kernel
@@ -18396,6 +18407,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         result = torch.compile(fn)(x_base.clone()[:, 2:, :], index, source)
         self.assertEqual(result, expected)
 
+    @unittest.skip("NPU does not support")
     def test_pad_after_gelu(self):
         # Regression test for Voxtral compilation on MPS
         for dtype in [torch.float32, torch.float16, torch.bfloat16]:
@@ -18994,6 +19006,7 @@ if RUN_GPU:
             self.assertFalse("out_ptr0" in code)
             self.assertEqual(fn_opt(*inps), fn(*inps))
 
+        @unittest.skip("NPU does not support")
         def test_reduction_hint_inner_with_high_tiling_ratio(self):
             """Test inner reduction hint with high tiling score ratio."""
 
@@ -19121,6 +19134,7 @@ if RUN_GPU:
         # Disable constant propagation, so we isolate value range analysis
         @patch.object(config, "constant_and_index_propagation", False)
         @patch.object(config, "joint_graph_constant_folding", False)
+        @unittest.skip("NPU does not support")
         def test_cant_optimize_compute(self):
             def ones():
                 return torch.ones([4], device=GPU_TYPE)
@@ -19150,6 +19164,7 @@ if RUN_GPU:
         # Disable constant propagation, so we isolate value range analysis
         @patch.object(config, "constant_and_index_propagation", False)
         @patch.object(config, "joint_graph_constant_folding", False)
+        @unittest.skip("NPU does not support")
         def test_optimize_compute(self):
             def ones():
                 return torch.ones([4], device=GPU_TYPE)
@@ -19199,6 +19214,7 @@ if RUN_GPU:
         # only uncoalesced without this :)
         @config.patch("triton.coalesce_tiling_analysis", False)
         @config.patch("triton.use_block_ptr", False)
+        @unittest.skip("NPU does not support")
         def test_evict_last_non_coalesced_loads(self):
             @torch.compile
             def f(a, b):
@@ -19237,6 +19253,7 @@ if RUN_GPU:
                 "triton.use_block_ptr": False,
             }
         )
+        @unittest.skip("NPU does not support")
         def test_evict_first_for_persistent_reduction_last_use(self):
             def get_args():
                 shape = (128, 512, 64)
@@ -19276,6 +19293,7 @@ if RUN_GPU:
                 "triton.use_block_ptr": False,
             }
         )
+        @unittest.skip("NPU does not support")
         def test_evict_last_for_reused_persistent_reduction_load(self):
             @torch.compile
             def f(x):
@@ -19291,6 +19309,7 @@ if RUN_GPU:
             self.assertIn("eviction_policy='evict_first'", lines[1])
 
         @config.patch("triton.skip_l1_cache", True)
+        @unittest.skip("NPU does not support")
         def test_skip_l1_cache(self):
             @torch.compile
             def f(a, b):
@@ -19348,6 +19367,7 @@ if RUN_GPU:
 
         @config.patch("triton.use_block_ptr", True)
         @config.patch("triton.coalesce_tiling_analysis", False)
+        @unittest.skip("NPU does not support")
         def test_evict_last_non_coalesced_loads_block_ptr(self):
             @torch.compile
             def f(a, b):
@@ -19714,6 +19734,7 @@ if RUN_GPU:
             torch.cuda.is_available() and torch.cuda.get_device_capability() < (9, 0),
             "Triton does not support fp8 on A100",
         )
+        @unittest.skip("NPU does not support")
         def test_red_followed_by_transposed_pointwise(self):
             bs = 26624
             dim = 1024
@@ -20220,6 +20241,7 @@ if RUN_GPU:
             fc.run(code[0])
 
         @config.patch({"triton.decompose_sort_ops": True})
+        @unittest.skip("NPU does not support")
         def test_median_decompose_sort_ops(self):
             def fn_default(a):
                 return torch.median(a)
@@ -20239,6 +20261,7 @@ if RUN_GPU:
                 torch.testing.assert_close(result, fn(inp))
 
         @config.patch({"triton.decompose_sort_ops": True})
+        @unittest.skip("NPU does not support")
         def test_mode_decompose_sort_ops(self):
             def fn(a):
                 return torch.mode(a, dim=1)
@@ -20259,6 +20282,7 @@ if RUN_GPU:
             torch.testing.assert_close(result[1], expected[1])
 
         @config.patch({"triton.decompose_sort_ops": True})
+        @unittest.skip("NPU does not support")
         def test_topk_decompose_sort_ops(self):
             def fn(a):
                 return torch.topk(a, 3, dim=-1)
@@ -20280,6 +20304,7 @@ if RUN_GPU:
                 torch.testing.assert_close(result[1], expected[1])
 
         @config.patch({"triton.decompose_sort_ops": True})
+        @unittest.skip("NPU does not support")
         def test_kthvalue_decompose_sort_ops(self):
             def fn(a):
                 return torch.kthvalue(a, 3, dim=-1)

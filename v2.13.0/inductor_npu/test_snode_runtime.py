@@ -9,6 +9,7 @@ import torch_npu.testing
 # Owner(s): ["module: inductor"]
 
 import contextlib
+import unittest
 from unittest import skipIf
 
 import torch.distributed as dist
@@ -116,6 +117,7 @@ class ComputeBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_conv1d(self):
         def f(x, y):
             return torch.nn.functional.conv1d(x, y)
@@ -125,6 +127,7 @@ class ComputeBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_conv2d(self):
         def f(x, y):
             return torch.nn.functional.conv2d(x, y, padding=1)
@@ -134,6 +137,7 @@ class ComputeBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_conv2d_transpose(self):
         def f(x, y):
             return torch.nn.functional.conv_transpose2d(x, y, padding=1)
@@ -143,6 +147,7 @@ class ComputeBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_conv3d(self):
         def f(x, y):
             return torch.nn.functional.conv3d(x, y)
@@ -152,6 +157,7 @@ class ComputeBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_mm(self):
         def f(a, b):
             return torch.mm(a, b)
@@ -164,6 +170,7 @@ class ComputeBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_addmm(self):
         def f(a, b, c):
             return torch.addmm(a, b, c)
@@ -177,6 +184,7 @@ class ComputeBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_bmm(self):
         def f(a, b):
             return torch.bmm(a, b)
@@ -193,6 +201,7 @@ class MemoryBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_relu(self):
         def f(a):
             return torch.nn.functional.relu(a)
@@ -202,6 +211,7 @@ class MemoryBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_horizontal_reduction_pointwise(self):
         def f(a):
             b = a.sum(dim=1)
@@ -213,6 +223,7 @@ class MemoryBoundedTests(TestCase):
 
     # lack of profiler on XPU
     @expectedFailureXPU
+    @unittest.skip("NPU does not support")
     def test_pointwise(self):
         def f(x):
             return x.cos()
@@ -223,6 +234,7 @@ class MemoryBoundedTests(TestCase):
     # lack of profiler on XPU
     @expectedFailureXPU
     @torch._dynamo.config.patch(assume_static_by_default=False)
+    @unittest.skip("NPU does not support")
     def test_dynamic(self):
         def f(x):
             return x.cos()
@@ -289,6 +301,7 @@ class InputDistanceTests(TestCase):
         self.assertEqual(min(all_min), 0)
         self.assertEqual(max(all_max), 1)
 
+    @unittest.skip("NPU does not support")
     def test_foreach_basic(self):
         """
         foreach_add on graph inputs should have depth 0.
@@ -304,6 +317,7 @@ class InputDistanceTests(TestCase):
             self.assertEqual(s.min_input_distance, 0)
             self.assertEqual(s.max_input_distance, 0)
 
+    @unittest.skip("NPU does not support")
     def test_foreach_after_extern(self):
         """
         mm (extern, depth 0) -> foreach_add (depth 1)
@@ -359,6 +373,7 @@ class TestCommAnalysis(TestCase):
         finally:
             dist.destroy_process_group()
 
+    @unittest.skip("NPU does not support")
     def test_legacy_all_reduce(self):
         def fn(x):
             r = c10d.all_reduce(x, "sum", "", self.RANKS, self.WORLD_SIZE)
@@ -367,6 +382,7 @@ class TestCommAnalysis(TestCase):
         inp = T(10, 10)
         self._verify_runtime_estimation(fn, (inp,))
 
+    @unittest.skip("NPU does not support")
     def test_legacy_all_reduce_coalesced(self):
         def fn(x):
             rs = c10d.all_reduce_coalesced(x, "sum", "", self.RANKS, self.WORLD_SIZE)
@@ -375,6 +391,7 @@ class TestCommAnalysis(TestCase):
         inp = [T(10, 10), T(15, 15)]
         self._verify_runtime_estimation(fn, (inp,))
 
+    @unittest.skip("NPU does not support")
     def test_legacy_all_gather_into_tensor_coalesced(self):
         def fn(x):
             rs = c10d.all_gather_into_tensor_coalesced(
@@ -388,6 +405,7 @@ class TestCommAnalysis(TestCase):
         inp = [T(10, 10), T(15, 15)]
         self._verify_runtime_estimation(fn, (inp,))
 
+    @unittest.skip("NPU does not support")
     def test_all_reduce(self):
         def fn(x):
             r = _c10d.all_reduce(x, "sum", "0")
@@ -396,6 +414,7 @@ class TestCommAnalysis(TestCase):
         inp = T(10, 10)
         self._verify_runtime_estimation(fn, (inp,))
 
+    @unittest.skip("NPU does not support")
     def test_all_reduce_coalesced(self):
         def fn(x):
             rs = _c10d.all_reduce_coalesced(x, "sum", "0")
@@ -404,6 +423,7 @@ class TestCommAnalysis(TestCase):
         inp = [T(10, 10), T(15, 15)]
         self._verify_runtime_estimation(fn, (inp,))
 
+    @unittest.skip("NPU does not support")
     def test_all_gather_into_tensor(self):
         def fn(x):
             rs = _c10d.all_gather_into_tensor(
@@ -416,6 +436,7 @@ class TestCommAnalysis(TestCase):
         inp = T(10, 10)
         self._verify_runtime_estimation(fn, (inp,))
 
+    @unittest.skip("NPU does not support")
     def test_all_gather_into_tensor_coalesced(self):
         def fn(x):
             rs = _c10d.all_gather_into_tensor_coalesced(
@@ -428,6 +449,7 @@ class TestCommAnalysis(TestCase):
         inp = [T(10, 10), T(15, 15)]
         self._verify_runtime_estimation(fn, (inp,))
 
+    @unittest.skip("NPU does not support")
     def test_reduce_scatter_tensor(self):
         def fn(x):
             rs = _c10d.reduce_scatter_tensor(
@@ -441,6 +463,7 @@ class TestCommAnalysis(TestCase):
         inp = T(self.WORLD_SIZE, 10)
         self._verify_runtime_estimation(fn, (inp,))
 
+    @unittest.skip("NPU does not support")
     def test_reduce_scatter_tensor_coalesced(self):
         def fn(x):
             rs = _c10d.reduce_scatter_tensor_coalesced(
