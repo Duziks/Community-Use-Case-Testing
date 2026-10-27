@@ -371,7 +371,6 @@ class TestKernelBenchmark(TestCase):
         #        = 0.046
         self.check_bandwidth(compiled_module, "0.046")
 
-    @unittest.skip
     def test_slice_add_cat_bandwidth_computation(self):
         M, N = 5, 1000000
 
@@ -393,6 +392,7 @@ class TestKernelBenchmark(TestCase):
         compiled_module = self.get_compiled_module()
         self.check_bandwidth(compiled_module, "0.020")
 
+    @unittest.skip
     def test_slice_add_bandwidth_computation(self):
         M, N = 5, 1000000
 
