@@ -6722,6 +6722,7 @@ class AOTInductorTestsTemplate:
     @skipIfWindows(
         msg="OpenMP crashed application on windows"
     )  # TODO: (xuhancn) need to root cause and fix.
+    @unittest.skip("npu not support sdpa")
     def test_issue_140766(self):
         class Model(torch.nn.Module):
             def __init__(self):
