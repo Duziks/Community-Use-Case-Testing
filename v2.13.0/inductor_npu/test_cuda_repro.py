@@ -1965,7 +1965,9 @@ class CudaReproTests(TestCase):
                 atol=1e-1,
             )
 
-    @torch._inductor.config.patch(emulate_precision_casts=True)
+    @torch._inductor.config.patch(
+        emulate_precision_casts=True, force_pointwise_cat=True
+    )
     def test_dont_inplace_disjoint_accesses(self):
         # TODO - would not need mms if we could annotate donated buffer..
         def forward(
@@ -2174,10 +2176,20 @@ class CudaReproTests(TestCase):
         x = torch.rand([255, 255], device=device_type)
         y = torch.rand([255, 255], device=device_type)
 
+        if device_type == "npu":
+            # Static NPU tiling can omit the reduction mask for this shape.
+            # Keep both masks present so their load-expression order is tested.
+            for tensor in (x, y):
+                torch._dynamo.mark_dynamic(tensor, 0)
+                torch._dynamo.mark_dynamic(tensor, 1)
+            reduction_mask, pointwise_mask = "r1_mask", "x0_mask"
+        else:
+            reduction_mask, pointwise_mask = "r0_mask", "xmask"
+
         _, code = run_and_get_code(foo, x, y)
-        FileCheck().check("tl.load").check_same("r0_mask").check_same("xmask").run(
-            code[0]
-        )
+        FileCheck().check("tl.load").check_same(reduction_mask).check_same(
+            pointwise_mask
+        ).run(code[0])
 
     def test_cat_int8_one_kernel(self):
         @torch.compile()
