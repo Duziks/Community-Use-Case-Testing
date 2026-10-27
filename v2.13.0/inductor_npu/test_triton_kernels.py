@@ -338,6 +338,8 @@ class KernelTests(torch._inductor.test_case.TestCase):
             t1 = torch.rand(5, device=GPU_TYPE)
             f(t1)
         except torch._inductor.exc.InductorError as e:
+            from torch._inductor.runtime.triton_heuristics import NoTritonConfigsError
+
             if isinstance(e.inner_exception, triton.compiler.errors.CompilationError):
                 catch_error = True
             if (
@@ -347,6 +349,17 @@ class KernelTests(torch._inductor.test_case.TestCase):
                 )
                 and "triton.compiler.errors.CompilationError"
                 in e.inner_exception.details
+            ):
+                catch_error = True
+            # NPU wraps every config-set failure into NoTritonConfigsError so that
+            # the UB-overflow retry and costmodel fallback can still fire. The
+            # original compilation error is kept in the message text (including the
+            # formatted stack), so match on the qualified type name instead of the
+            # exception class.
+            if (
+                isinstance(e.inner_exception, NoTritonConfigsError)
+                and "triton.compiler.errors.CompilationError"
+                in str(e.inner_exception)
             ):
                 catch_error = True
         finally:
