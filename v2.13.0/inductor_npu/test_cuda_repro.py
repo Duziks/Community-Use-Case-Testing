@@ -2539,6 +2539,21 @@ class CudaReproTests(TestCase):
 import os
 os.environ["TRITON_INTERPRET"] = "1"
 import torch
+import torch_npu
+from torch_npu.contrib import transfer_to_npu
+from functools import wraps
+from torch._inductor.runtime import triton_helpers
+torch.cuda.get_device_capability = lambda: (8, 0)
+
+def _wrap_active(fn):
+    @wraps(fn)
+    def decorated(name, backend):
+        if name in ("nvidia", "amd"):
+            return False
+        return fn(name, backend)
+    return decorated
+
+triton_helpers._is_backend_active = _wrap_active(triton_helpers._is_backend_active)
 
 @torch.compile()
 def foo(x):
