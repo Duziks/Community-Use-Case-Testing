@@ -37,7 +37,7 @@ class TestTorchDeviceAssertTrigger(TestCase):
             a = torch.tensor([1.0, -2.0], device="cpu")
             assert torch.all(a > 0), "should throw"  # noqa: S101
 
-        with self.assertRaisesRegex(RuntimeError, "should throw"):
+        with self.assertRaisesRegex(AssertionError, "should throw"):
             torch._dynamo.reset()
             f_c = torch.compile(func, backend=backend)
             f_c()
