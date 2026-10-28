@@ -1521,7 +1521,7 @@ class TestTiling(TestCase):
         else:
             if layout != "NHWC":
                 raise AssertionError(f"Unexpected layout: {layout}")
-            return torch.rand([1, SIZE_A, SIZE_B, SIZE_C], device=GPU_TYPE).to(
+            return torch.rand([1, SIZE_A, SIZE_B, SIZE_C]).to(
                 memory_format=torch.channels_last
             ).to(GPU_TYPE)
 
