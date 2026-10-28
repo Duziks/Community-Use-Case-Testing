@@ -2,6 +2,7 @@ import torch
 import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
+_dynamo.has_triton = lambda *args, **kwargs: False
 _dynamo.patch_has_triton()
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
@@ -63,6 +64,10 @@ from torch.utils import _pytree as pytree
 
 aten = torch.ops.aten
 
+def _addmm_codegen_pattern():
+    if GPU_TYPE == "npu":
+        return "torch.ops.aten.addmm.default("
+    return "extern_kernels.addmm("
 
 class OpaqueScaleFactor(OpaqueBase):
     def __init__(self, val):
@@ -913,7 +918,6 @@ class TestPatternMatcher(TestCase):
 
     # Constant folding was explicitly turned off due to issue #108388
     # Turn it back on for test
-    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @inductor_config.patch(joint_graph_constant_folding=True)
     def test_pointless_cumsum(self):
         def fn1():
@@ -1465,12 +1469,14 @@ class TestPatternMatcher(TestCase):
             torch.randn(15, 20, device=GPU_TYPE),
         ]
 
+        addmm_pat = _addmm_codegen_pattern()
         @torch.compile()
         def fn(inp, a, b):
             return torch.ops.aten.addmm(inp, a, b)
 
         _, (code) = run_and_get_code(fn, args[0], args[1], args[2])
-        FileCheck().check("extern_kernels.addmm(").run(code[0])
+        FileCheck().check(addmm_pat).run(code[0])
+        FileCheck().check_not("aten.mm.default(").run(code[0])
 
         @torch.compile()
         def fn2(inp, a, b):
@@ -1482,6 +1488,7 @@ class TestPatternMatcher(TestCase):
         @torch.compile()
         def fn2(inp, a, b):
             return torch.nn.functional.gelu(
+
                 torch.ops.aten.addmm(inp, a, b).unsqueeze(0)
             )
 
@@ -1510,7 +1517,13 @@ class TestPatternMatcher(TestCase):
             return torch.nn.functional.gelu(torch.ops.aten.addmm(inp, a, b))
 
         _, (code) = run_and_get_code(fn, args[0], args[1], args[2])
-        FileCheck().check("extern_kernels.addmm(").run(code[0])
+        print("=" * 80)
+        print("\n".join(code) if isinstance(code, (list, tuple)) else code)
+        print("=" * 80)
+
+        addmm_pat = _addmm_codegen_pattern()
+        FileCheck().check(addmm_pat).run(code[0])
+        FileCheck().check_not("aten.mm.default(").run(code[0])
 
     @parametrize("dtype", [torch.bfloat16, torch.float16])
     @inductor_config.patch(
@@ -1595,15 +1608,19 @@ class TestPatternMatcher(TestCase):
         x = torch.randn(32, 256, device=GPU_TYPE)
 
         def rmse(a, b):
-            return torch.sqrt(torch.mean((a.float() - b.float()) ** 2)).item()
+            a=a.detach().float().cpu()
+            b=b.detach().float().cpu()
+            return torch.sqrt(torch.mean((a- b) ** 2)).item()
 
         # fp64 ground truth
-        model_fp64 = Model().double().to(GPU_TYPE)
+        model_fp64 = Model().to(device="cpu",dtype=torch.float64)
         model_fp64.load_state_dict(
-            {k: v.double() for k, v in model.state_dict().items()}
+            {k: v.to(dtype=torch.float64).cpu() for k, v in model.state_dict().items()}
         )
         with torch.no_grad():
-            fp64_ref = model_fp64(x.double())
+            x_fp64=x.detach().to(device="cpu",dtype=torch.float64)
+            fp64_ref = model_fp64(x_fp64)
+        fp64_ref = fp64_ref.to(GPU_TYPE)
 
         # Eager under AMP
         with torch.no_grad(), torch.autocast(GPU_TYPE, dtype=dtype):
@@ -2390,7 +2407,6 @@ class TestPatternMatcher(TestCase):
         self.assertEqual(len(sigmoid_nodes), 1)
         self.assertTrue("original_aten" in sigmoid_nodes[0].meta)
 
-    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_fwd_only_uses_get_decomp_fn(self):
         """fwd_only traces the pattern graph using the table from get_decomp_fn."""
 
@@ -2413,7 +2429,6 @@ class TestPatternMatcher(TestCase):
         self.assertIn(aten.gelu.default, targets_nodec)
         self.assertNotIn(aten.erf.default, targets_nodec)
 
-    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_register_replacement_get_decomp_fn(self):
         """A pattern registered with get_decomp_fn matches graphs traced with
         the same decomposition table, and does not match graphs traced with a
