@@ -120,7 +120,7 @@ class TestOnlineSoftmax(TestCase):
     def test_codegen_online_softmax(self, use_log_softmax, V):
         wrapper_code = self.get_softmax_wrapper(use_log_softmax=use_log_softmax, V=V)
 
-        self.assertEqual(wrapper_code.count("for loop_x0 in"), 2)
+        self.assertEqual(wrapper_code.count("for loop_x0 in"), 1)
 
     @torch._dynamo.config.patch(capture_scalar_outputs=True)
     @parametrize("use_log_softmax", [False, True])
@@ -138,7 +138,7 @@ class TestOnlineSoftmax(TestCase):
         wrapper_code = "\n".join(source_codes)
 
         self.assertEqual(wrapper_code.count("for loop_x0 in"), 2)
-        self.assertEqual(wrapper_code.count("for loop_y0 in"), 2)
+        self.assertEqual(wrapper_code.count("for loop_y0 in"), 1)
 
     def test_no_online_softmax_for_cpu(self):
         code = self.get_softmax_wrapper(V=2048, device="cpu")
