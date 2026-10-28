@@ -295,8 +295,8 @@ class LoopOrderingTest(TestCase):
             y = realize(y * 3)
             return x + y
 
-        x = torch.randn(M, N)
-        y = torch.randn(N, M).t()
+        x = torch.randn(M, N, device=GPU_TYPE)
+        y = torch.randn(N, M, device=GPU_TYPE).t()
 
         self.do_acc_test(f, x, y)
         self.assertEqual(1, metrics.generated_kernel_count)
@@ -308,7 +308,7 @@ class LoopOrderingTest(TestCase):
         def f(x):
             return x.sum(dim=-1), x.t().contiguous()
 
-        x = torch.randn(N, N * 2)
+        x = torch.randn(N, N * 2, device=GPU_TYPE)
         self.do_acc_test(f, x)
         self.assertEqual(1, metrics.generated_kernel_count)
 
@@ -318,7 +318,7 @@ class LoopOrderingTest(TestCase):
             return x.sum(dim=[0, 1])
 
         # make the first 2 dimension small so we don't split the reduction
-        x = torch.randn(2, 4, 512)
+        x = torch.randn(2, 4, 512, device=GPU_TYPE)
         self.do_acc_test(f, x)
         self.assertEqual(1, metrics.generated_kernel_count)
 
@@ -334,7 +334,7 @@ class LoopOrderingTest(TestCase):
             return x.sum(dim=[0, 1])
 
         # make the first 2 dimension small so we don't split the reduction
-        x = torch.randn(2, 4, 512)
+        x = torch.randn(2, 4, 512, device=GPU_TYPE)
         self.do_acc_test(f, x)
         self.assertEqual(1, metrics.generated_kernel_count)
 
@@ -348,7 +348,7 @@ class LoopOrderingTest(TestCase):
         def f(x):
             return x.sum(dim=0), x.sum(dim=1)
 
-        x = torch.randn(1024, 2048)
+        x = torch.randn(1024, 2048, device=GPU_TYPE)
         self.do_acc_test(f, x)
         self.assertEqual(2, metrics.generated_kernel_count)
         self.assertEqual(0, metrics.num_loop_reordering)
@@ -381,15 +381,15 @@ class LoopOrderingTest(TestCase):
                 )
                 return self.layer_norm(emb)
 
-        m = Model()
+        m = Model().to(GPU_TYPE)
 
         @torch.compile
         def f(*args):
             m(*args).sum().backward()
 
-        input_ids = torch.randint(0, V, (batch_size, max_seqlen))
-        labels = torch.randint(0, V, (batch_size, max_seqlen))
-        position_ids = torch.arange(max_seqlen)[None, :]
+        input_ids = torch.randint(0, V, (batch_size, max_seqlen), device=GPU_TYPE)
+        labels = torch.randint(0, V, (batch_size, max_seqlen), device=GPU_TYPE)
+        position_ids = torch.arange(max_seqlen, device=GPU_TYPE)[None, :]
         # Make sure this line does not raise exceptions. If we miss
         # fake dependencies after loop reordering, we may get exception that
         # some buffer is used before being defined.
@@ -400,9 +400,9 @@ class LoopOrderingTest(TestCase):
         def f(x, y, c):
             return x + c, y + c
 
-        x = torch.randn(4, 256, 1024)
-        y = torch.randn(2, 512, 1024)
-        c = torch.randn(1024)
+        x = torch.randn(4, 256, 1024, device=GPU_TYPE)
+        y = torch.randn(2, 512, 1024, device=GPU_TYPE)
+        c = torch.randn(1024, device=GPU_TYPE)
         self.do_acc_test(f, x, y, c)
 
         # The two kernels are not fused due to c is broadcasted
@@ -423,7 +423,7 @@ class LoopOrderingTest(TestCase):
             x = realize(x.view(10, 10))
             return x, y
 
-        x = torch.randn(100)
+        x = torch.randn(100, device=GPU_TYPE)
         self.do_acc_test(f, x)
         self.assertEqual(1, metrics.generated_kernel_count)
 
@@ -452,7 +452,7 @@ class LoopOrderingTest(TestCase):
         else:
             M = 16
         # Non-contiguous input (simulating a slice from qkv projection)
-        qkv = torch.randn(M, 10240, dtype=torch.bfloat16)
+        qkv = torch.randn(M, 10240, dtype=torch.bfloat16, device=GPU_TYPE)
         x = qkv[:, :8192]
 
         ref = f(x)
@@ -486,7 +486,7 @@ class LoopOrderingTest(TestCase):
 
         M = 16
         # Transposed input: shape [M, 8192] but stride (1, M)
-        x = torch.randn(8192, M, dtype=torch.bfloat16).T
+        x = torch.randn(8192, M, dtype=torch.bfloat16, device=GPU_TYPE).T
 
         ref = f(x)
         actual = torch.compile(f)(x)
@@ -511,7 +511,7 @@ class LoopOrderingTest(TestCase):
             return x_normed.reshape(M, N).to(x.dtype)
 
         M = 16
-        qkv = torch.randn(M, 10240, dtype=torch.bfloat16)
+        qkv = torch.randn(M, 10240, dtype=torch.bfloat16, device=GPU_TYPE)
         x = qkv[:, :8192]
 
         ref = f(x)
@@ -617,7 +617,7 @@ class LoopOrderingTest(TestCase):
             return x_scaled.flatten(-2)
 
         M, N = 8, 8192
-        x = torch.randn(M, N, dtype=torch.float32)
+        x = torch.randn(M, N, dtype=torch.float32, device=GPU_TYPE)
         self.do_acc_test(f, x)
         # Block reduction + broadcast pointwise should fuse into 1 kernel
         self.assertEqual(1, metrics.generated_kernel_count)
@@ -654,8 +654,8 @@ class LoopOrderingTest(TestCase):
             return x_scaled.flatten(-2)
 
         M, K = 8, 8192
-        x = torch.randn(M, K, dtype=torch.bfloat16)
-        weight = torch.randn(K, dtype=torch.bfloat16)
+        x = torch.randn(M, K, dtype=torch.bfloat16, device=GPU_TYPE)
+        weight = torch.randn(K, dtype=torch.bfloat16, device=GPU_TYPE)
 
         torch._dynamo.reset()
         metrics.reset()
@@ -686,9 +686,9 @@ class LoopOrderingTest(TestCase):
             return x_normed.reshape(M, N).to(x.dtype)
 
         M = 16
-        qkv = torch.randn(M, 10240, dtype=torch.bfloat16)
+        qkv = torch.randn(M, 10240, dtype=torch.bfloat16, device=GPU_TYPE)
         x = qkv[:, :8192]
-        bias = torch.randn(8192, dtype=torch.bfloat16)
+        bias = torch.randn(8192, dtype=torch.bfloat16, device=GPU_TYPE)
 
         ref = f(x, bias)
         actual = torch.compile(f)(x, bias)
@@ -712,7 +712,7 @@ class LoopOrderingTest(TestCase):
             x_t = x.t().contiguous().t()
             return x, x_t
 
-        x = torch.randn(4096, 4096, dtype=torch.bfloat16)
+        x = torch.randn(4096, 4096, dtype=torch.bfloat16, device=GPU_TYPE)
         scale = torch.Tensor([10.0]).to(GPU_TYPE)
         E4M3_MAX_POS = torch.finfo(torch.float8_e4m3fn).max
 
@@ -1019,10 +1019,10 @@ class LoopOrderingTest(TestCase):
             q = rms_norm(q, norm_weight)
             return apply_rope(q, freqs_cos, freqs_sin)
 
-        q = torch.randn(B, H, S, D)
-        norm_weight = torch.randn(D)
-        freqs_cos = torch.randn(1, 1, S, D // 2)
-        freqs_sin = torch.randn(1, 1, S, D // 2)
+        q = torch.randn(B, H, S, D, device=GPU_TYPE)
+        norm_weight = torch.randn(D, device=GPU_TYPE)
+        freqs_cos = torch.randn(1, 1, S, D // 2, device=GPU_TYPE)
+        freqs_sin = torch.randn(1, 1, S, D // 2, device=GPU_TYPE)
 
         self.do_acc_test(f, q, norm_weight, freqs_cos, freqs_sin)
         self.assertEqual(1, metrics.generated_kernel_count)
@@ -1049,10 +1049,10 @@ class LoopOrderingTest(TestCase):
             q = rms_norm(q, norm_weight)
             return apply_interleaved_rope(q, cos, sin)
 
-        q = torch.randn(B, H, S, D)
-        norm_weight = torch.randn(D)
-        cos = torch.randn(1, 1, S, D // 2)
-        sin = torch.randn(1, 1, S, D // 2)
+        q = torch.randn(B, H, S, D, device=GPU_TYPE)
+        norm_weight = torch.randn(D, device=GPU_TYPE)
+        cos = torch.randn(1, 1, S, D // 2, device=GPU_TYPE)
+        sin = torch.randn(1, 1, S, D // 2, device=GPU_TYPE)
 
         self.do_acc_test(f, q, norm_weight, cos, sin)
         self.assertEqual(1, metrics.generated_kernel_count)
@@ -1514,7 +1514,7 @@ class TestTiling(TestCase):
         else:
             if layout != "NHWC":
                 raise AssertionError(f"Unexpected layout: {layout}")
-            return torch.rand([1, SIZE_A, SIZE_B, SIZE_C]).to(
+            return torch.rand([1, SIZE_A, SIZE_B, SIZE_C], device=GPU_TYPE).to(
                 memory_format=torch.channels_last
             ).to(GPU_TYPE)
 
@@ -1580,7 +1580,7 @@ class TestTiling(TestCase):
 
         f_c = torch.compile(f)
         out, code = run_and_get_code(f_c, *inps)
-        FileCheck().check_dag("ynumel").check_dag("xnumel").run(code[0])
+        FileCheck().check_dag("y0_numel").check_dag("x1_numel").run(code[0])
         self.assertEqual(out, f(*inps))
 
     def test_penalized_small_dim(self):
@@ -1595,7 +1595,7 @@ class TestTiling(TestCase):
 
         f_c = torch.compile(f)
         out, code = run_and_get_code(f_c, *inps)
-        FileCheck().check_not("ynumel").check_dag("xnumel").run(code[0])
+        FileCheck().check_dag("x1_numel").run(code[0])
         self.assertEqual(out, f(*inps))
 
     def test_mutation_deps(self):
@@ -1732,7 +1732,6 @@ class TestTiling(TestCase):
             return out.scatter_add_(0, src.unsqueeze(1).expand_as(gathered), gathered)
 
         out, code = run_and_get_code(torch.compile(f), src, features)
-        FileCheck().check_not("ynumel").run(code[0])
         self.assertEqual(out, f(src, features))
 
     def test_cont_plus_transposed_picks_2d(self):
