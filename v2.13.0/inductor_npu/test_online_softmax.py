@@ -226,6 +226,13 @@ class TestOnlineSoftmax(TestCase):
         )
 
         def apply_online_softmax_in_joint_graph(gm):
+            # This backend executes FX graphs without compiling Triton kernels.
+            def graph_only_extra_check(match):
+                device_type = match.kwargs["x"].meta["val"].device.type
+                if device_type == "npu":
+                    return post_grad.config.online_softmax
+                return post_grad.prepare_softmax_extra_check(match)
+
             patterns = PatternMatcherPass(pass_name="test_joint_online_softmax")
             register_replacement(
                 post_grad.prepare_softmax_pattern,
@@ -234,7 +241,7 @@ class TestOnlineSoftmax(TestCase):
                 fwd_only,
                 patterns,
                 scalar_workaround={"dim": -1},
-                extra_check=post_grad.prepare_softmax_extra_check,
+                extra_check=graph_only_extra_check,
             )
             return patterns.apply(gm.graph)
 
