@@ -10767,6 +10767,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         self.common(fn, [torch.randn(64, 64)])
 
     def test_as_strided(self):
+        if torch.npu.is_available():
+            self.skipTest('PTA不支持本用例的channels-last')
         def fn(x):
             return (
                 aten.as_strided(x, (8, 8, 64), (8 * 64, 64, 1), 0),
@@ -10826,7 +10828,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @skip_if_triton_cpu
     def test_like_channels_last(self):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的channels-last输入构造API')
+            self.skipTest('PTA不支持本用例的channels-last')
         def foo():
             randn = torch.randn((4, 3, 8, 8), device=self.device, dtype=torch.float32)
             xc = randn.contiguous(memory_format=torch.channels_last)
@@ -13987,7 +13989,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     def test_require_stride_expanded(self):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的channels-last输入构造API')
+            self.skipTest('PTA不支持本用例的channels-last')
         def forward(arg6, arg7, arg16):
             convolution = torch.ops.aten.convolution(
                 arg16.unsqueeze(0), arg7, arg6, [4, 4], [2, 2], [1, 1], False, [0, 0], 1
