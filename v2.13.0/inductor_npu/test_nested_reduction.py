@@ -6,7 +6,7 @@ _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
-
+import unittest
 # Owner(s): ["module: inductor"]
 
 """End-to-end nested-reduction behavior and kernel-form tests."""
