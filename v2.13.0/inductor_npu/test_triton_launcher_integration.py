@@ -212,12 +212,14 @@ class SaveGpuKernelAOTIE2ETest(TestCase):
         """AOTI compilation should call save_gpu_kernel with a populated schema."""
         import torch._dynamo
         import torch._inductor
-        import torch._inductor.runtime.triton_heuristics as th
         import torch.export
 
         torch._dynamo.reset()
 
-        original_save = th.CachingAutotuner.save_gpu_kernel
+        from torch_npu._inductor.runtime.triton_heuristics import (
+            NPUCachingAutotuner,
+        )
+        original_save = NPUCachingAutotuner.save_gpu_kernel
         schema_info = {"called": False, "schema_used": False, "schema_keys": None}
 
         def patched_save_gpu_kernel(self, stream, launcher):
@@ -228,7 +230,7 @@ class SaveGpuKernelAOTIE2ETest(TestCase):
                 schema_info["schema_keys"] = list(schema.keys())
             return original_save(self, stream, launcher)
 
-        th.CachingAutotuner.save_gpu_kernel = patched_save_gpu_kernel
+        NPUCachingAutotuner.save_gpu_kernel = patched_save_gpu_kernel
         try:
 
             class MulAddModel(torch.nn.Module):
@@ -263,7 +265,7 @@ class SaveGpuKernelAOTIE2ETest(TestCase):
                 self.assertIn("num_warps", schema_info["schema_keys"])
                 self.assertIn("shared_mem", schema_info["schema_keys"])
         finally:
-            th.CachingAutotuner.save_gpu_kernel = original_save
+            NPUCachingAutotuner.save_gpu_kernel = original_save
 
 
 if __name__ == "__main__":

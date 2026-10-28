@@ -38,7 +38,6 @@ from torch._inductor.lowering import lowerings
 from torch.testing._internal.common_device_type import ops
 from torch.testing._internal.inductor_utils import HAS_GPU
 
-
 unique_pointwise_op_names = set()
 
 for op in lowerings:
@@ -61,6 +60,11 @@ pointwise_ops = [
 ]
 import torch_npu._inductor
 
+
+_CANN_NATIVE_FP16_OPS = frozenset({
+    "asin", "asinh", "atan", "atan2", "atanh", "copysign", "cosh",
+    "erfc", "erfinv", "expm1", "fmod", "lgamma", "log10", "nextafter", "sinh"
+})
 
 class TestCase(InductorTestCase):
     @ops(
@@ -237,6 +241,16 @@ class TestCase(InductorTestCase):
             output_cast = rf"\.to\({tl_dtype_str}\)" if convert_output else ""
             pattern = rf"{triton_op_name}\(.*\.to\(tl\.float32\)\){output_cast}"
             cast_in_code = re.search(pattern, code, re.MULTILINE) is not None
+
+            # NPU/triton ascend short-circuit: cann libdevice ops in
+            # _CANN_NATIVE_FP16_OPS natively accept fp16/bf16.
+            if (
+                GPU_TYPE == "npu"
+                and not load_upcast_to_fp32
+                and op_name in _CANN_NATIVE_FP16_OPS
+            ):
+                self.assertIn(torch_op_name, code)
+                return
             self.assertNotEqual(cast_in_code, load_upcast_to_fp32)
 
     @config.patch("triton.codegen_upcast_to_fp32", False)
