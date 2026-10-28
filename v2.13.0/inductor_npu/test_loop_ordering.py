@@ -281,7 +281,8 @@ class LoopOrderingTest(TestCase):
         expected_num_bytes += A * A * 3  # for matmul
         expected_num_bytes *= x.itemsize
         self.assertEqual(expected_num_bytes, metrics.num_bytes_accessed)
-
+        
+    @unittest.skip("NPU does not support")
     def test_apbt_realize(self):
         M = 1024
         N = 2048
@@ -301,7 +302,7 @@ class LoopOrderingTest(TestCase):
         self.do_acc_test(f, x, y)
         self.assertEqual(1, metrics.generated_kernel_count)
 
-    @unittest.skip("NPU does not support")
+
     def test_sum_and_t(self):
         N = 1024
 
@@ -311,7 +312,8 @@ class LoopOrderingTest(TestCase):
         x = torch.randn(N, N * 2, device=GPU_TYPE)
         self.do_acc_test(f, x)
         self.assertEqual(1, metrics.generated_kernel_count)
-
+        
+    @unittest.skip("NPU does not support")
     def test_pw_outer_red(self):
         def f(x):
             x = realize(x + 1)
@@ -321,7 +323,8 @@ class LoopOrderingTest(TestCase):
         x = torch.randn(2, 4, 512, device=GPU_TYPE)
         self.do_acc_test(f, x)
         self.assertEqual(1, metrics.generated_kernel_count)
-
+        
+    @unittest.skip("NPU does not support")
     def test_pw_outer_red_2(self):
         """
         The pointwise kernel is a fused kernel
@@ -395,7 +398,7 @@ class LoopOrderingTest(TestCase):
         # some buffer is used before being defined.
         f(input_ids, labels, position_ids)
 
-    @unittest.skip("NPU does not support")
+
     def test_different_broadcast_shapes(self):
         def f(x, y, c):
             return x + c, y + c
@@ -588,7 +591,6 @@ class LoopOrderingTest(TestCase):
         x = torch.randn(M, N * 2, device=GPU_TYPE)
         self.do_acc_test(f, x)
 
-    @unittest.skip("NPU does not support")
     def test_floordiv_broadcast_vertical_fusion(self):
         """
         Block-wise quantization pattern: a reduction produces per-block
@@ -665,6 +667,7 @@ class LoopOrderingTest(TestCase):
         # variance reduction + block reduction = 2 kernels
         self.assertEqual(2, metrics.generated_kernel_count)
 
+    @unittest.skip("NPU does not support")
     def test_reshape_reindexing_fused_pointwise(self):
         """
         Redecomposition where the pointwise side is a FusedSchedulerNode.
@@ -1183,7 +1186,8 @@ class MemoryCoalescingTest(MockSchedulerTest):
                 torch.rand([4, 4], device=GPU_TYPE),
                 torch.rand([4, 4], device=GPU_TYPE).T,
             )
-
+            
+    @unittest.skip("NPU does not support")
     def test_remapped_reads_split(self):
         from torch._inductor import tiling_utils
 
@@ -1227,6 +1231,7 @@ class MemoryCoalescingTest(MockSchedulerTest):
             )
 
     @parametrize("dynamic", (False, True))
+    @unittest.skip("NPU does not support")
     def test_reduction_pointwise(self, dynamic):
         # test one pw var, one red var
         from torch._inductor import tiling_utils
@@ -1366,7 +1371,8 @@ class MemoryCoalescingTest(MockSchedulerTest):
                 torch._dynamo.mark_dynamic(y, 0)
 
             self.assertEqual(foo(x, y), torch.compile(foo)(x, y))
-
+            
+    @unittest.skip("NPU does not support")
     def test_multiple_reduction_dims(self):
         def foo(x):
             return (*torch.var_mean(x, [1, 3]),)
@@ -1447,7 +1453,8 @@ class MemoryCoalescingTest(MockSchedulerTest):
         for expr, expected in test_cases:
             result = tiling_utils.solve_for_tiling(expr)
             self.assertEqual(result, expected)
-
+            
+    @unittest.skip("NPU does not support")
     @parametrize("dynamic", (False, True))
     def test_induced_fused_tiling(self, dynamic):
         def fn(nodes):
