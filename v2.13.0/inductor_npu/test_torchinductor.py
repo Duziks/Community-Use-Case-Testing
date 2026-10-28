@@ -1319,6 +1319,14 @@ def target_assert_size_stride_str(
     return f"{size_str}, {stride_str}"
 
 
+def _assert_npu_lookup_broadcast(self, code, op):
+    lookup = f"torch.ops.aten.{op}.Tensor("
+    self.assertEqual(code.count(lookup), 1)
+    FileCheck().check("def triton").check("def call(").check(lookup).check_regex(
+        r"triton_\w+\.run\("
+    ).run(code)
+
+
 @instantiate_parametrized_tests
 class CommonTemplate:
     def is_dtype_supported(self, dtype: torch.dtype) -> bool:
@@ -14870,7 +14878,10 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
         # make sure that we did not fuse the broadcast and the bucketize,
         # because bucketize is computationally expensive.
-        FileCheck().check("def triton").check("def triton").run(code[0])
+        if torch.device(GPU_TYPE).type == "npu":
+            _assert_npu_lookup_broadcast(self, code[0], "searchsorted")
+        else:
+            FileCheck().check("def triton").check("def triton").run(code[0])
 
     def test_searchsorted_sliced_computed_boundaries(self):
         def fn(boundaries, values):
@@ -15121,7 +15132,10 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
         # make sure that we did not fuse the broadcast and the bucketize,
         # because bucketize is computationally expensive.
-        FileCheck().check("def triton").check("def triton").run(code[0])
+        if torch.device(GPU_TYPE).type == "npu":
+            _assert_npu_lookup_broadcast(self, code[0], "bucketize")
+        else:
+            FileCheck().check("def triton").check("def triton").run(code[0])
 
     @requires_gpu()
     @skip_if_gpu_halide
