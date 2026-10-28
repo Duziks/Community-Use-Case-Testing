@@ -381,7 +381,7 @@ class LoopOrderingTest(TestCase):
                 )
                 return self.layer_norm(emb)
 
-        m = Model()
+        m = Model().to(GPU_TYPE)
 
         @torch.compile
         def f(*args):
