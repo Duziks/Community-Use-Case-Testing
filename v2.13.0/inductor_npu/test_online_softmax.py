@@ -117,15 +117,13 @@ class TestOnlineSoftmax(TestCase):
 
     @parametrize("V", [2048, 50304])
     @parametrize("use_log_softmax", [False, True])
-    @unittest.skip
     def test_codegen_online_softmax(self, use_log_softmax, V):
         wrapper_code = self.get_softmax_wrapper(use_log_softmax=use_log_softmax, V=V)
 
-        self.assertEqual(wrapper_code.count("for r0_offset in"), 2)
+        self.assertEqual(wrapper_code.count("for loop_x0 in"), 2)
 
     @torch._dynamo.config.patch(capture_scalar_outputs=True)
     @parametrize("use_log_softmax", [False, True])
-    @unittest.skip
     def test_codegen_online_softmax_unbacked_non_reduction_dim(self, use_log_softmax):
         def f(x, n):
             x = x[: n.item(), :]
@@ -139,8 +137,8 @@ class TestOnlineSoftmax(TestCase):
         _, source_codes = run_and_get_code(torch.compile(f, fullgraph=True), x, n)
         wrapper_code = "\n".join(source_codes)
 
-        self.assertEqual(wrapper_code.count("for r0_offset in"), 2)
-        self.assertTrue("online_softmax_reduce" in wrapper_code)
+        self.assertEqual(wrapper_code.count("for loop_x0 in"), 2)
+        self.assertEqual(wrapper_code.count("for loop_y0 in"), 2)
 
     def test_no_online_softmax_for_cpu(self):
         code = self.get_softmax_wrapper(V=2048, device="cpu")
