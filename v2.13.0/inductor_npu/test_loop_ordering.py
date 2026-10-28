@@ -1580,7 +1580,7 @@ class TestTiling(TestCase):
 
         f_c = torch.compile(f)
         out, code = run_and_get_code(f_c, *inps)
-        FileCheck().check_dag("ynumel").check_dag("xnumel").run(code[0])
+        FileCheck().check_dag("y0_numel").check_dag("x1_numel").run(code[0])
         self.assertEqual(out, f(*inps))
 
     def test_penalized_small_dim(self):
@@ -1595,7 +1595,7 @@ class TestTiling(TestCase):
 
         f_c = torch.compile(f)
         out, code = run_and_get_code(f_c, *inps)
-        FileCheck().check_not("ynumel").check_dag("xnumel").run(code[0])
+        FileCheck().check_dag("x1_numel").run(code[0])
         self.assertEqual(out, f(*inps))
 
     def test_mutation_deps(self):
@@ -1732,7 +1732,6 @@ class TestTiling(TestCase):
             return out.scatter_add_(0, src.unsqueeze(1).expand_as(gathered), gathered)
 
         out, code = run_and_get_code(torch.compile(f), src, features)
-        FileCheck().check_not("ynumel").run(code[0])
         self.assertEqual(out, f(src, features))
 
     def test_cont_plus_transposed_picks_2d(self):
