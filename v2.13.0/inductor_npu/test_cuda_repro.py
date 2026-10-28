@@ -445,6 +445,8 @@ class CudaReproTests(TestCase):
         self.assertEqual(compiled_kv.grad, eager_kv.grad, **tol_kwargs)
 
     def test_input_channels_last(self):
+        if torch.npu.is_available():
+            self.skipTest('PTA不支持本用例的channels-last')
         m = torch.nn.Sequential(
             torch.nn.Conv2d(3, 3, 1, 1),
             ToTuple(),
@@ -607,7 +609,7 @@ class CudaReproTests(TestCase):
 
     def test_split_reduction_channels_last(self):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的channels-last输入构造API')
+            self.skipTest('PTA不支持本用例的channels-last')
         x = torch.randn(4096, 8192, dtype=torch.bfloat16, device=device_type)
         x = x.reshape([256, 256, 256, 2]).to(memory_format=torch.channels_last)
 
@@ -1051,7 +1053,7 @@ class CudaReproTests(TestCase):
     @config.patch({"triton.autotune_pointwise": True})
     def test_inplace_add_alpha_autotune(self):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的channels-last输入构造API')
+            self.skipTest('PTA不支持本用例的channels-last')
         def fn(x, y):
             aten.add_.Tensor(x, y, alpha=0.55)
             return (x,)
@@ -1072,7 +1074,7 @@ class CudaReproTests(TestCase):
     @config.patch({"triton.autotune_pointwise": True})
     def test_inplace_buffer_autotune(self):
         if torch.npu.is_available():
-            self.skipTest('PTA不支持本用例的channels-last输入构造API')
+            self.skipTest('PTA不支持本用例的channels-last')
         def foo(x, y, z):
             a = x @ y
             return a.unsqueeze(0).unsqueeze(0) + z
