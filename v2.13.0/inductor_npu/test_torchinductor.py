@@ -20143,6 +20143,8 @@ if RUN_GPU:
         @config.patch(implicit_fallbacks=True)
         @torch._inductor.config.patch("graph_partition", True)
         def test_graph_partition_default_device_context(self):
+            from torch._inductor.codegen.common import get_device_op_overrides
+
             @torch.library.custom_op(
                 "mylib::cg_unsafe_op",
                 mutates_args=[],
@@ -20168,13 +20170,20 @@ if RUN_GPU:
             inp = torch.randn(2, device=GPU_TYPE)
             _, (code,) = run_and_get_code(f, inp)
 
+            # The generated wrapper's device context manager is backend
+            # specific (torch.cuda._DeviceGuard for CUDA, torch.npu.utils.device
+            # for NPU, ...), so derive the expected spelling from the backend
+            # instead of hardcoding CUDA's.
+            device_ops = get_device_op_overrides(GPU_TYPE)
             if config.cpp_wrapper:
                 FileCheck().check_count(
-                    "AOTICudaGuard device_guard(0)", 1, exactly=True
+                    f"{device_ops.cpp_aoti_device_guard()} device_guard(0)",
+                    1,
+                    exactly=True,
                 ).run(code)
             else:
                 FileCheck().check_count(
-                    f"with torch.{GPU_TYPE}._DeviceGuard(0)", 1, exactly=True
+                    f"with {device_ops.device_guard(0)}:", 1, exactly=True
                 ).run(code)
 
         @skipCUDAIf(
