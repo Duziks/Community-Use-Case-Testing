@@ -371,6 +371,7 @@ def define_custom_op_for_test(id_, fn, fn_meta, tags=()):
         libtest.impl(id_, fn, "CUDA")
         libtest.impl(id_, fn, "XPU")
         libtest.impl(id_, fn, "MPS")
+        libtest.impl(id_, fn, "PrivateUse1")
         libtest.impl(id_, fn_meta, "Meta")
         ids.add(id_)
 

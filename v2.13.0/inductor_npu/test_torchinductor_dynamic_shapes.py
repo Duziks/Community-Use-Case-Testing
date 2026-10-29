@@ -275,9 +275,9 @@ class TestInductorDynamic(DynamicShapesTestCase):
                 if fn is not full_mul_symint:
                     # due to constant folding, fn returns x directly.
                     if device == "cpu":
-                        FileCheck().check_not("cpp_fused").run(source_codes[0])
+                        FileCheck().check_not("cpp_fused").run("\n".join(source_codes))
                     else:
-                        FileCheck().check_not("triton.jit").run(source_codes[0])
+                        FileCheck().check_not("triton.jit").run("\n".join(source_codes))
 
                 self.assertEqual(ref, actual)
                 self.assertEqual(fn(x), fn_c(x))
