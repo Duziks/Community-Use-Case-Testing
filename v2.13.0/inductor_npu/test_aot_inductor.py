@@ -6788,17 +6788,17 @@ class AOTInductorTestsTemplate:
         aoti_model = torch._inductor.aoti_load_package(package_path)
 
         expect_res = model(input_tensor)
-        with torch.profiler.profile(
-            activities=[
-                torch.profiler.ProfilerActivity.CPU,
-                torch.profiler.ProfilerActivity.CUDA,
-            ],
-        ) as prof:
-            true_res = aoti_model(input_tensor)
+        true_res = aoti_model(input_tensor)
 
         self.assertEqual(expect_res, true_res)
-        all_ops = [event.key for event in prof.key_averages()]
-        self.assertTrue(not any("aten::contiguous" in op for op in all_ops))
+        for expect_t, actual_t in zip(
+            pytree.tree_leaves(expect_res), pytree.tree_leaves(true_res)
+        ):
+            self.assertEqual(
+                list(expect_t.stride()),
+                list(actual_t.stride()),
+                msg="D2H copy must preserve strides (unexpected contiguous)",
+            )
 
     @requires_multigpu()
     def test_cuda_to_cuda_device_copy(self):
