@@ -188,6 +188,8 @@ class CudaReproTests(TestCase):
     common = check_model_cuda
 
     def test_mm_out_dtype_compile(self):
+        if device_type == "npu":
+            self.skipTest("NPU Inductor does not support aten.mm.dtype yet")
         a = torch.randn(1, 3, device=device_type, dtype=torch.float16)
         b = torch.randn(3, 2, device=device_type, dtype=torch.float16)
 

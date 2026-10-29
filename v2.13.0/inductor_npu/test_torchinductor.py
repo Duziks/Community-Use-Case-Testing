@@ -11565,6 +11565,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
     @parametrize("combo_kernels", (False, True))
     def test_rand_like_deterministic(self, combo_kernels):
+        if combo_kernels and torch.device(self.device).type == "npu":
+            self.skipTest("NPU Inductor does not support ComboKernel yet")
         with config.patch(combo_kernels=combo_kernels):
 
             @torch.compile(backend="inductor")
