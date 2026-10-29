@@ -114,6 +114,8 @@ class AOTIRunnerUtil:
                 return torch._C._aoti.AOTIModelContainerRunnerXpu(so_path, 1, device)
             elif device == "mps":
                 return torch._C._aoti.AOTIModelContainerRunnerMps(so_path, 1)
+            elif device == "npu" or device.startswith("npu:"):
+                return torch._C._aoti.AOTIModelContainerRunnerNpu(so_path, 1, device)
             else:
                 return torch._C._aoti.AOTIModelContainerRunnerCuda(so_path, 1, device)
 
