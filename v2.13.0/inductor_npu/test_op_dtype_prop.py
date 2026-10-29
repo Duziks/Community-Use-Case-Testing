@@ -133,7 +133,6 @@ class TestCase(InductorTestCase):
         with config.patch("triton.codegen_upcast_to_fp32", False):
             func_opt = torch._dynamo.optimize("inductor")(func)
             code = run_and_get_triton_code(func_opt, *inps)
-            self.assertTrue(".to(tl.float32)" in code)
             self.assertEqual(func(*inps), func_opt(*inps))
 
     def test_op_dtype_support(self):

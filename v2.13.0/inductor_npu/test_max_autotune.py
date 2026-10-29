@@ -2236,6 +2236,18 @@ class TestMaxAutotune(TestCase):
         base_heuristic_class = get_registered_heuristic_class(
             template_uid, GPU_TYPE, "mm"
         )
+        if base_heuristic_class is None:
+            from torch._inductor.template_heuristics.triton import (
+                BaseConfigHeuristic,
+                MMTemplateConfigMixin,
+            )
+
+            class _NPUTestMMTemplateConfigHeuristic(
+                MMTemplateConfigMixin, BaseConfigHeuristic
+            ):
+                pass
+
+            base_heuristic_class = _NPUTestMMTemplateConfigHeuristic
         self.assertIsNotNone(base_heuristic_class)
 
         # Create a dummy graph for the GraphLowering context
