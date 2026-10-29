@@ -226,6 +226,7 @@ class TestGpuWrapper(InductorTestCase):
         self.assertEqual(wrapper.scratch_spaces, {"global_scratch": 256 * 8})
 
     @parametrize("per_subkernel_blocks", [False, True])
+    @unittest.skip("npu does not support combo_kernel")
     def test_lazy_compile_combo_kernel_default_config(self, per_subkernel_blocks):
         """Lazy compile should use default_config from combo_grid_meta for XBLOCK."""
         # if not RUN_GPU:
@@ -301,6 +302,7 @@ class TestGpuWrapper(InductorTestCase):
             res = comp(x, s)
             self.assertEqual(res, expected)
 
+    @unittest.skip("npu does not support combo_kernel")
     def test_many_args_fold_expression_nesting(self):
         # if not RUN_GPU:
         #     self.skipTest("GPU not available")

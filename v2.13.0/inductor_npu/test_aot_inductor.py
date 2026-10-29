@@ -8938,6 +8938,7 @@ torch._inductor.aoti_load_package("{model_path}")
             if os.path.exists(temp_stderr_path):
                 os.unlink(temp_stderr_path)
 
+    @unittest.skip("npu does not support combo_kernel")
     def test_combo_kernel_grid_mixed_types(self):
         if self.device != GPU_TYPE:
             raise unittest.SkipTest("combo kernels require GPU")
