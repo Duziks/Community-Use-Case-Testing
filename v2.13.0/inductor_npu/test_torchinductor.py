@@ -15506,7 +15506,19 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
         _, code = run_and_get_code(torch.compile(fn), x, y)
         # cpp_wrapper should NOT contain Python-syntax alignment copies
-        self.assertNotIn("copy_if_misaligned", code[0])
+        if torch.device(self.device).type == "npu":
+            # PTA may also capture a Python wrapper from its first compilation pass.
+            cpp_code = [
+                src
+                for src in code
+                if "CppWrapperCodeCache.load_pybinding" in src
+                and "cpp_wrapper_src" in src
+            ]
+            self.assertTrue(cpp_code, "No final C++ wrapper was captured")
+            for src in cpp_code:
+                self.assertNotIn("copy_if_misaligned", src)
+        else:
+            self.assertNotIn("copy_if_misaligned", code[0])
 
     def test_copy_if_misaligned_returns_same_tensor_when_aligned(self):
         import weakref
