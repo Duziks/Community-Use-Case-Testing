@@ -5572,6 +5572,10 @@ class TestUserKernelEpilogueFusion(torch._inductor.test_case.TestCase):
                 "del", num_deallocs, exactly=True
             ).run(code_str)
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support UserDefinedTritonKernel epilogue fusion yet",
+    )
     @requires_cuda_and_triton
     def test_fusion_relu_epilogue(self):
         @triton.jit
@@ -5598,6 +5602,10 @@ class TestUserKernelEpilogueFusion(torch._inductor.test_case.TestCase):
         self.assertEqual(out, fn(a, b), atol=0.05, rtol=0.05)
         self.check_code(code[0], num_kernels=1, num_allocs=1, num_deallocs=2)
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support UserDefinedTritonKernel epilogue fusion yet",
+    )
     @requires_cuda_and_triton
     def test_fusion_sigmoid_epilogue(self):
         @triton.jit
@@ -5622,6 +5630,10 @@ class TestUserKernelEpilogueFusion(torch._inductor.test_case.TestCase):
         self.assertEqual(out, fn(a), atol=0.05, rtol=0.05)
         self.check_code(code[0], num_kernels=1, num_allocs=1, num_deallocs=1)
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support UserDefinedTritonKernel epilogue fusion yet",
+    )
     @requires_cuda_and_triton
     def test_fusion_with_unused_buffer(self):
         @triton.jit
@@ -5649,6 +5661,10 @@ class TestUserKernelEpilogueFusion(torch._inductor.test_case.TestCase):
         self.assertEqual(out, fn(a))
         self.check_code(code[0], num_kernels=1, num_allocs=2, num_deallocs=2)
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support UserDefinedTritonKernel epilogue fusion yet",
+    )
     @requires_cuda_and_triton
     def test_fusion_with_ordering_constraints(self):
         @triton.jit
@@ -5677,6 +5693,10 @@ class TestUserKernelEpilogueFusion(torch._inductor.test_case.TestCase):
         self.assertEqual(out, fn(a, b))
         self.check_code(code[0], num_kernels=2, num_allocs=2, num_deallocs=3)
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support UserDefinedTritonKernel epilogue fusion yet",
+    )
     @requires_cuda_and_triton
     def test_fusion_cache(self):
         @triton.jit
@@ -5705,6 +5725,10 @@ class TestUserKernelEpilogueFusion(torch._inductor.test_case.TestCase):
         self.assertEqual(out, fn(a, b))
         self.check_code(code[0], num_kernels=2, num_allocs=2, num_deallocs=3)
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support UserDefinedTritonKernel epilogue fusion yet",
+    )
     @requires_cuda_and_triton
     def test_fusion_custom_kernel_with_linebreaks(self):
         # we do AST manipulation / string manipulation of the kernel source code
@@ -5973,6 +5997,10 @@ class TestUserKernelEpilogueFusion(torch._inductor.test_case.TestCase):
         self.assertEqual(out, fn(a, b, c))
         self.check_code(code[0], num_kernels=2, num_allocs=2, num_deallocs=4)
 
+    @unittest.skipIf(
+        GPU_TYPE == "npu",
+        "NPU does not support UserDefinedTritonKernel epilogue fusion yet",
+    )
     @requires_cuda_and_triton
     def test_fusion_cast_epilogue(self):
         @triton.jit
