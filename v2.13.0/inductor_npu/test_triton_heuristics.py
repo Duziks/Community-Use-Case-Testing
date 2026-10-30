@@ -3,7 +3,7 @@ import torch_npu
 from torch_npu.utils import _dynamo
 _dynamo.patch_has_triton()
 import torch_npu._inductor
-
+from torch_npu._inductor.runtime.triton_heuristics import NPUCachingAutotuner
 # Owner(s): ["module: inductor"]
 
 import functools
@@ -659,7 +659,7 @@ class TestArgumentCloneAndRestore(TestCase):
         args = TestTritonHeuristics._get_cos_kernel_caching_autotuner_args()
         args["optimize_mem"] = True
         args["mutated_arg_names"] = ["in_ptr0"]
-        autotuner = CachingAutotuner(**args)
+        autotuner = NPUCachingAutotuner(**args)
         return autotuner
 
     def _create_tensor(self, pad=1, with_offset=False):
