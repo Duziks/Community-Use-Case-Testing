@@ -1393,7 +1393,7 @@ class CudaReproTests(TestCase):
         with torch.no_grad():
             self.common(mod, (torch.randn(4, 4),))
 
-    @config.patch({"fallback_random": True, "triton.cudagraphs": True})
+    @config.patch({"fallback_random": False, "triton.cudagraphs": True})
     def test_xlnet_lm_stride_repro(self):
         class Repro(nn.Module):
             def __init__(self) -> None:
