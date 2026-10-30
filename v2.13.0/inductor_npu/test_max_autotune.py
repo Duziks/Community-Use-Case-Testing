@@ -3485,7 +3485,7 @@ class TestMaxAutotune(TestCase):
         torch.testing.assert_close(out, expected, atol=tol, rtol=tol)
 
         # Verify we got a Triton template
-        kernel_name = "triton_tem_fused_addmm" if use_addmm else "triton_tem_fused_mm"
+        kernel_name = "triton_tem_fused_addmm" if use_addmm else "triton_tem_fused_matmul"
         FileCheck().check(kernel_name).run(code[0])
 
         # No truncation casts should exist since there are no fused epilogue ops
