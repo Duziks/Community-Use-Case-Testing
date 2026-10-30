@@ -104,6 +104,16 @@ class AutoChunkerTest(TestCase):
         # Check this joint graph for example: https://gist.github.com/shunting314/5b684d7179680e337d178dcc77ff1b91
         self.assertEqual(metrics.num_auto_chunking, has_softmax and not dynamic_shape)
 
+        # Only assert peak memory saving for large input. For small input, the saving can
+        # be largely distorted by other memory allocation such as the tensor used to clear L2
+        # cache by triton perf benchmarking API.
+        if USE_LARGE_INPUT and metrics.num_auto_chunking > 0:
+            expected_bound = peak_memory
+            self.assertTrue(
+                peak_memory <= expected_bound,
+                f"Actual peak_memory {peak_memory}, expected bound {expected_bound}",
+            )
+
     def test_matmul_trivial(self):
         self.common_matmul_test(has_softmax=False)
 
