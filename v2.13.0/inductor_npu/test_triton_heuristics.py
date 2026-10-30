@@ -685,7 +685,8 @@ class TestArgumentCloneAndRestore(TestCase):
         self.assertTrue(len(cpu_copies) == 1)
 
         # Mutate the arg
-        gpu_tensor.add_(1)
+        for i in range(gpu_tensor.size(0)):
+            gpu_tensor[i].add_(1)
 
         # will restore gpu_tensor
         autotuner.restore_args_from_cpu(cpu_copies)
