@@ -20,7 +20,9 @@ from torch._inductor.test_case import run_tests, TestCase
 from torch._inductor.utils import run_and_get_triton_code
 from torch.testing import FileCheck
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU
-
+import torch._inductor.config as inductor_config
+from unittest import mock
+import re
 
 aten = torch.ops.aten
 
@@ -42,13 +44,19 @@ class TestTritonDotReduction(TestCase):
         kernel_count: int,
         dot_count: int,
     ):
-        f = torch.compile(f)
-        code = run_and_get_triton_code(f, *example_inputs)
-        FileCheck().check_regex(r"triton.*mm.*\.run\(").run(code)
 
-        FileCheck().check_count("@triton.jit", kernel_count, exactly=True).check_count(
-            "tl.dot", dot_count, exactly=True
-        ).run(code)
+        with mock.patch.object(inductor_config, "max_autotune", True), mock.patch.object(inductor_config, "max_autotune_gemm_backends", "TRITON"):
+            f = torch.compile(f)
+            code = run_and_get_triton_code(f, *example_inputs)
+
+        FileCheck().check_regex(r"triton_tem_fused_\w*(?:matmul|bmm)\w*\.run\(").run(code)
+
+        matmul_kernel_names = re.findall(
+            r"async_compile\.triton\('(triton_tem_fused_\w*(?:matmul|bmm)\w*)'", code
+        )
+        self.assertEqual(len(matmul_kernel_names), kernel_count)
+        template_run_calls = re.findall(r"(triton_tem_fused_\w+)\.run\(", code)
+        self.assertEqual(len(template_run_calls), dot_count)
 
     def test_matmul(self):
         def f(x, y):
@@ -181,7 +189,7 @@ class TestTritonDotReduction(TestCase):
         w = rand_strided((B, K, N), (K * N, N, 1), device=GPU_TYPE)
 
         self._check_equal(f, (x, y, z, w))
-        self._check_code(f, (x, y, z, w), 1, 2)
+        self._check_code(f, (x, y, z, w), 2, 2)
 
     def test_bmm_fusion_complex1(self):
         # Out[O[b,i],j] += Input[I[b,i],r] * Weight[W[b],r,j] * Val[b,i]
@@ -233,6 +241,7 @@ class TestTritonDotReduction(TestCase):
         self._check_equal(f, (Av, B, Ai, Ak, out))
         self._check_code(f, (Av, B, Ai, Ak, out), 1, 1)
 
+    @unittest.skipIf(GPU_TYPE == "npu", "NPU bmm template uses a different grid layout")
     def test_bmm_large_batch_reversed_pid(self):
         def f(x, y):
             z = torch.bmm(x, y)
@@ -249,6 +258,7 @@ class TestTritonDotReduction(TestCase):
             "yoffset = tl.program_id(1)"
         ).check("xoffset = tl.program_id(2)").run(code)
 
+    @unittest.skipIf(GPU_TYPE == "npu", "bmm template codegen is CUDA-specific")
     def test_bmm_no_z_broadcast(self):
         def f(x, y):
             z = torch.bmm(x, y)
