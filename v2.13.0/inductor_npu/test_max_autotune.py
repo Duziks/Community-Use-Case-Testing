@@ -5941,7 +5941,7 @@ class TestMaxAutotuneAsyncPipelined(TestMaxAutotune, TestEpilogueFusionStaticAna
         pool_instance = AutotuneProcessPool.get_instance()
         pool_instance.warm_up()
 
-        future = pool_instance.submit(simple_fn)
+        future = pool_instance.submit(sum,[40,2])
         result = future.result()
         self.assertEqual(result, 42)
         self.assertIsNotNone(pool_instance._pool)
