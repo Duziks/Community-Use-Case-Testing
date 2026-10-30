@@ -66,7 +66,6 @@ class TestTorchDeviceAssertTrigger(TestCase):
         f_c = torch.compile(func_inline, backend=backend)
         f_c()
 
-    @requires_gpu_and_triton
     @torch._inductor.config.patch(force_disable_caches=True)
     def test_assert_fusion(self):
         torch._logging.set_logs(inductor_metrics=True)
