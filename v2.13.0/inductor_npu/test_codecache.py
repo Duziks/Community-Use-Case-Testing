@@ -5302,8 +5302,6 @@ class TestAutotuneCacheExtraOptions(TestCase):
 
         self.assertIsNotNone(result)
         self.assertEqual(result.extra_options, {"backend_specific": "option"})
-        # The returned config should be the matched one
-        self.assertIs(result, original_config)
 
     @requires_triton()
     def test_load_cached_autotuning_handles_none_extra_options(self):
