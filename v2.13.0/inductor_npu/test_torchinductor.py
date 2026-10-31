@@ -7747,6 +7747,7 @@ for dtype in (torch.int32, torch.int64):
             (torch.randn([16, 16]),),
         )
 
+    @config.patch(implicit_fallbacks=True)
     def test_gelu(self):
         def fn(x):
             return aten.gelu(x) + 2, aten.gelu(x + 1)
@@ -10266,6 +10267,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
         self.common(fn, (torch.zeros([4, 256, 296, 304]), torch.zeros([2292, 5])))
 
+    @config.patch(implicit_fallbacks=True)
     # https://github.com/halide/Halide/issues/8256
     @config.patch("halide.scheduler_cuda", "Li2018")
     def test_nll_loss_forward(self):
@@ -10283,11 +10285,12 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
                 (a, b),
             )
 
+    @config.patch(implicit_fallbacks=True)
     @xfail_if_mps  # dtypes mismatch
     def test_nll_loss_backward(self):
         def fn(a, b, c):
             return aten.nll_loss_backward(
-                a, b, c, None, 1, -100, torch.tensor(1.0, device=self.device)
+                a, b, c, None, 1, -100, torch.tensor(1.0, device=a.device, dtype=a.dtype),
             )
 
         labels = (
@@ -10302,12 +10305,13 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
                 (a, b, c),
             )
 
+    @config.patch(implicit_fallbacks=True)
     def test_nll_loss_backward_1d_input(self):
         # 1D input with 1D target used to crash the decomposition because
         # target.unsqueeze(0) produced a 2D index for a 1D scatter.
         def fn(a, b, c):
             return aten.nll_loss_backward(
-                a, b, c, None, 0, 10, torch.tensor(1.0, device=self.device)
+                a, b, c, None, 0, 10, torch.tensor(1.0, device=a.device, dtype=a.dtype),
             )
 
         # 1D target — validation requires target.size(0) == self.size(0)
