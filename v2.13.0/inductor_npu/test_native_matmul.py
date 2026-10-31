@@ -21,6 +21,7 @@ from torch._inductor.utils import run_and_get_triton_code
 from torch.testing import FileCheck
 from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_GPU
 import torch._inductor.config as inductor_config
+import unittest
 from unittest import mock
 import re
 
