@@ -1844,7 +1844,12 @@ class CudaReproTests(TestCase):
         expected = fn(x, scalar)
         actual = opt_fn(x, scalar)
 
-        self.assertEqual(expected, actual)
+        golden = fn(x.cpu().double(), scalar.cpu().double())
+        for eager, triton, cpu in zip(expected, actual, golden):
+            self.assertLessEqual(
+                (triton.cpu().double() - cpu).abs().item(),
+                (eager.cpu().double() - cpu).abs().item(),
+            )
 
     @torch._inductor.config.patch(emulate_precision_casts=True)
     def test_emulate_precision_casts_min_pow_chain(self):
