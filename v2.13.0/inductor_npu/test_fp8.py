@@ -68,6 +68,16 @@ def _is_cuda_device(device) -> bool:
     return False
 
 
+def _bench_using_profiling(fn):
+    if torch.device(GPU_TYPE).type == "npu":
+        from torch_npu._inductor.runtime.triton_heuristics import (
+            do_bench_using_profiling_npu,
+        )
+
+        return do_bench_using_profiling_npu(fn)
+    return utils.do_bench_using_profiling(fn)
+
+
 def _fix_fp8_dtype_for_rocm(
     dtype: torch.dtype | list[torch.dtype] | tuple[torch.dtype], device
 ) -> torch.dtype | list[torch.dtype] | tuple[torch.dtype]:
@@ -471,7 +481,7 @@ class TestFP8Types(TestCase):
             amax_buffer_compiled, amax_buffer, rtol=1e-2, atol=1e-2
         )
 
-    @onlyOn(["cuda", "xpu"])
+    @onlyOn(["cuda", "xpu", "npu"])
     @unittest.skipIf(not PLATFORM_SUPPORTS_FP8, f8_msg)
     @parametrize("float8_dtype", (torch.float8_e4m3fn, torch.float8_e5m2))
     @parametrize("shape", ("4,2048,4096",))
@@ -519,16 +529,16 @@ class TestFP8Types(TestCase):
         amax_buffer_compiled = torch.zeros((1), device=GPU_TYPE, dtype=torch.half)
         amax_buffer = torch.zeros((1), device=GPU_TYPE, dtype=torch.half)
         _ = compiled_ln_fp8_quant(x, scale, amax_buffer_compiled)
-        compiled_latency = utils.do_bench_using_profiling(
+        compiled_latency = _bench_using_profiling(
             functools.partial(compiled_ln_fp8_quant, x, scale, amax_buffer_compiled)
         )
-        eager_latency = utils.do_bench_using_profiling(
+        eager_latency = _bench_using_profiling(
             functools.partial(ln_fp8, x, scale, amax_buffer)
         )
 
         compiled_ln = torch.compile(ln, backend="inductor")
         _ = compiled_ln(x)
-        ln_latency = utils.do_bench_using_profiling(functools.partial(compiled_ln, x))
+        ln_latency = _bench_using_profiling(functools.partial(compiled_ln, x))
 
         print(
             f"Config: {float8_dtype=}, {shape=}, {keepdim=}. "

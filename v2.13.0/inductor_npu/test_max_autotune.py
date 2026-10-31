@@ -1601,7 +1601,7 @@ class TestMaxAutotune(TestCase):
         )
         y = rand_strided((2048, 768), (768, 1), dtype=torch.bfloat16, device=GPU_TYPE)
 
-        @torch.compile(mode="max-autotune")
+        @torch.compile(mode="max-autotune-no-cudagraphs")
         def f(x, y):
             return x @ y
 
@@ -1616,7 +1616,7 @@ class TestMaxAutotune(TestCase):
         )
         y = rand_strided((2048, 768), (768, 1), dtype=torch.bfloat16, device=GPU_TYPE)
 
-        @torch.compile(mode="max-autotune")
+        @torch.compile(mode="max-autotune-no-cudagraphs")
         def f(x, y):
             return torch.addmm(b, x, y)
 
@@ -1632,7 +1632,7 @@ class TestMaxAutotune(TestCase):
             (1, 2048, 768), (0, 768, 1), dtype=torch.bfloat16, device=GPU_TYPE
         )
 
-        @torch.compile(mode="max-autotune")
+        @torch.compile(mode="max-autotune-no-cudagraphs")
         def f(x, y):
             return torch.bmm(x, y)
 
@@ -1651,7 +1651,7 @@ class TestMaxAutotune(TestCase):
         x2 = rand_strided((50257, 2048), (1, 50304), device=GPU_TYPE)
         y2 = rand_strided((2048, 768), (768, 1), device=GPU_TYPE)
 
-        @torch.compile(mode="max-autotune")
+        @torch.compile(mode="max-autotune-no-cudagraphs")
         def f(x1, y1, x2, y2):
             return x1 @ y1 + x2 @ y2
 
@@ -3502,7 +3502,7 @@ class TestMaxAutotune(TestCase):
         torch.testing.assert_close(out, expected, atol=tol, rtol=tol)
 
         # Verify we got a Triton template
-        kernel_name = "triton_tem_fused_addmm" if use_addmm else "triton_tem_fused_mm"
+        kernel_name = "triton_tem_fused_addmm" if use_addmm else "triton_tem_fused_matmul"
         FileCheck().check(kernel_name).run(code[0])
 
         # No truncation casts should exist since there are no fused epilogue ops
