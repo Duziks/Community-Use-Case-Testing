@@ -7721,6 +7721,7 @@ class AOTInductorTestsTemplate:
         self.check_model(Model(), example_inputs)
 
     @parametrize("input_dtype", [torch.float16, torch.bfloat16])
+    @unittest.skip("npu not support mm_out_dtype")
     def test_mm_out_dtype(self, input_dtype):
         if self.device != GPU_TYPE or self.device == "mps":
             raise unittest.SkipTest("requires GPU")
