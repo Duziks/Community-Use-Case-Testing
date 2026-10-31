@@ -118,11 +118,20 @@ class TestNcclEstimateDeviceResolution(TestCase):
                 default_device = _get_pg_default_device(pg)
             self.assertEqual(default_device, torch.device("cpu"))
 
+            # Only the NCCL backend implements the collective time estimator;
+            # the NPU backend (HCCL) reports supports_time_estimate == False.
+            expects_time_estimate = torch.version.cuda is not None
+
             nccl_backend = pg._get_backend(torch.device("cuda"))
-            self.assertTrue(nccl_backend.supports_time_estimate)
+            self.assertEqual(
+                nccl_backend.supports_time_estimate, expects_time_estimate
+            )
 
             gloo_backend = pg._get_backend(torch.device("cpu"))
             self.assertFalse(gloo_backend.supports_time_estimate)
+            # The device lookup must resolve to the accelerator backend rather
+            # than falling back to the CPU/Gloo one.
+            self.assertIsNot(nccl_backend, gloo_backend)
         finally:
             self._destroy_pg()
 
@@ -134,7 +143,11 @@ class TestNcclEstimateDeviceResolution(TestCase):
         pg, group_name, group_size = self._init_pg_real_store("nccl")
         try:
             backend = pg._get_backend(torch.device("cuda"))
-            self.assertTrue(backend.supports_time_estimate)
+            # Only the NCCL backend implements the collective time estimator;
+            # the NPU backend (HCCL) reports supports_time_estimate == False.
+            self.assertEqual(
+                backend.supports_time_estimate, torch.version.cuda is not None
+            )
         finally:
             self._destroy_pg()
 
