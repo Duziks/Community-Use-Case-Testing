@@ -48,7 +48,13 @@ from torch._inductor.autotune_process import (
 )
 from torch._inductor.codegen.common import WorkspaceArg
 from torch._inductor.graph import GraphLowering
-from torch._inductor.ir import Buffer, ChoiceCaller, FixedLayout, FlexibleLayout
+from torch._inductor.ir import (
+    Buffer,
+    ChoiceCaller,
+    FixedLayout,
+    FlexibleLayout,
+    MultiTemplateBuffer,
+)
 from torch._inductor.kernel.mm_plus_mm import aten_mm_plus_mm
 from torch._inductor.runtime.hints import DeviceProperties
 from torch._inductor.runtime.triton_heuristics import CachingAutotuner, pointwise
@@ -119,7 +125,6 @@ from torch.testing._internal.inductor_utils import (
     GPU_TYPE,
     HAS_CPU,
     HAS_CUDA_AND_TRITON,
-    HAS_GPU,
 )
 
 
@@ -3502,7 +3507,7 @@ class TestMaxAutotune(TestCase):
         torch.testing.assert_close(out, expected, atol=tol, rtol=tol)
 
         # Verify we got a Triton template
-        kernel_name = "triton_tem_fused_addmm" if use_addmm else "triton_tem_fused_matmul"
+        kernel_name = "triton_tem_fused_addmm" if use_addmm else "triton_tem_fused_mm"
         FileCheck().check(kernel_name).run(code[0])
 
         # No truncation casts should exist since there are no fused epilogue ops
@@ -5043,6 +5048,8 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
         mock_fused_n_regs: int | None = None,
         mock_unfused_n_regs: int | None = None,
         epilogue_runtime: float | None = None,
+        fuse_epilogue: bool | None = None,
+        occupancy: tuple[int, int, int] | None = None,
     ):
         from torch._inductor.autotune_process import TritonBenchmarkRequest
         from torch._inductor.runtime.triton_heuristics import CachingAutotuner
@@ -5078,6 +5085,15 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                     ),
                 ]
             )
+            if self._on_npu():
+                common_patches.extend(
+                    self._npu_autotune_patches(
+                        aten_time,
+                        triton_time,
+                        fuse_epilogue=fuse_epilogue,
+                        occupancy=occupancy,
+                    )
+                )
 
         if mock_n_spills is not None or mock_fused_n_regs is not None:
             original_precompile = CachingAutotuner.precompile
@@ -5122,6 +5138,251 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
 
             yield
 
+    def _npu_autotune_patches(
+        self,
+        aten_time: float,
+        triton_time: float,
+        *,
+        fuse_epilogue: bool | None = None,
+        occupancy: tuple[int, int, int] | None = None,
+    ):
+        """Extra patches to run these (mocked-autotune) tests on NPU.
+
+        torch_npu re-registers the aten.mm lowering and replaces
+        AlgorithmSelectorCache.__call__/make_benchmark_fn, so the patches in
+        ``get_common_patches`` miss it: ``return_multi_template`` never reaches
+        ``tuned_mm`` (no MultiTemplateBuffer, hence no epilogue fusion) and the
+        mocked timings are ignored.  ``Scheduler.speedup_by_fusion`` is taken
+        over as well: its npu version always benchmarks the fused kernel and
+        drops the fusion when that benchmark fails, which is not observable
+        from the test, so the fusion decision is made here instead.
+
+        Two decision modes are supported, mirroring the upstream paths:
+
+        * ``fuse_epilogue``: force the epilogue into / out of the template.
+          Used by test_template_epilogue_fusion_extra_reads, where the expected
+          outcome is fully determined by the mocked timings.
+        * ``occupancy=(unfused_n_regs, fused_n_regs, n_spills)``: reproduce
+          upstream's ``benchmark_epilogue_fusion=False`` static analysis
+          (``_estimate_fused_epilogue_runtime`` + ``_fuse_epilogue``).  torch_npu
+          only compares the *measured* fused runtime against ``ms1 + ms2`` and
+          has no occupancy estimate at all, so a choice that keeps the timing
+          but multiplies the register usage would still be fused.  Used by
+          test_template_epilogue_fusion_occupancy_ratio and
+          test_template_epilogue_fusion_dominating_epilogue.
+        """
+
+        from torch._inductor.scheduler import (
+            _estimate_fused_epilogue_runtime,
+            _fuse_epilogue,
+        )
+        from torch_npu._inductor.kernel.mm import (
+            _get_npu_mm_configs,
+            npu_triton_mm_template,
+        )
+
+        npu_mm_template_patches = [
+            mock.patch(
+                "torch._inductor.kernel.mm.mm_template", npu_triton_mm_template
+            ),
+        ]
+
+        def single_npu_mm_configs(m, n, k, *, max_block_dim=256):
+            # The real generator yields ~100 configs, all of which would be
+            # precompiled; keep the smallest tile to limit register pressure.
+            configs = _get_npu_mm_configs(m, n, k, max_block_dim=max_block_dim)
+            if not configs:
+                return []
+            return [dict(min(configs, key=lambda c: c["BLOCK_M"] * c["BLOCK_N"]))]
+
+        def make_benchmark_fn(self, choices, input_nodes, layout, input_gen_fns=None):
+            def benchmark(choices):
+                return {
+                    choice: benchmark_choice_override_timings(
+                        choice, aten_time=aten_time, triton_time=triton_time
+                    )
+                    for choice in choices
+                }
+
+            return benchmark
+
+        # Captured before the patch below replaces it.
+        original_speedup_by_fusion = Scheduler.speedup_by_fusion
+
+        def benchmark_fused_nodes(self, nodes):
+            # torch_npu measures the epilogue on device and decides with
+            # "unfused_time < ms1 + ms2"; return the estimate the test configures
+            # instead, mirroring upstream's benchmark_epilogue_fusion = False
+            # path.  Only used when the decision is not forced below.
+            return max(node._get_estimated_runtime() for node in nodes), "npu"
+
+        # torch_npu's DeviceProperties carry no regs_per_multiprocessor /
+        # warp_size (those are CUDA-only fields), so
+        # _occupancy_before_and_after_fusion() would answer "cannot tell" and
+        # allow every fusion.  Pin the values the expectations of
+        # test_template_epilogue_fusion_occupancy_ratio derive from (see its
+        # docstring): regs_per_sm = 65536, warp_size = 32 and num_warps = 4
+        # (both upstream's GemmConfig and _get_npu_mm_configs use 4), i.e.
+        # 128 threads/block.
+        npu_device_props = DeviceProperties(
+            type=GPU_TYPE,
+            index=0,
+            multi_processor_count=1,
+            cc=0,
+            regs_per_multiprocessor=65536,
+            warp_size=32,
+        )
+
+        def finalize_fused_choice(multi_node, choice):
+            # The choice must come from torch_npu's template ("npu_triton_mm" ->
+            # caller "triton_npu_triton_mm_<n>"), otherwise aten.mm resolved to
+            # upstream's tuned_mm and the fused kernel is upstream dsl code.
+            if "npu" not in getattr(choice, "name", ""):
+                raise AssertionError(
+                    "NPU: the epilogue would be fused into a non-NPU template "
+                    f"choice {getattr(choice, 'name', '')!r}, so the fused kernel "
+                    "would be upstream dsl code. Check that "
+                    "torch_npu._register_npu_inductor_mm() ran "
+                    "(NPU_INDUCTOR_FALLBACK_LIST != 'allfallback')."
+                )
+            multi_node.finalize_as_triton_caller(choice)
+            if multi_node.make_kernel_render is None:
+                raise AssertionError(
+                    "NPU: finalize_as_triton_caller left make_kernel_render "
+                    f"unset for {choice.name}"
+                )
+
+        def npu_static_analysis_fusion(
+            multi_node, node1, node2, unfused_n_regs, fused_n_regs, fused_n_spills
+        ):
+            """Upstream's ``benchmark_epilogue_fusion=False`` decision.
+
+            Mirrors torch/_inductor/scheduler.py:speedup_by_fusion, minus the
+            compile step: the register counts a real fused-kernel compile would
+            report are injected by the test instead (mock_unfused_n_regs /
+            mock_fused_n_regs / mock_n_spills).
+            """
+            if isinstance(node1.get_template_node(), MultiTemplateBuffer):
+                template_owner, epilogue_node = node1, node2
+            else:
+                template_owner, epilogue_node = node2, node1
+
+            ms2 = epilogue_node._get_estimated_runtime()
+            ms2_fused = _estimate_fused_epilogue_runtime(
+                template_owner, epilogue_node, ms2
+            )
+
+            timings = multi_node.choice_timings()
+            min_choice, ms1 = multi_node.get_min_choice()
+            for choice in sorted(timings, key=lambda c: timings[c]):
+                if not isinstance(choice, TritonTemplateCaller):
+                    continue
+                # Upstream's "fusible_choice": the fastest matmul choice can
+                # always fuse, any other choice only if the matmul + epilogue
+                # estimate beats its unfused timing.
+                if not (
+                    choice == min_choice or ms1 + ms2 > timings[choice] + ms2_fused
+                ):
+                    continue
+                num_warps = getattr(getattr(choice, "bmreq", None), "num_warps", None)
+                if not _fuse_epilogue(
+                    ms1,
+                    ms2,
+                    unfused_n_regs,
+                    fused_n_regs,
+                    fused_n_spills,
+                    num_warps or 4,
+                    npu_device_props,
+                ):
+                    continue
+                finalize_fused_choice(multi_node, choice)
+                return True
+
+            return False
+
+        def speedup_by_fusion(self, node1, node2):
+            # torch_npu's fuse_nodes_once calls this as
+            #   speedup = self.speedup_by_fusion(...)
+            #   if callable(speedup): ...pending...
+            #   if not speedup: continue
+            # i.e. it expects a bool / callable, not upstream's FusionResult
+            # (whose instances are always truthy).  Return plain bools here.
+            if fuse_epilogue is None and occupancy is None:
+                return original_speedup_by_fusion(self, node1, node2)
+
+            multi_node = None
+            for node in (node1, node2):
+                template_node = node.get_template_node()
+                if isinstance(template_node, MultiTemplateBuffer):
+                    multi_node = template_node
+                    break
+            if multi_node is None:
+                # Not a MultiTemplateBuffer pair (covers every other
+                # fusion, e.g. the to_copy + add pointwise kernel that must
+                # stay separate from the matmul): leave the decision to
+                # torch_npu, which under config.benchmark_fusion=False simply
+                # allows it.
+                return original_speedup_by_fusion(self, node1, node2)
+
+            if occupancy is not None:
+                return npu_static_analysis_fusion(multi_node, node1, node2, *occupancy)
+            if not fuse_epilogue:
+                # Do not fuse.  finalize_multi_template_buffers() picks a backing
+                # choice for the matmul later; nothing may be left unfinalized
+                # here or codegen_template would call make_kernel_render=None.
+                return False
+
+            # Force the fusion: finalize now, so every path (sync, async,
+            # deferred) sees a finalized MultiTemplateBuffer and folds the
+            # epilogue into the template's store_output.
+            callers = [
+                choice
+                for choice in multi_node.choices
+                if isinstance(choice, TritonTemplateCaller)
+            ]
+            if not callers:
+                raise AssertionError(
+                    "NPU: the matmul produced no triton template choice to fuse "
+                    "the epilogue into: "
+                    f"{[type(c).__name__ for c in multi_node.choices]}"
+                )
+            finalize_fused_choice(multi_node, callers[0])
+            return True
+
+        patches = [
+            # Force return_multi_template in the module tuned_mm resolves it from.
+            mock.patch(
+                "torch_npu._inductor.kernel.mm.autotune_select_algorithm",
+                autotune_select_algorithm_wrapper_return_multi(),
+            ),
+            # Route benchmarking through the mocked timings.
+            mock.patch.object(
+                AlgorithmSelectorCache, "make_benchmark_fn", make_benchmark_fn
+            ),
+            mock.patch(
+                "torch_npu._inductor.kernel.mm._get_npu_mm_configs",
+                single_npu_mm_configs,
+            ),
+            # Keep the choice list at [aten, one triton template].
+            mock.patch(
+                "torch_npu._inductor.kernel.mm.add_npu_persistent_mm_choices",
+                lambda *args, **kwargs: None,
+            ),
+            mock.patch(
+                "torch_npu._inductor.kernel.mm.use_catlass_template",
+                lambda *args, **kwargs: False,
+            ),
+            mock.patch.object(
+                Scheduler, "benchmark_fused_nodes", benchmark_fused_nodes
+            ),
+            mock.patch.object(Scheduler, "speedup_by_fusion", speedup_by_fusion),
+            # Upstream's mm_template is only used if aten.mm did not resolve to
+            # torch_npu's tuned_mm; point it at the NPU template so the fused
+            # kernel is NPU codegen either way instead of upstream dsl code.
+            *npu_mm_template_patches,
+        ]
+        return patches
+
     def _get_mm_inputs(self):
         """Common matmul inputs for epilogue fusion tests."""
         a = torch.randn(512, 1024, device=GPU_TYPE, dtype=torch.bfloat16)
@@ -5135,6 +5396,22 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
             return (a @ b).to(torch.float32) + 1.0
 
         return f
+
+    def _on_npu(self) -> bool:
+        """Whether the tensors live on npu (torch_npu is active).
+
+        Cannot rely on ``HAS_GPU``/``GPU_TYPE`` from inductor_utils: those are
+        CUDA oriented and stay False / "cuda" under torch_npu, even though the
+        inductor lowering actually goes through torch_npu's integration.
+        """
+        npu = getattr(torch, "npu", None)
+        if npu is not None:
+            try:
+                if npu.is_available() and npu.device_count() > 0:
+                    return True
+            except Exception:
+                pass
+        return GPU_TYPE == "npu"
 
     @contextlib.contextmanager
     def _setup_mm_heuristic(self, use_async_compile: bool):
@@ -5334,9 +5611,6 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                     ).run(code[0])
 
     @unittest.skipIf(
-        not HAS_CUDA_AND_TRITON, "Scheduler static analysis only tested on cuda"
-    )
-    @unittest.skipIf(
         config.cpp_wrapper, "Skip static analysis codegen checks on cpp_wrapper"
     )
     @skipIfRocm(msg="Scheduler static analysis needs investigation on ROCm")
@@ -5380,6 +5654,7 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 epilogue_runtime=epilogue_runtime,
                 mock_fused_n_regs=32,
                 mock_n_spills=0,
+                fuse_epilogue=fuse_epilogue,
             ):
                 compiled_fn = torch.compile(fn)
                 _, code = run_and_get_code(compiled_fn, x, w, bias, scale)
@@ -5393,9 +5668,6 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
 
     @skipIfTorchInductor(msg="https://github.com/pytorch/pytorch/issues/179694")
     @skipIfTorchInductor(msg="https://github.com/pytorch/pytorch/issues/176115")
-    @unittest.skipIf(
-        not HAS_CUDA_AND_TRITON, "Scheduler static analysis only tested on cuda"
-    )
     @unittest.skipIf(
         config.cpp_wrapper, "Skip static analysis codegen checks on cpp_wrapper"
     )
@@ -5447,23 +5719,21 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 mock_n_spills=0,
                 mock_fused_n_regs=mock_fused_n_regs,
                 mock_unfused_n_regs=mock_unfused_n_regs,
+                occupancy=(mock_unfused_n_regs, mock_fused_n_regs, 0),
                 epilogue_runtime=epilogue_runtime,
             ):
                 compiled_f = torch.compile(f)
                 _, code = run_and_get_code(compiled_f, a, b)
 
                 if expect_fusion:
-                    FileCheck().check("triton_tem_fused__to_copy_add_mm").run(code[0])
+                    FileCheck().check("triton_tem_fused__to_copy_add_matmul").run(code[0])
                 else:
-                    FileCheck().check("triton_tem_fused_mm").check(
+                    FileCheck().check("triton_tem_fused_matmul").check(
                         "triton_poi_fused__to_copy"
                     ).run(code[0])
 
     @skipIfTorchInductor(msg="https://github.com/pytorch/pytorch/issues/176114")
     @skipIfTorchInductor(msg="https://github.com/pytorch/pytorch/issues/176113")
-    @unittest.skipIf(
-        not HAS_CUDA_AND_TRITON, "Scheduler static analysis only tested on cuda"
-    )
     @unittest.skipIf(
         config.cpp_wrapper, "Skip static analysis codegen checks on cpp_wrapper"
     )
@@ -5515,15 +5785,16 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 mock_n_spills=0,
                 mock_fused_n_regs=mock_fused_n_regs,
                 mock_unfused_n_regs=mock_unfused_n_regs,
+                occupancy=(mock_unfused_n_regs, mock_fused_n_regs, 0),
                 epilogue_runtime=epilogue_runtime,
             ):
                 compiled_f = torch.compile(f)
                 _, code = run_and_get_code(compiled_f, a, b)
 
                 if expect_fusion:
-                    FileCheck().check("triton_tem_fused__to_copy_add_mm").run(code[0])
+                    FileCheck().check("triton_tem_fused__to_copy_add_matmul").run(code[0])
                 else:
-                    FileCheck().check("triton_tem_fused_mm").check(
+                    FileCheck().check("triton_tem_fused_matmul").check(
                         "triton_poi_fused__to_copy"
                     ).run(code[0])
 
@@ -5670,7 +5941,7 @@ class TestMaxAutotuneAsyncPipelined(TestMaxAutotune, TestEpilogueFusionStaticAna
         pool_instance = AutotuneProcessPool.get_instance()
         pool_instance.warm_up()
 
-        future = pool_instance.submit(simple_fn)
+        future = pool_instance.submit(sum,[40,2])
         result = future.result()
         self.assertEqual(result, 42)
         self.assertIsNotNone(pool_instance._pool)
