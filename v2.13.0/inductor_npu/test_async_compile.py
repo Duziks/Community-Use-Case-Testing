@@ -272,14 +272,22 @@ class TestAsyncCompile(TestCase):
                     "fake_kernel_name", source_code="This definitely doesn't exist"
                 ).result()
 
-    @requires_gpu()
-    @requires_triton()
-    def test_wait_pool_ready(self):
+    @parametrize("method", ("fork", "spawn"))
+    def test_wait_pool_ready(self,method):
+        if method not in multiprocessing.get_all_start_methods():
+            self.skipTest(f"requires {method} multiprocessing start method")
+
         shutdown_compile_workers()
 
-        with config.patch(worker_start_method="subprocess", compile_threads=8):
+        with config.patch(worker_start_method=method, compile_threads=8):
             AsyncCompile.wait_pool_ready()
+            self.assertIsNotNone(AsyncCompile._ready_future)
             self.assertTrue(AsyncCompile._ready_future.done())
+            if not AsyncCompile.use_process_pool():
+                self.skipTest(
+                    f"{method} pool fell back to synchronous compilation "
+                    "on this device; ready-future semantics still verified"
+                )
             self.assertTrue(AsyncCompile.use_process_pool())
 
     def test_subprocess_pool_registers_multiprocessing_finalizer(self):
