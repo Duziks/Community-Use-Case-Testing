@@ -113,6 +113,9 @@ class BaseExtensionBackendTests(TestCase):
         torch._dynamo.reset()
 
         backend_name = torch._C._get_privateuse1_backend_name()
+        if backend_name == "npu":
+            os.chdir(self.old_working_dir)
+            return
         if hasattr(torch, backend_name):
             delattr(torch, backend_name)
         if f"torch.{backend_name}" in sys.modules:
