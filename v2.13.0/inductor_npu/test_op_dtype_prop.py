@@ -351,10 +351,15 @@ class TestCase(InductorTestCase):
         ref = func(*inps)
         self.assertTrue(torch.allclose(result, ref))
 
-        # Inductor upcasts CPU arguments of rank 0 to float32. Check for a downcast to
-        # the original dtype.
-        num_downcasts = code.count(f".to({triton_type(dtype)})")
-        self.assertEqual(num_downcasts, 0 if upcast_to_fp32 else 1)
+        # triton-ascend natively support fp32->fp16/bf16 truncating store, so the 
+        # explicit `.to(<dtype>)` downcast before store is ommitted.
+        if GPU_TYPE == "npu":
+            self.assertIn("'in_ptr0': 'fp32'", code)
+        else:
+            # Inductor upcasts CPU arguments of rank 0 to float32. Check for a downcast to
+            # the original dtype.
+            num_downcasts = code.count(f".to({triton_type(dtype)})")
+            self.assertEqual(num_downcasts, 0 if upcast_to_fp32 else 1)
 
     @requires_gpu()
     @torch._dynamo.config.patch("capture_scalar_outputs", True)
