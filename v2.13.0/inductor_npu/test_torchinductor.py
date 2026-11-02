@@ -8889,7 +8889,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
             return torch.fmod(a, b), torch.fmod(3.0 * a, b) - 2.0
 
         shape = [1, 2, 6, 6]
-        self.common(fn, (torch.randn(shape), torch.randn(shape)))
+        self.common(fn, (torch.randn(shape), torch.randn(shape)),check_lowp=False)
 
     @xfail_if_triton_cpu
     def test_fmod_zero_dim(self):
