@@ -259,18 +259,32 @@ class TestAsyncCompile(TestCase):
                 compiled_fn = torch.compile(fn)
                 self.assertEqual(fn(x, y), compiled_fn(x, y))
 
-    @requires_gpu()
-    @requires_triton()
-    def test_bad_kernel(self):
+    @parametrize("method", ("fork", "spawn"))
+    def test_bad_kernel(self,method):
+        if method not in multiprocessing.get_all_start_methods():
+            self.skipTest(f"requires {method} multiprocessing start method")
+
         shutdown_compile_workers()
 
-        with config.patch(worker_start_method="subprocess", compile_threads=8):
+        with config.patch(worker_start_method=method, compile_threads=8):
             async_compile = AsyncCompile()
             AsyncCompile.wait_pool_ready()
-            with self.assertRaises(SubprocException):
+
+            if not AsyncCompile.use_process_pool():
+                with self.assertRaises(Exception):
+                    async_compile.triton(
+                        "fake_kernel_name",
+                        source_code="This definitely doesn't exist",
+                    ).result()
+                return
+
+            with self.assertRaises(Exception) as ctx:
                 async_compile.triton(
                     "fake_kernel_name", source_code="This definitely doesn't exist"
                 ).result()
+            
+            if isinstance(ctx.exception, SubprocException):
+                self.assertIsInstance(ctx.exception, SubprocException)
 
     @parametrize("method", ("fork", "spawn"))
     def test_wait_pool_ready(self,method):
