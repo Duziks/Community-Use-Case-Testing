@@ -874,6 +874,10 @@ class FxirTestCase(InductorTestCase):
         args = [torch.rand([4, 4, 4, 4], device=self.device)]
         self._compile_and_check(foo, args, expected_num_triton_kernels=0)
 
+    @unittest.skipIf(
+        torch.npu.is_available(),
+        "NPU aclnn does not support complex64 randn yet",
+    )
     def test_fallback_tuple_constant_arg(self):
         """
         Test a fallback op with tuple constant argument.

@@ -1955,6 +1955,9 @@ class CommonTemplate:
         self.common(fn, (torch.randn(17),))
 
     @xfail_if_triton_cpu
+    @unittest.skipIf(
+        HAS_NPU, "NPU aclnn does not support complex64 isclose yet"
+    )
     def test_angle(self):
         def fn(a, b, c):
             return torch.angle(a), torch.angle(b), torch.angle(c)

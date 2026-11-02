@@ -3,6 +3,10 @@ import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
 _dynamo.use_jit_script = True
+# transfer_to_npu makes torch.utils._triton.has_triton() report False, which
+# leaves HAS_GPU_AND_TRITON False and the module-level _fill_kernel undefined.
+# Restore the probe before inductor_utils is imported below.
+_dynamo.patch_has_triton()
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
