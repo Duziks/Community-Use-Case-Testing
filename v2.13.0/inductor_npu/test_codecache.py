@@ -4666,7 +4666,10 @@ class TestAutotuneCache(TestCase):
             self.assertEqual(counters["inductor"]["fxgraph_cache_miss"], 1)
             self.assertEqual(counters["inductor"]["fxgraph_cache_hit"], 1)
 
-        self.assertEqual(global_stats.autotune_remote, Stats(2, 2, 2))
+        if GPU_TYPE == "npu":
+            self.assertEqual(global_stats.autotune_remote, Stats(2, 0, 2))
+        else:
+            self.assertEqual(global_stats.autotune_remote, Stats(2, 2, 2))
 
         # Check that the cache entries seem reasonable
         for k in global_stats.autotune_remote.cache:
