@@ -4601,7 +4601,10 @@ def add(x, y):
     n_elements = output.numel()
 
     def grid(meta):
-        return (triton.cdiv(n_elements, meta["BLOCK_SIZE"]),)
+        # Use pure Python arithmetic: triton.cdiv may return an interpreter
+        # tensor, which cannot be used as a range() argument.
+        block = int(meta["BLOCK_SIZE"])
+        return ((n_elements + block - 1) // block,)
 
     wrap_triton(add_kernel)[grid](x, y, output, n_elements, 16)
     return output
@@ -4612,7 +4615,9 @@ def autotuned_add(x, y):
     n_elements = output.numel()
 
     def grid(meta):
-        return (triton.cdiv(n_elements, meta["BLOCK_SIZE"]),)
+        # Same as above: keep the grid a plain Python int tuple.
+        block = int(meta["BLOCK_SIZE"])
+        return ((n_elements + block - 1) // block,)
 
     wrap_triton(autotuned_add_kernel)[grid](x, y, output, n_elements)
     return output
