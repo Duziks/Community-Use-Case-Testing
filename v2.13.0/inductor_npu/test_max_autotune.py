@@ -5,6 +5,13 @@ from torch_npu.utils import _dynamo
 _dynamo.patch_has_triton()
 _dynamo.use_jit_script = True
 torch.cuda.get_device_capability = lambda :(10, 0)
+# torch_npu rebinds torch.cuda.* onto npu, so inductor's cudagraph checks reach
+# torch._C._cuda_cudaCachingAllocator_is_enabled(), which only exists in a
+# CUDA build.  Report the allocator as enabled (ascend always uses its
+# caching allocator).  Set unconditionally: transfer_to_npu rewrites
+# torch._C at import time.
+if not hasattr(torch._C, "_cuda_cudaCachingAllocator_is_enabled"):
+    torch._C._cuda_cudaCachingAllocator_is_enabled = lambda: True
 import torch_npu.testing
 import torch_npu._inductor
 
@@ -5050,6 +5057,7 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
         epilogue_runtime: float | None = None,
         fuse_epilogue: bool | None = None,
         occupancy: tuple[int, int, int] | None = None,
+        safe_fusion: bool = False,
     ):
         from torch._inductor.autotune_process import TritonBenchmarkRequest
         from torch._inductor.runtime.triton_heuristics import CachingAutotuner
@@ -5092,6 +5100,7 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                         triton_time,
                         fuse_epilogue=fuse_epilogue,
                         occupancy=occupancy,
+                        safe_fusion=safe_fusion,
                     )
                 )
 
@@ -5152,6 +5161,7 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
         *,
         fuse_epilogue: bool | None = None,
         occupancy: tuple[int, int, int] | None = None,
+        safe_fusion: bool = False,
     ):
         """Extra patches to run these (mocked-autotune) tests on NPU.
 
@@ -5164,7 +5174,7 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
         drops the fusion when that benchmark fails, which is not observable
         from the test, so the fusion decision is made here instead.
 
-        Two decision modes are supported, mirroring the upstream paths:
+        Three decision modes are supported, mirroring the upstream paths:
 
         * ``fuse_epilogue``: force the epilogue into / out of the template.
           Used by test_template_epilogue_fusion_extra_reads, where the expected
@@ -5177,6 +5187,12 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
           but multiplies the register usage would still be fused.  Used by
           test_template_epilogue_fusion_occupancy_ratio and
           test_template_epilogue_fusion_dominating_epilogue.
+        * ``safe_fusion``: compile the fused kernel without benchmarking it
+          and keep the fusion only if the compile succeeds, i.e. upstream's
+          safety net for ``benchmark_epilogue_fusion=False``.  torch_npu only
+          benchmarks the fused kernel, so a fusion whose kernel fails to
+          compile is never noticed there.  Used by
+          test_template_bad_epilogue_fusion.
         """
 
         from torch._inductor.scheduler import (
@@ -5307,6 +5323,38 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
 
             return False
 
+        def npu_compile_only_fusion(multi_node, node1, node2):
+            """Upstream's "compile but do not benchmark" safety net.
+
+            Mirrors torch/_inductor/scheduler.py:benchmark_when_ready with
+            ``benchmark_epilogue_fusion = False``: the fused kernel is compiled
+            and, if that fails, the fusion is dropped.  Only the epilogue
+            direction is considered, prologue fusion is off by default.
+            """
+            if not isinstance(node1.get_template_node(), MultiTemplateBuffer):
+                return False
+            node_list_fused = list(node1.get_nodes()) + list(node2.get_nodes())
+            for choice in multi_node.choices:
+                if not isinstance(choice, TritonTemplateCaller):
+                    continue
+                with multi_node.swap_as_triton_caller(choice):
+                    try:
+                        fut, mod_fused = self.compile_kernel(
+                            node_list_fused,
+                            hint_override=getattr(choice, "hint_override", None),
+                        )
+                        if fut is not None:
+                            fut.result()
+                        elif mod_fused is not None and hasattr(mod_fused, "triton_"):
+                            mod_fused.triton_.precompile()
+                        else:
+                            continue
+                    except Exception:
+                        continue
+                finalize_fused_choice(multi_node, choice)
+                return True
+            return False
+
         def speedup_by_fusion(self, node1, node2):
             # torch_npu's fuse_nodes_once calls this as
             #   speedup = self.speedup_by_fusion(...)
@@ -5314,7 +5362,7 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
             #   if not speedup: continue
             # i.e. it expects a bool / callable, not upstream's FusionResult
             # (whose instances are always truthy).  Return plain bools here.
-            if fuse_epilogue is None and occupancy is None:
+            if fuse_epilogue is None and occupancy is None and not safe_fusion:
                 return original_speedup_by_fusion(self, node1, node2)
 
             multi_node = None
@@ -5331,6 +5379,8 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 # allows it.
                 return original_speedup_by_fusion(self, node1, node2)
 
+            if safe_fusion:
+                return npu_compile_only_fusion(multi_node, node1, node2)
             if occupancy is not None:
                 return npu_static_analysis_fusion(multi_node, node1, node2, *occupancy)
             if not fuse_epilogue:
@@ -5503,19 +5553,17 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
             # What we want: force multi template -> no benchmarking with safety
             try:
                 with (
-                    self.get_common_patches(use_async_compile, True),
-                    mock.patch(
-                        "torch._inductor.autotune_process.run_autotune_in_subprocess",
-                        mock_benchmark_choice_wrapper(
-                            aten_time=float("inf"), triton_time=0.1
-                        ),
-                    ),
-                    mock.patch.object(
-                        AlgorithmSelectorCache,
-                        "benchmark_choice",
-                        mock_benchmark_choice_wrapper(
-                            aten_time=float("inf"), triton_time=0.1
-                        ),
+                    # The mocked timings also install _npu_autotune_patches
+                    # (safe_fusion), so that the matmul really resolves to
+                    # torch_npu's template and the fused kernel is compiled
+                    # without being benchmarked, like upstream's
+                    # benchmark_epilogue_fusion=False path.
+                    self.get_common_patches(
+                        use_async_compile,
+                        True,
+                        aten_time=float("inf"),
+                        triton_time=0.1,
+                        safe_fusion=True,
                     ),
                     mock.patch.object(
                         Scheduler,
