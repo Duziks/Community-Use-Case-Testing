@@ -4544,6 +4544,16 @@ import os
 os.environ["TRITON_INTERPRET"] = "1"
 
 import torch
+
+# The subprocess does not inherit the parent process's transfer_to_npu patch,
+# so apply it explicitly when CUDA is unavailable. When TORCH_TRANSFER_TO_NPU=1
+# is set, torch_npu already applied it at import time and this is a no-op.
+if not torch.cuda.is_available():
+    try:
+        from torch_npu.contrib import transfer_to_npu  # noqa: F401
+    except ImportError:
+        pass
+
 import triton
 import triton.language as tl
 from torch.library import wrap_triton
