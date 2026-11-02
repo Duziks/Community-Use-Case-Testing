@@ -2665,6 +2665,8 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
         not SM90OrLater, "uses bfloat16 atomic add instrs which requires SM >= 90"
     )
     def test_float8_e8m0fnu(self):
+        if torch.npu.is_available():
+            self.skipTest("CANN Cast不支持本例FP32转E8M0")
         device = device_type
         dtype = torch.float8_e8m0fnu
         hp_dtype = torch.float32  # and torch.bfloat16
