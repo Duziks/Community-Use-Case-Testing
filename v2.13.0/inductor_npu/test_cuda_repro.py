@@ -395,6 +395,7 @@ class CudaReproTests(TestCase):
         not PLATFORM_SUPPORTS_MEM_EFF_ATTENTION,
         "Does not support mem_eff_attention",
     )
+    @config.patch(implicit_fallbacks=True)
     def test_mha_mem_eff_attention_backward_large_batch_compile(self):
         torch.manual_seed(0)
 
@@ -2432,6 +2433,7 @@ class CudaReproTests(TestCase):
         not PLATFORM_SUPPORTS_MEM_EFF_ATTENTION,
         "Does not support mem_eff_attention",
     )
+    @config.patch(implicit_fallbacks=True)
     def test_mem_eff_attention_backward_non_16_aligned_head_dim(self):
         for is_causal in (False, True):
             torch._dynamo.reset()
