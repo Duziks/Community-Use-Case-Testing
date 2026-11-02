@@ -260,13 +260,13 @@ class TestAsyncCompile(TestCase):
                 self.assertEqual(fn(x, y), compiled_fn(x, y))
 
     @parametrize("method", ("fork", "spawn"))
-    def test_bad_kernel(self):
+    def test_bad_kernel(self,method):
         if method not in multiprocessing.get_all_start_methods():
             self.skipTest(f"requires {method} multiprocessing start method")
 
         shutdown_compile_workers()
 
-        with config.patch(worker_start_method="subprocess", compile_threads=8):
+        with config.patch(worker_start_method=method, compile_threads=8):
             async_compile = AsyncCompile()
             AsyncCompile.wait_pool_ready()
 
