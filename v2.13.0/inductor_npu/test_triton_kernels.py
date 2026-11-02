@@ -4600,11 +4600,11 @@ def add(x, y):
     output = torch.empty_like(x)
     n_elements = output.numel()
 
-    def grid(meta):
-        # Use pure Python arithmetic: triton.cdiv may return an interpreter
-        # tensor, which cannot be used as a range() argument.
-        block = int(meta["BLOCK_SIZE"])
-        return ((n_elements + block - 1) // block,)
+    def grid(_meta):
+        # meta values are interpreter tensors on some triton builds, and
+        # converting them needs numpy scalar handling; BLOCK_SIZE is fixed
+        # at 16 here, so compute the grid with plain Python ints only.
+        return ((n_elements + 15) // 16,)
 
     wrap_triton(add_kernel)[grid](x, y, output, n_elements, 16)
     return output
@@ -4614,10 +4614,9 @@ def autotuned_add(x, y):
     output = torch.empty_like(x)
     n_elements = output.numel()
 
-    def grid(meta):
-        # Same as above: keep the grid a plain Python int tuple.
-        block = int(meta["BLOCK_SIZE"])
-        return ((n_elements + block - 1) // block,)
+    def grid(_meta):
+        # Same as above; the autotune config fixes BLOCK_SIZE=16.
+        return ((n_elements + 15) // 16,)
 
     wrap_triton(autotuned_add_kernel)[grid](x, y, output, n_elements)
     return output
