@@ -2952,13 +2952,44 @@ class TestMaxAutotune(TestCase):
             torch._dynamo.mark_dynamic(a, 1)
             torch._dynamo.mark_dynamic(b, 0)
 
-        with config.patch({"max_autotune": True}), fresh_cache():
-            _ = torch.compile(torch.mm)(a, b)
-            cache = TritonTemplate.all_templates["mm"]._generated_code_cache._cache
-            cache_key = next(iter(cache))
+        # torch_npu replaces the upstream "mm" TritonTemplate with its own
+        # templates (npu_triton_mm / npu_persistent_mm, see
+        # torch_npu/_inductor/kernel/mm.py:142 and :268), so
+        # TritonTemplate.all_templates["mm"]._generated_code_cache is never
+        # populated here and iterating it raises StopIteration.  The NPU
+        # templates express the same EVEN_K decision with the inverse flag
+        # MASKED_K (kernel/mm.py:636), so assert on the autotune configs the
+        # mm template actually generates: MASKED_K is False exactly when K
+        # statically divides the K tile.
+        from torch_npu._inductor.kernel import mm as npu_mm
 
-        self.assertObjectIn(k, (15, 16))
-        self.assertEqual("'EVEN_K': True" in cache_key, k == 16 and not dynamic)
+        configs_seen = []
+        original_get_configs = npu_mm._get_npu_mm_configs
+
+        def spy_get_configs(m, n, k_dim, *args, **kwargs):
+            configs = original_get_configs(m, n, k_dim, *args, **kwargs)
+            configs_seen.extend(configs)
+            return configs
+
+        with config.patch({"max_autotune": True}), fresh_cache(), mock.patch.object(
+            npu_mm, "_get_npu_mm_configs", spy_get_configs
+        ):
+            _ = torch.compile(torch.mm)(a, b)
+
+        # K masks are avoidable only when K statically divides the K tile
+        # (k=16 here; MASKED_K is forced to True for dynamic shapes).
+        expect_masked_k = not (k == 16 and not dynamic)
+        self.assertTrue(
+            configs_seen,
+            "the NPU triton mm template generated no autotune configs; "
+            "max_autotune may not have reached the mm template",
+        )
+        self.assertEqual(
+            {c["MASKED_K"] for c in configs_seen},
+            {expect_masked_k},
+            f"unexpected MASKED_K configs for k={k}, dynamic={dynamic}: "
+            f"{configs_seen}",
+        )
 
     @config.patch(
         {
@@ -5323,13 +5354,18 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
 
             return False
 
-        def npu_compile_only_fusion(multi_node, node1, node2):
+        def npu_compile_only_fusion(scheduler, multi_node, node1, node2):
             """Upstream's "compile but do not benchmark" safety net.
 
             Mirrors torch/_inductor/scheduler.py:benchmark_when_ready with
             ``benchmark_epilogue_fusion = False``: the fused kernel is compiled
             and, if that fails, the fusion is dropped.  Only the epilogue
             direction is considered, prologue fusion is off by default.
+
+            ``scheduler`` is the Scheduler running the fusion: the enclosing
+            ``self`` is the TestCase, so ``self.compile_kernel`` would not
+            exist (and the resulting AttributeError is swallowed by the
+            ``except Exception`` below, silently disabling the fusion).
             """
             if not isinstance(node1.get_template_node(), MultiTemplateBuffer):
                 return False
@@ -5339,7 +5375,7 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                     continue
                 with multi_node.swap_as_triton_caller(choice):
                     try:
-                        fut, mod_fused = self.compile_kernel(
+                        fut, mod_fused = scheduler.compile_kernel(
                             node_list_fused,
                             hint_override=getattr(choice, "hint_override", None),
                         )
@@ -5380,7 +5416,7 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 return original_speedup_by_fusion(self, node1, node2)
 
             if safe_fusion:
-                return npu_compile_only_fusion(multi_node, node1, node2)
+                return npu_compile_only_fusion(self, multi_node, node1, node2)
             if occupancy is not None:
                 return npu_static_analysis_fusion(multi_node, node1, node2, *occupancy)
             if not fuse_epilogue:
@@ -5576,10 +5612,10 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
 
                     if not simulate_fusion_failure:
                         # Fusion should occur
-                        FileCheck().check("triton_tem_fused__to_copy_mm").run(code[0])
+                        FileCheck().check("triton_tem_fused__to_copy_matmul").run(code[0])
                     else:
                         # Fusion should fail to occur, unfused kernels
-                        FileCheck().check("triton_tem_fused_mm").check(
+                        FileCheck().check("triton_tem_fused_matmul").check(
                             "triton_poi_fused__to_copy"
                         ).run(code[0])
 
