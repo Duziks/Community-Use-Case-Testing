@@ -5616,13 +5616,13 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 _, code = run_and_get_code(compiled_f, a, b)
 
                 if expect_fusion:
-                    FileCheck().check("triton_tem_fused__to_copy_add_mm_0").run(code[0])
+                    FileCheck().check("triton_tem_fused__to_copy_add_matmul_0").run(code[0])
                 elif triton_time < aten_time:
-                    FileCheck().check("triton_tem_fused_mm").check(
+                    FileCheck().check("triton_tem_fused_matmul").check(
                         "triton_poi_fused__to_copy"
                     ).run(code[0])
                 else:
-                    FileCheck().check_not("triton_tem_fused_mm").check(
+                    FileCheck().check_not("triton_tem_fused_matmul").check(
                         "triton_poi_fused__to_copy"
                     ).run(code[0])
 
