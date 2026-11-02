@@ -714,6 +714,7 @@ class CudaReproTests(TestCase):
         self.assertEqual(torch.compile(forward)(), forward())
 
     @config.patch({"emulate_precision_casts": True})
+    @config.patch(implicit_fallbacks=True)
     def test_emulate_low_precision(self):
         def foo(x):
             return torch.nn.functional.gelu(x) * 10.0
@@ -1394,6 +1395,7 @@ class CudaReproTests(TestCase):
             self.common(mod, (torch.randn(4, 4),))
 
     @config.patch({"fallback_random": False, "triton.cudagraphs": True})
+    @config.patch(implicit_fallbacks=True)
     def test_xlnet_lm_stride_repro(self):
         class Repro(nn.Module):
             def __init__(self) -> None:

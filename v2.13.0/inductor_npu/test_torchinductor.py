@@ -18454,7 +18454,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         result = torch.compile(fn)(x_base.clone()[:, 2:, :], index, source)
         self.assertEqual(result, expected)
 
-    @unittest.skip("NPU does not support")
+    @config.patch(implicit_fallbacks=True)
     def test_pad_after_gelu(self):
         # Regression test for Voxtral compilation on MPS
         for dtype in [torch.float32, torch.float16, torch.bfloat16]:
