@@ -3507,7 +3507,7 @@ class TestMaxAutotune(TestCase):
         torch.testing.assert_close(out, expected, atol=tol, rtol=tol)
 
         # Verify we got a Triton template
-        kernel_name = "triton_tem_fused_addmm" if use_addmm else "triton_tem_fused_matmul"
+        kernel_name = "triton_tem_fused_addmm" if use_addmm else "triton_tem_fused_mm"
         FileCheck().check(kernel_name).run(code[0])
 
         # No truncation casts should exist since there are no fused epilogue ops
@@ -5095,7 +5095,14 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                     )
                 )
 
-        if mock_n_spills is not None or mock_fused_n_regs is not None:
+        # On npu the fusion decision reads the values handed to
+        # _npu_autotune_patches (``occupancy``), never the compiled launchers.
+        # Patching them there would also hit the pointwise kernels, whose
+        # runtime autotune drops every candidate with n_spills > 8 and then
+        # fails with "All runtime block candidates ... are not runnable".
+        if (
+            mock_n_spills is not None or mock_fused_n_regs is not None
+        ) and not self._on_npu():
             original_precompile = CachingAutotuner.precompile
 
             def mock_precompile(self, *args, **kwargs):
