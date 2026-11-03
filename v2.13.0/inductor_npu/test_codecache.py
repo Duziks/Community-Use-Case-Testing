@@ -8,6 +8,33 @@ torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 import torch_npu._inductor
 
+# transfer_to_npu aliases CUDA availability to NPU availability, so upstream
+# _is_backend_active("nvidia") falls back to torch.cuda.is_available() (True on
+# NPU) and reactivates the CUDA/HIP driver -> "libcuda.so cannot found".
+from functools import wraps
+
+
+def _wrapper_npu_backend_active(fn):
+    @wraps(fn)
+    def decorated(name, backend):
+        if name in ("nvidia", "amd"):
+            return False
+        return fn(name, backend)
+
+    decorated._npu_transfer_backend_probe = True
+    return decorated
+
+
+if torch.npu.is_available():
+    from torch._inductor.runtime import triton_helpers
+
+    if hasattr(triton_helpers, "_is_backend_active") and not getattr(
+        triton_helpers._is_backend_active, "_npu_transfer_backend_probe", False
+    ):
+        triton_helpers._is_backend_active = _wrapper_npu_backend_active(
+            triton_helpers._is_backend_active
+        )
+
 # Owner(s): ["module: inductor"]
 import base64
 import copy
