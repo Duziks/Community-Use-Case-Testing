@@ -1383,11 +1383,16 @@ class GraphModule(torch.nn.Module):
     def forward(self, L_x_: "f32[1024]"):
         l_x_ = L_x_
 
-        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1);  get_external_object_by_index = None
+        get_external_object_by_index = torch__dynamo_graph_bytecode_inputs_get_external_object_by_index(1)
 
         a: "f32[1024]" = l_x_ * 2
 
+        current_stream = torch_npu_npu_utils_current_stream(None)
+        set_stream = torch_npu_npu_utils_set_stream(get_external_object_by_index);  get_external_object_by_index = set_stream = None
+
         b: "f32[1024]" = l_x_ * 3;  l_x_ = None
+
+        set_stream_1 = torch_npu_npu_utils_set_stream(current_stream);  current_stream = set_stream_1 = None
 
         synchronize_stream = torch.ops.streams.synchronize_stream(1);  synchronize_stream = None
 
@@ -1401,17 +1406,17 @@ class GraphModule(torch.nn.Module):
             wrapper_body,
             """\
 arg0_1, = args
-with torch.cuda._DeviceGuard(0):
-    torch.cuda.set_device(0)
-    default_stream = torch.cuda.current_stream()
+with torch.npu.utils.device(0):
+    torch.npu.set_device(0)
+    default_stream = torch.npu.current_stream()
     stream1 = get_external_object_by_index(1)
     with stream1:
         arg0_1 = copy_if_misaligned(arg0_1)
-        buf0 = empty_strided_cuda((1024, ), (1, ), torch.float32)
+        buf0 = empty_strided_npu((1024, ), (1, ), torch.float32)
         raw_stream = get_raw_stream(0)
         triton_kernel.run(arg0_1, buf0, 1024, stream=raw_stream)
     with default_stream:
-        buf3 = empty_strided_cuda((1024, ), (1, ), torch.float32)
+        buf3 = empty_strided_npu((1024, ), (1, ), torch.float32)
         raw_stream0 = get_raw_stream(0)
         triton_kernel.run(arg0_1, buf0, buf3, 1024, stream=raw_stream0)
         torch.ops.streams.synchronize_stream.default(1)
