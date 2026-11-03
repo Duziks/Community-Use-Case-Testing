@@ -2464,6 +2464,7 @@ class AOTInductorTestsTemplate:
     # @unittest.skipIf(
     #     not PLATFORM_SUPPORTS_FLASH_ATTENTION, "Some archs don't support flash SDPA"
     # )
+    @unittest.skip("npu does not support sdpa")
     def test_fallback_kernel_with_symexpr_output(self):
         if self.device != GPU_TYPE:
             raise unittest.SkipTest("requires GPU")
