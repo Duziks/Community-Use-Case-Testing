@@ -762,10 +762,25 @@ class DynamicShapesGpuWrapperGpuTests(InductorTestCase):
 
             return test_fn
 
-        fn = torch.compile(options={"annotate_training": True, "cpp_wrapper": True})(
-            create_test_fn()
-        )
-        fn()
+        # NPU has no NVTX: the torch build lacks the _nvtx extension and the
+        # fallback _NVTXStub has no device-range APIs. annotate_training emits
+        # those calls in the generated wrapper, so back them with mstx.
+        import torch.cuda.nvtx as nvtx
+
+        orig_start, orig_end = nvtx._device_range_start, nvtx._device_range_end
+        if not hasattr(torch._C, "_nvtx"):
+            from torch_npu.npu import mstx
+
+            nvtx._device_range_start = lambda msg, stream=0: mstx.range_start(msg)
+            nvtx._device_range_end = lambda handle, stream=0: mstx.range_end(handle)
+        try:
+            fn = torch.compile(
+                options={"annotate_training": True, "cpp_wrapper": True}
+            )(create_test_fn())
+            fn()
+        finally:
+            nvtx._device_range_start = orig_start
+            nvtx._device_range_end = orig_end
 
 
 test_failures_gpu_wrapper = {
