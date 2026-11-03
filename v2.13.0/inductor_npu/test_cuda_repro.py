@@ -3271,10 +3271,7 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
         self.assertNotEqual(eager_div, compiled_div)
         self.assertTrue("div_rn" not in code)
 
-    @config.patch({"eager_numerics.disable_ftz": True})
     def test_disabling_ftz_yields_subnormals(self):
-        if torch.npu.is_available():
-            self.skipTest('TA不支持本例disable_ftz关闭FTZ编译选项')
         from decimal import Decimal
 
         x = -127.0
@@ -3283,10 +3280,18 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
         def fn(x):
             return 2.0**x
 
-        compile_out = torch.compile(fn)(x_ten)
-        compile_decimal = Decimal(compile_out.item())
+        is_npu = x_ten.device.type == "npu"
+        # TA has no disable_ftz option; NPU checks its default FTZ behavior.
+        with config.patch({"eager_numerics.disable_ftz": not is_npu}):
+            cfn = torch.compile(fn)
+            compile_out = cfn(x_ten)
+            compile_decimal = Decimal(compile_out.item())
 
-        self.assertTrue(compile_decimal > Decimal(0))
+            if is_npu:
+                self.assertEqual(compile_decimal, Decimal(0))
+                self.assertEqual(compile_decimal, Decimal(fn(x_ten).item()))
+            else:
+                self.assertTrue(compile_decimal > Decimal(0))
 
     @skipIfXpu(msg="Decimal object comparison failed - torch-xpu-ops: 2810")
     @skipIfRocm(msg="ROCm preserves subnormals by default")
