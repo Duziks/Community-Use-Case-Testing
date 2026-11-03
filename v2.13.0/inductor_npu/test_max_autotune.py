@@ -1588,7 +1588,6 @@ class TestMaxAutotune(TestCase):
             actual = torch.compile(fn)(image, filt)
             torch.testing.assert_close(actual, expected, atol=6e-5, rtol=0.001)
 
-    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @config.patch(
         max_autotune=True, max_autotune_conv_backends="", layout_optimization=False
     )
@@ -1598,10 +1597,8 @@ class TestMaxAutotune(TestCase):
         ).to(GPU_TYPE)
         inp = torch.randn([2, 3, 16, 16]).to(GPU_TYPE)
 
-        with self.assertRaises(BackendCompilerFailed) as context:
-            torch.compile(m)(inp)
-
-        self.assertIn("NoValidChoicesError", str(context.exception))
+        _, (code,) = run_and_get_code(torch.compile(m), inp)
+        self.assertIn("torch.ops.aten.convolution.default(", code)
 
     def test_non_contiguous_input_mm(self):
         """
