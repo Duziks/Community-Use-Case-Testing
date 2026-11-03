@@ -15967,7 +15967,17 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
                     or "i0 + i1 * s64" in mul_buf.data.inner_fn_str()
                 )
 
-        with add_scheduler_init_hook(hook_fn):
+        realize_ctx = contextlib.nullcontext()
+        if (
+            x.device.type == "npu"
+            and os.environ.get("TORCHINDUCTOR_NPU_BACKEND", "default") == "default"
+        ):
+            # Use the upstream test helper so the stride check sees computed IR.
+            realize_ctx = patch.dict(
+                lowering.lowerings,
+                {torch.ops._inductor_test.realize.default: lowering._realize},
+            )
+        with realize_ctx, add_scheduler_init_hook(hook_fn):
             actual = torch.compile(f, fullgraph=True)(x)
         self.assertEqual(ref, actual)
         self.assertTrue(called)
@@ -17302,6 +17312,8 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
                 def fn(x, y):
                     a = x + y
+                    if a.device.type == "npu":
+                        return (torch.mm(a, a),)
                     return (a @ a,)
 
                 fn_fx = make_fx(fn)(inps[0], inps[1])
