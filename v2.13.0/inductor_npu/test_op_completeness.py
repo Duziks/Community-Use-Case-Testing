@@ -27,7 +27,7 @@ class TestOpCompleteness(TestCase):
                 getattr(OpsHandler, op),
                 msg=f"{handler} must implement {op}",
             )
-        extra_ops = list_ops(handler) - OP_NAMES
+        extra_ops = list_ops(handler) - list_ops(OpsHandler)
         if extra_ops:
             raise AssertionError(
                 f"{handler} has an extra ops: {extra_ops}, add them to OpHandler class or prefix with `_`"
