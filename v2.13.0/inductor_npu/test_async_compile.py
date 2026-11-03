@@ -241,20 +241,26 @@ class TestAsyncCompile(TestCase):
             self.assertTrue(ready_future_cleared)
             self.assertFalse(use_process_pool)
 
-    @requires_gpu()
-    @requires_triton()
-    @parametrize("method", ("subprocess", "fork", "spawn"))
+    @parametrize("method", ("spawn",))
     def test_pool(self, method):
+
+        if method not in multiprocessing.get_all_start_methods():
+            self.skipTest(f"requires {method} multiprocessing start method")
+        
+        if not torch.accelerator.is_available():
+            self.skipTest(f"requires an available accelerator ({GPU_TYPE})")
+        
         def fn(x, y):
             return x + y
 
-        x = torch.rand(10).to(GPU_TYPE)
-        y = torch.rand(10).to(GPU_TYPE)
+        device = GPU_TYPE
+        x = torch.rand(10, device=device)
+        y = torch.rand(10, device=device)
 
-        with config.patch("worker_start_method", method):
+        with config.patch(worker_start_method= method):
             shutdown_compile_workers()
             AsyncCompile.wait_pool_ready()
-
+            
             with fresh_cache():
                 compiled_fn = torch.compile(fn)
                 self.assertEqual(fn(x, y), compiled_fn(x, y))

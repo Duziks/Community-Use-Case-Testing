@@ -840,6 +840,10 @@ class TestExternKernelCaller(TestCase):
         a = torch.randn(*shape, device=GPU_TYPE)
         b = torch.randn(*shape, device=GPU_TYPE)
         c = torch.randn(*shape, device=GPU_TYPE)
+
+
+
+        
         d = torch.randn(*shape, device=GPU_TYPE)
 
         compiled_fn = torch.compile(fn)
