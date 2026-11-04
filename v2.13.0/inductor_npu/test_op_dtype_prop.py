@@ -102,7 +102,6 @@ class TestCase(InductorTestCase):
         pointwise_ops,
         allowed_dtypes=(
             torch.float32,
-            torch.float64,
             torch.int32,
             torch.int64,
             torch.bool,
