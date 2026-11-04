@@ -11963,7 +11963,11 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         "fallback_random",
         [
             subtest(True, name="fallback"),
-            subtest(False, name="inductor", decorators=[unittest.expectedFailure]),
+            subtest(
+                False,
+                name="inductor",
+                decorators=[] if GPU_TYPE == "npu" else [unittest.expectedFailure],
+            ),
         ],
     )
     def test_randn_order_preserved(self, fallback_random):
@@ -11980,6 +11984,26 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
 
         with config.patch(fallback_random=fallback_random):
             compiled = torch.compile(fn)
+
+            if torch.device(self.device).type == "npu" and not fallback_random:
+                # Compiled NPU RNG uses a different sequence from eager RNG.
+                # Compare against the same random-call order without conv fusion.
+                def random_inputs():
+                    a = torch.randn(2, 4, 4, 4, device=self.device)
+                    b = torch.randn(2, 3, 4, 4, device=self.device)
+                    c = torch.randn(4, 3, 3, 3, device=self.device)
+                    return a, b, c
+
+                reference_random = torch.compile(random_inputs)
+                for seed in (42, 123, 456):
+                    torch.manual_seed(seed)
+                    a, b, c = reference_random()
+                    expected = a + torch.nn.functional.conv2d(b, c, padding=1)
+                    expected_state = torch.npu.get_rng_state()
+                    torch.manual_seed(seed)
+                    self.assertEqual(compiled(), expected)
+                    self.assertEqual(torch.npu.get_rng_state(), expected_state)
+                return
 
             torch.manual_seed(42)
             eager_out = fn()
@@ -12567,8 +12591,14 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
             y = a[..., :-1, :].contiguous()
             return y
 
-        result = fn(torch.randn([1, 2, 16, 4]).requires_grad_())
-        result.sum().backward()
+        with (
+            config.patch(implicit_fallbacks=True)
+            if torch.device(self.device).type == "npu"
+            else contextlib.nullcontext()
+        ):
+            device = self.device if torch.device(self.device).type == "npu" else "cpu"
+            result = fn(torch.randn([1, 2, 16, 4], device=device).requires_grad_())
+            result.sum().backward()
 
     def test_dropout2(self):
         n = 100000
@@ -18574,7 +18604,7 @@ if RUN_GPU or HAS_MPS or HAS_NPU:
         CommonTemplate,
         GPUTests,
         GPU_TYPE,
-        test_failures={"test_dtype_sympy_expr": TestFailure(("npu",), is_skip=True)},
+        test_failures={},
     )
 
 if RUN_TPU:

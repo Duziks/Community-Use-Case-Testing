@@ -233,9 +233,46 @@ class TestCutlassFallback(TestCase):
 class TestCutlassSubprocessRouting(TestCase):
     """Tests for CUTLASS subprocess benchmarking routing and error recovery."""
 
-    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_cutlass_forces_subprocess_benchmarking(self):
-        """make_benchmark_fn routes to subprocess when CUTLASS choices are present."""
+        """Check CUDA forced isolation and NPU configured Triton-only isolation."""
+        if AlgorithmSelectorCache.make_benchmark_fn.__module__.startswith("torch_npu."):
+            from torch._inductor.select_algorithm import TritonTemplateCaller
+            from torch._inductor.virtualized import V
+            from torch_npu._inductor import select_algorithm as npu_selector
+            from torch_npu._inductor.codegen.catlass.catlass_kernel import CATLASSTemplateCaller
+            from torch_npu._inductor.config import catlass as catlass_config
+
+            # NPU isolates Triton choices only; CATLASS and ATen stay local.
+            catlass = mock.create_autospec(CATLASSTemplateCaller, instance=True)
+            catlass.description = "mock_catlass_mm"
+            extern = mock.create_autospec(ExternKernelCaller, instance=True)
+            triton = mock.create_autospec(TritonTemplateCaller, instance=True)
+            catlass.benchmark.return_value = 1.0
+            extern.benchmark.return_value = 2.0
+            output = torch.empty(1, device="cpu")
+            graph = mock.MagicMock()
+            graph.sizevars.optimization_hint.return_value = 0
+            choices = [extern, catlass, triton]
+            with (
+                V.set_graph_handler(graph),
+                config.patch({"autotune_in_subproc": True}),
+                patch.object(catlass_config, "catlass_bench_use_profiling", False),
+                patch.object(npu_selector, "VERIFY", False),
+                patch.object(AlgorithmSelectorCache, "benchmark_example_value", return_value=output),
+                patch("torch.npu.synchronize"),
+                patch("torch._inductor.autotune_process.benchmark_in_sub_process", return_value={triton: 3.0}) as subprocess_bench,
+            ):
+                fn = AlgorithmSelectorCache.make_benchmark_fn(
+                    choices, input_nodes=[], layout=mock.MagicMock(offset=0)
+                )
+                timings = fn(choices)
+            extern.benchmark.assert_called_once()
+            catlass.benchmark.assert_called_once()
+            triton.benchmark.assert_not_called()
+            subprocess_bench.assert_called_once_with([triton])
+            self.assertEqual(timings, {extern: 2.0, catlass: 1.0, triton: 3.0})
+            return
+
         from torch._inductor.codegen.cutlass.kernel import CUTLASSTemplateCaller
 
         mock_cutlass = mock.create_autospec(CUTLASSTemplateCaller, instance=True)
@@ -250,9 +287,36 @@ class TestCutlassSubprocessRouting(TestCase):
             )
             self.assertEqual(fn.func, AlgorithmSelectorCache.benchmark_in_sub_process)
 
-    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     def test_no_subprocess_without_cutlass(self):
         """make_benchmark_fn uses current process when no CUTLASS and autotune_in_subproc=False."""
+        if AlgorithmSelectorCache.make_benchmark_fn.__module__.startswith("torch_npu."):
+            from torch._inductor.virtualized import V
+            from torch_npu._inductor import select_algorithm as npu_selector
+            from torch_npu._inductor.config import catlass as catlass_config
+
+            extern = mock.create_autospec(ExternKernelCaller, instance=True)
+            extern.benchmark.return_value = 2.0
+            output = torch.empty(1, device="cpu")
+            graph = mock.MagicMock()
+            graph.sizevars.optimization_hint.return_value = 0
+            with (
+                V.set_graph_handler(graph),
+                config.patch({"autotune_in_subproc": False}),
+                patch.object(catlass_config, "catlass_bench_use_profiling", False),
+                patch.object(npu_selector, "VERIFY", False),
+                patch.object(AlgorithmSelectorCache, "benchmark_example_value", return_value=output),
+                patch("torch.npu.synchronize"),
+                patch("torch._inductor.autotune_process.benchmark_in_sub_process") as subprocess_bench,
+            ):
+                fn = AlgorithmSelectorCache.make_benchmark_fn(
+                    [extern], input_nodes=[], layout=mock.MagicMock(offset=0)
+                )
+                timings = fn([extern])
+            extern.benchmark.assert_called_once()
+            subprocess_bench.assert_not_called()
+            self.assertEqual(timings, {extern: 2.0})
+            return
+
         mock_extern = mock.create_autospec(ExternKernelCaller, instance=True)
 
         with config.patch({"autotune_in_subproc": False}):
