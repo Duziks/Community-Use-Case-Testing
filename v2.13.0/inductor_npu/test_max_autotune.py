@@ -5823,9 +5823,9 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 _, code = run_and_get_code(compiled_f, a, b)
 
                 if expect_fusion:
-                    FileCheck().check("triton_tem_fused__to_copy_add_mm").run(code[0])
+                    FileCheck().check("triton_tem_fused__to_copy_add_matmul").run(code[0])
                 else:
-                    FileCheck().check("triton_tem_fused_mm").check(
+                    FileCheck().check("triton_tem_fused_matmul").check(
                         "triton_poi_fused__to_copy"
                     ).run(code[0])
 
@@ -5889,9 +5889,9 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 _, code = run_and_get_code(compiled_f, a, b)
 
                 if expect_fusion:
-                    FileCheck().check("triton_tem_fused__to_copy_add_mm").run(code[0])
+                    FileCheck().check("triton_tem_fused__to_copy_add_matmul").run(code[0])
                 else:
-                    FileCheck().check("triton_tem_fused_mm").check(
+                    FileCheck().check("triton_tem_fused_matmul").check(
                         "triton_poi_fused__to_copy"
                     ).run(code[0])
 
@@ -6037,7 +6037,7 @@ class TestMaxAutotuneAsyncPipelined(TestMaxAutotune, TestEpilogueFusionStaticAna
         pool_instance = AutotuneProcessPool.get_instance()
         pool_instance.warm_up()
 
-        future = pool_instance.submit(simple_fn)
+        future = pool_instance.submit(sum,[40,2])
         result = future.result()
         self.assertEqual(result, 42)
         self.assertIsNotNone(pool_instance._pool)
