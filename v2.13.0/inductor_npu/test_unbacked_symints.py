@@ -32,6 +32,22 @@ from torch.testing._internal.common_utils import parametrize, skipIfXpu
 from torch.testing._internal.inductor_utils import HAS_GPU
 import torch_npu._inductor
 
+def _retarget_dynamo_for_patched_torch_tensor() -> None:
+    original = getattr(torch.tensor, "__wrapped__", None)
+    if original is None:
+        return
+
+    from torch._dynamo.variables.torch import TorchInGraphFunctionVariable
+
+    handlers = TorchInGraphFunctionVariable._get_handlers()
+    if original in handlers and torch.tensor not in handlers:
+        handlers[torch.tensor] = handlers[original]
+
+    torch._dynamo.trace_rules.clear_lru_cache()
+    rule_map = torch._dynamo.trace_rules.get_torch_obj_rule_map()
+    if original in rule_map and torch.tensor not in rule_map:
+        rule_map[torch.tensor] = rule_map[original]
+
 
 class TestUnbackedSymints(InductorTestCase):
     @skipGPUIf(not HAS_GPU, "requires gpu and triton")
@@ -669,6 +685,7 @@ class TestUnbackedSymints(InductorTestCase):
     def test_triton_kernel_with_unbacked_symint_fallback(self, device):
         # The benchmark_kernel=True config exercises the codegen_kernel_benchmark code path
         # Test isinstance(arg_sig, SizeArg) == True in the fallback path
+        _retarget_dynamo_for_patched_torch_tensor()
         def fn(x):
             # Create unbacked SymInt
             nz = torch.nonzero(x)
