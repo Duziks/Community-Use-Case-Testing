@@ -501,7 +501,7 @@ class TestCachingAutotunerPlugin(TestCase):
         if configs is not None:
             args["configs"] = configs
         with patch(_PLUGIN_FACTORY_PATH, return_value=list(plugins)):
-            return CachingAutotuner(**args)
+            return NPUCachingAutotuner(**args)
 
     def test_pre_dispatch_runs_before_precompile_and_autotune(self):
         sentinel = object()
