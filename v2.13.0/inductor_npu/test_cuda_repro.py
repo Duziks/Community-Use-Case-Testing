@@ -2735,7 +2735,11 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
 
         out, (_, bw_code) = run_fw_bw_and_get_code(lambda: torch.compile(f)(x, y))
         fc = FileCheck()
-        fc.check("tl.atomic_add")
+        if x.device.type == "npu":
+            # fc.check("tl.atomic_add")  # NPU uses native index_add; GPU uses Triton atomic_add.
+            fc.check("aten.index_add.default")
+        else:
+            fc.check("tl.atomic_add")
         fc.run(bw_code)
 
         self.assertEqual(f(x_ref, y_ref), out)
