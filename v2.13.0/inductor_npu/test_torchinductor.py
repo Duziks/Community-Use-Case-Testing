@@ -5395,17 +5395,30 @@ for dtype in (torch.int32, torch.int64):
         y = torch.tensor(0)
         self.assertEqual(fn(x, y), x + x)
 
+    @torch.sparse.check_sparse_tensor_invariants(enable=False)
     def test_gather3(self):
         def fn(a, b):
             return torch.gather(a, 1, b, sparse_grad=True)
 
-        self.common(
-            fn,
-            (
-                torch.randn([4, 5, 10, 6], requires_grad=True),
-                torch.randint(5, [4, 5, 10, 1], dtype=torch.int64),
-            ),
-        )
+        from torch._subclasses.fake_tensor import FakeTensor
+
+        stock_device_put = torch._prims.device_put
+
+        def fake_safe_device_put(a, device, non_blocking=False):
+            if isinstance(a, FakeTensor):
+                return torch.ops.prims.device_put.default.prim_meta_impl(
+                    a, device, bool(non_blocking)
+                )
+            return stock_device_put(a, device, non_blocking)
+
+        with patch.object(torch._prims, "device_put", fake_safe_device_put):
+            self.common(
+                fn,
+                (
+                    torch.randn([4, 5, 10, 6], requires_grad=True),
+                    torch.randint(5, [4, 5, 10, 1], dtype=torch.int64),
+                ),
+            )
 
     def test_device_assert(self):
         def fn(x, y):

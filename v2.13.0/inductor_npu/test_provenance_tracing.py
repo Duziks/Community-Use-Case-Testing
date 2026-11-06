@@ -161,76 +161,88 @@ class TestProvenanceTracingArtifact(TestCase):
                     m = re.match(r"WARNING.* debug trace: (.*)", cm.output[0])
                     self.assertTrue(m)
                     filepath = Path(m.group(1))
-                    if device == "cuda" or device == "xpu":
-                        expected_mapping = [
-                            (
-                                "cppCodeToPost",
-                                {
-                                    "triton_poi_fused_mul_0:1": ["mul"],
-                                    "triton_poi_fused_addmm_gelu_1:3": [
-                                        "mul_3",
-                                        "mul_1",
-                                        "add_tensor",
-                                        "add",
-                                        "erf",
-                                        "mul_2",
-                                    ],
-                                },
-                            ),
-                            (
-                                "postToCppCode",
-                                {
-                                    "mul": ["triton_poi_fused_mul_0:1"],
-                                    "mul_3": ["triton_poi_fused_addmm_gelu_1:3"],
-                                    "mul_1": ["triton_poi_fused_addmm_gelu_1:3"],
-                                    "add_tensor": ["triton_poi_fused_addmm_gelu_1:3"],
-                                    "add": ["triton_poi_fused_addmm_gelu_1:3"],
-                                    "erf": ["triton_poi_fused_addmm_gelu_1:3"],
-                                    "mul_2": ["triton_poi_fused_addmm_gelu_1:3"],
-                                },
-                            ),
-                            (
-                                "postToPre",
-                                {
-                                    "mul": ["mul"],
-                                    "mm_default": ["addmm"],
-                                    "add_tensor": ["addmm"],
-                                    "mul_1": ["gelu"],
-                                    "mul_2": ["gelu"],
-                                    "erf": ["gelu"],
-                                    "add": ["gelu"],
-                                    "mul_3": ["gelu"],
-                                },
-                            ),
-                            (
-                                "preToPost",
-                                {
-                                    "mul": ["mul"],
-                                    "addmm": ["mm_default", "add_tensor"],
-                                    "gelu": ["mul_1", "mul_2", "erf", "add", "mul_3"],
-                                },
-                            ),
-                        ]
-                        if backend == "aot_inductor" and device == "cuda":
-                            expected_mapping[0][1]["aoti_torch_cuda_mm_out:2"] = [
-                                "mm_default"
-                            ]
-                            expected_mapping[1][1]["mm_default"] = [
-                                "aoti_torch_cuda_mm_out:2"
-                            ]
-                        elif backend == "aot_inductor" and device == "xpu":
-                            expected_mapping[0][1]["aoti_torch_xpu_mm_out:2"] = [
-                                "mm_default"
-                            ]
-                            expected_mapping[1][1]["mm_default"] = [
-                                "aoti_torch_xpu_mm_out:2"
+                    if device == "npu":
+                        # On NPU, aten.gelu has no c-shim and stays an extern
+                        # kernel, and `torch.addmm(c, d, b)` is lowered to an
+                        # extern mm plus a standalone pointwise add for `+ c`.
+                        if backend == "aot_inductor":
+                            expected_mapping = [
+                                (
+                                    "cppCodeToPost",
+                                    {
+                                        "triton_poi_fused_mul_0:1": ["mul"],
+                                        "aoti_torch_npu_mm_out:2": ["mm_default"],
+                                        "triton_poi_fused_addmm_1:3": ["add_tensor"],
+                                        "aoti_torch_npu_gelu:4": ["gelu"],
+                                    },
+                                ),
+                                (
+                                    "postToCppCode",
+                                    {
+                                        "mul": ["triton_poi_fused_mul_0:1"],
+                                        "mm_default": ["aoti_torch_npu_mm_out:2"],
+                                        "add_tensor": ["triton_poi_fused_addmm_1:3"],
+                                        "gelu": ["aoti_torch_npu_gelu:4"],
+                                    },
+                                ),
+                                (
+                                    "postToPre",
+                                    {
+                                        "mul": ["mul"],
+                                        "mm_default": ["addmm"],
+                                        "add_tensor": ["addmm"],
+                                        "gelu": ["gelu"],
+                                    },
+                                ),
+                                (
+                                    "preToPost",
+                                    {
+                                        "mul": ["mul"],
+                                        "addmm": ["mm_default", "add_tensor"],
+                                        "gelu": ["gelu"],
+                                    },
+                                ),
                             ]
                         else:
-                            expected_mapping[0][1]["extern_kernels.mm:2"] = [
-                                "mm_default"
-                            ]
-                            expected_mapping[1][1]["mm_default"] = [
-                                "extern_kernels.mm:2"
+                            # backend = inductor; addmm is lowered to an
+                            # extern mm plus a standalone pointwise add, and
+                            # gelu stays an aten fallback (no c-shim on NPU).
+                            expected_mapping = [
+                                (
+                                    "cppCodeToPost",
+                                    {
+                                        "triton_poi_fused_mul_0:1": ["mul"],
+                                        "extern_kernels.mm:2": ["mm_default"],
+                                        "triton_poi_fused_addmm_1:3": ["add_tensor"],
+                                        "torch.ops.aten.gelu.default:4": ["gelu"],
+                                    },
+                                ),
+                                (
+                                    "postToCppCode",
+                                    {
+                                        "mul": ["triton_poi_fused_mul_0:1"],
+                                        "mm_default": ["extern_kernels.mm:2"],
+                                        "add_tensor": ["triton_poi_fused_addmm_1:3"],
+                                        "gelu": ["torch.ops.aten.gelu.default:4"],
+                                    },
+                                ),
+                                (
+                                    "postToPre",
+                                    {
+                                        "mul": ["mul"],
+                                        "mm_default": ["addmm"],
+                                        "add_tensor": ["addmm"],
+                                        "gelu": ["gelu"],
+                                    },
+                                ),
+                                (
+                                    "preToPost",
+                                    {
+                                        "mul": ["mul"],
+                                        "addmm": ["mm_default", "add_tensor"],
+                                        "gelu": ["gelu"],
+                                    },
+                                ),
                             ]
                         self._check_provenance_tracking_node_mappings(
                             filepath, expected_mapping
@@ -315,12 +327,12 @@ class TestProvenanceTracingArtifact(TestCase):
                     filepath = Path(m.group(1))
                     if backend == "inductor":
                         expected_data = {
-                            "extern_kernels.addmm:1": ["addmm"],
+                            "torch.ops.aten.addmm.default:1": ["addmm"],
                         }
                     else:
                         # backend = aot_inductor
                         expected_data = {
-                            f"aoti_torch_{GPU_TYPE}_addmm_out:2": ["addmm"],
+                            f"aoti_torch_{GPU_TYPE}_addmm:2": ["addmm"],
                             "triton_poi_fused_0:1": ["_tensor_constant1"],
                         }
 
@@ -756,51 +768,55 @@ class TestProvenanceTracingStackTraces(TestCase):
             with open(json_path) as f:
                 kernel_info = json.load(f)
 
+            # Expected kernels and their provenance, including the debug handle
+            # numbering, which follows the order the kernels are emitted into the
+            # generated wrapper.  On NPU, aten.gelu has no c-shim and stays an
+            # extern kernel, and `torch.addmm(c, d, b)` is lowered to an extern
+            # mm plus a standalone pointwise add for `+ c`.
             expected = {
-                "triton_poi_fused_addmm_relu_sigmoid_0:2": {
-                    "stack_traces": [
-                        "x = self.sigmoid(x)",
-                        "x = self.fc1(x)",
-                        "x = self.relu(x)",
-                    ],
-                    "post_grad_nodes": ["sigmoid", "relu", "add_tensor_1"],
-                    "pre_grad_nodes": ["sigmoid", "relu", "linear"],
-                },
-                "triton_poi_fused_mul_1:3": {
+                "triton_poi_fused_mul_0:1": {
                     "stack_traces": [
                         "d = a * 3.14",
                     ],
                     "post_grad_nodes": ["mul"],
                     "pre_grad_nodes": ["mul"],
                 },
-                "triton_poi_fused_addmm_gelu_2:5": {
+                "aoti_torch_npu_mm_out:2": {
                     "stack_traces": [
-                        "z = torch.nn.functional.gelu(y)",
                         "y = torch.addmm(c, d, b)",
                     ],
-                    "post_grad_nodes": [
-                        "mul_3",
-                        "mul_1",
-                        "add_tensor",
-                        "add",
-                        "erf",
-                        "mul_2",
-                    ],
-                    "pre_grad_nodes": ["gelu", "addmm"],
+                    "post_grad_nodes": ["mm_default"],
+                    "pre_grad_nodes": ["addmm"],
                 },
-                f"aoti_torch_{GPU_TYPE}_mm_out:1": {
+                "triton_poi_fused_addmm_1:3": {
+                    "stack_traces": [
+                        "y = torch.addmm(c, d, b)",
+                    ],
+                    "post_grad_nodes": ["add_tensor"],
+                    "pre_grad_nodes": ["addmm"],
+                },
+                "aoti_torch_npu_gelu:4": {
+                    "stack_traces": [
+                        "z = torch.nn.functional.gelu(y)",
+                    ],
+                    "post_grad_nodes": ["gelu"],
+                    "pre_grad_nodes": ["gelu"],
+                },
+                "aoti_torch_npu_mm_out:5": {
                     "stack_traces": [
                         "x = self.fc1(x)",
                     ],
                     "post_grad_nodes": ["mm_default_1"],
                     "pre_grad_nodes": ["linear"],
                 },
-                f"aoti_torch_{GPU_TYPE}_mm_out:4": {
+                "triton_poi_fused_addmm_relu_sigmoid_2:6": {
                     "stack_traces": [
-                        "y = torch.addmm(c, d, b)",
+                        "x = self.sigmoid(x)",
+                        "x = self.fc1(x)",
+                        "x = self.relu(x)",
                     ],
-                    "post_grad_nodes": ["mm_default"],
-                    "pre_grad_nodes": ["addmm"],
+                    "post_grad_nodes": ["add_tensor_1", "relu", "sigmoid"],
+                    "pre_grad_nodes": ["sigmoid", "relu", "linear"],
                 },
             }
 
