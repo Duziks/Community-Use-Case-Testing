@@ -18705,6 +18705,17 @@ if RUN_GPU:
                 (0, 1, 2, 3),
             )
 
+        def test_optimize_indexing_dtype(self):
+            def fn(x: torch.Tensor) -> torch.Tensor:
+                return aten.upsample_bilinear2d.vec(x, None, True, [2.0, 2.0])
+
+            fn_opt = torch.compile(fn, backend="inductor")
+            inps = [torch.randn(2, 4, 16, 16, device=GPU_TYPE)]
+            code = run_and_get_triton_code(fn_opt, *inps)
+            self.assertTrue("to(tl.int32)" in code)
+            self.assertFalse("to(tl.int64)" in code)
+
+            self.assertEqual(fn_opt(*inps), fn(*inps))
 
         def test_index_expr_pure_indexing_no_int64(self):
             def fn(x: torch.Tensor) -> torch.Tensor:
