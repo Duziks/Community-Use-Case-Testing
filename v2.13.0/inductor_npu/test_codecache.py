@@ -152,9 +152,54 @@ if HAS_TRITON:
 torch._dynamo.config.fake_tensor_cache_enabled = True
 torch._dynamo.config.fake_tensor_cache_crosscheck_enabled = True
 
+STATIC_LAUNCHER_DEVICES = ("cuda", "xpu", "npu")
 
-STATIC_LAUNCHER_DEVICES = ("cuda", "xpu")
+if torch.npu.is_available():
+    from torch._inductor import ir as _ir
+    from torch.utils import _pytree as _pytree
 
+    _orig_process_kernel = _ir.FallbackKernel.process_kernel.__func__
+    _orig_accel_get_default_gen = getattr(
+        torch._C, "_accelerator_getDefaultGenerator", None
+    )
+
+    def _npu_get_default_generator(device_index):
+        try:
+            return torch.npu.default_generators[device_index]
+        except Exception:
+            if _orig_accel_get_default_gen is not None:
+                return _orig_accel_get_default_gen(device_index)
+            raise
+
+    def _npu_relabel_generator_state(obj):
+        import dataclasses as _dc
+        from torch._inductor.ir import GeneratorState as _GS
+        if isinstance(obj, _GS) and obj.device.type == "npu":
+            return _dc.replace(
+                obj, device=torch.device("cuda", obj.device.index)
+            ), True
+        return obj, False
+
+    def _npu_process_kernel(cls, kernel, *args, **kwargs):
+        flat, spec = _pytree.tree_flatten((args, kwargs))
+        any_patched = False
+        new_flat = []
+        for obj in flat:
+            relabeled, patched = _npu_relabel_generator_state(obj)
+            any_patched = any_patched or patched
+            new_flat.append(relabeled)
+        new_args, new_kwargs = _pytree.tree_unflatten(new_flat, spec)
+        if any_patched:
+            torch._C._accelerator_getDefaultGenerator = _npu_get_default_generator
+        try:
+            return _orig_process_kernel(cls, kernel, *new_args, **new_kwargs)
+        finally:
+            if any_patched and _orig_accel_get_default_gen is not None:
+                torch._C._accelerator_getDefaultGenerator = _orig_accel_get_default_gen
+
+    if not getattr(_ir.FallbackKernel.process_kernel, "_npu_gs_patched", False):
+        _ir.FallbackKernel.process_kernel = classmethod(_npu_process_kernel)
+        _ir.FallbackKernel.process_kernel.__func__._npu_gs_patched = True
 
 class TestCacheKeyStrategy(TestCase):
     def _compact_sha256(self, data: bytes) -> str:
