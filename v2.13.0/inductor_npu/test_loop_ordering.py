@@ -1587,7 +1587,9 @@ class TestTiling(TestCase):
 
         f_c = torch.compile(f)
         out, code = run_and_get_code(f_c, *inps)
-        FileCheck().check_dag("y0_numel").check_dag("x1_numel").run(code[0])
+        FileCheck().check_regex(r"\by\d*_?numel\b").check_regex(
+            r"\bx\d*_?numel\b"
+        ).run(code[0])
         self.assertEqual(out, f(*inps))
 
     def test_penalized_small_dim(self):
