@@ -3450,10 +3450,13 @@ class TestMaxAutotune(TestCase):
         tol = 5e-2 if dtype == torch.float32 else 1e-2
         torch.testing.assert_close(out, expected, atol=tol, rtol=tol)
 
+        # On NPU the mm node records aten.matmul as its original aten op, so
+        # the fused kernel is named ..._matmul_relu_sub instead of ..._mm_relu_sub.
+        mm_name = "matmul" if GPU_TYPE == "npu" else "mm"
         kernel_name = (
             "triton_tem_fused_addmm_relu_sub"
             if use_addmm
-            else "triton_tem_fused_mm_relu_sub"
+            else f"triton_tem_fused_{mm_name}_relu_sub"
         )
         FileCheck().check(kernel_name).run(code[0])
 
@@ -3496,6 +3499,11 @@ class TestMaxAutotune(TestCase):
         FileCheck().check_not(kernel_name).run(code_unfused[0])
         if GPU_TYPE == "xpu" and dtype == torch.float16:
             torch.testing.assert_close(out, out_unfused, atol=5e-4, rtol=5e-4)
+        elif GPU_TYPE == "npu" and dtype != torch.float32:
+            # The fused and unfused compilations autotune independently and can
+            # pick different tiles, which rounds the fp32 accumulator at
+            # different points; reuse the tolerance used against eager above.
+            torch.testing.assert_close(out, out_unfused, atol=tol, rtol=tol)
         else:
             self.assertEqual(out, out_unfused)
 
