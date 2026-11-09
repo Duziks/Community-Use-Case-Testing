@@ -5238,10 +5238,16 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
             ),
         ]
 
-        def single_npu_mm_configs(m, n, k, *, max_block_dim=256):
+        def single_npu_mm_configs(m, n, k, **kwargs):
             # The real generator yields ~100 configs, all of which would be
             # precompiled; keep the smallest tile to limit register pressure.
-            configs = _get_npu_mm_configs(m, n, k, max_block_dim=max_block_dim)
+            # Forward every keyword instead of pinning the signature: tuned_mm
+            # now passes dtype / is_a_trans / is_b_trans / has_bias (and addmm
+            # additionally max_block_dim), and a pinned signature made this
+            # mock raise TypeError inside tuned_mm's try/except, which silently
+            # dropped every NPU triton choice so the matmul fell back to
+            # extern_kernels.mm.
+            configs = _get_npu_mm_configs(m, n, k, **kwargs)
             if not configs:
                 return []
             return [dict(min(configs, key=lambda c: c["BLOCK_M"] * c["BLOCK_N"]))]
