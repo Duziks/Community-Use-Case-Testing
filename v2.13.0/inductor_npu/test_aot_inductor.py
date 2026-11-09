@@ -286,6 +286,7 @@ class AOTInductorTestsTemplate:
             )
 
     @common_utils.parametrize("embed_kernel_binary", [False, True])
+    @unittest.skip("npu does not support loaded_modules")
     def test_loaded_modules_tracking(self, embed_kernel_binary):
         # Verify that AOTI codegen on CUDA/HIP passes &kernels_.loaded_modules_
         # to loadKernel so CUmodule handles are tracked and unloaded on
