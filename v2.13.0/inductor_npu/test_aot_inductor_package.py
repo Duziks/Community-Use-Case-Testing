@@ -374,6 +374,7 @@ class TestAOTInductorPackage(TestCase):
     #     TEST_CUDA and _get_torch_cuda_version() < TRITON_PTXAS_VERSION,
     #     "Test is only supported on CUDA {}.{}+".format(*TRITON_PTXAS_VERSION),
     # )
+    @unittest.skip("npu does not support standalone compilation of cpp_wrapper code")
     def test_compile_after_package(self):
         self.check_package_cpp_only()
 
@@ -613,6 +614,7 @@ class TestAOTInductorPackage(TestCase):
     # @requires_triton_ptxas_compat
     @unittest.skipIf(IS_FBCODE, "cmake won't work in fbcode")
     @torch._inductor.config.patch("test_configs.use_libtorch", True)
+    @unittest.skip("npu does not support standalone compilation of cpp_wrapper code")
     def test_compile_with_exporter_weights(self):
         self.check_package_cpp_only()
 
