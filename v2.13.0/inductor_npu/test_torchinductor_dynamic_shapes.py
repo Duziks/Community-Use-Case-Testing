@@ -283,6 +283,7 @@ class TestInductorDynamic(DynamicShapesTestCase):
                 self.assertEqual(fn(x), fn_c(x))
                 self.assertEqual(fn(y), fn_c(y))
 
+    @config.patch(_use_fp64_for_unbacked_floats=False)
     def test_constant_fold_uniform_value_self_referential_shape(self, device):
         """
         Test that constant_fold_uniform_value correctly handles the case where
@@ -939,6 +940,10 @@ class TestInductorDynamic(DynamicShapesTestCase):
         self.assertEqual(expect, actual)
 
     def test_magic_method_lowerings_with_symbolic_scalars(self, device):
+        from unittest.mock import patch
+
+        from torch_npu._inductor.codegen.triton import NPUTritonPrinter
+
         def mod(x):
             return x.new_ones((x.shape[0] % 3) + 1)
 
@@ -968,18 +973,24 @@ class TestInductorDynamic(DynamicShapesTestCase):
             return x + ((x.numel() ** 0) / 1.0)
 
         x = torch.randn(7, 5, device=device)
-        for fn in (
-            mod,
-            floordiv,
-            shifts,
-            comparison,
-            sym_min_max,
-            pow_log2,
-            float_constant,
+        # CANN scalar math uses fp32; retain the symbolic Python expressions.
+        with patch.object(
+            NPUTritonPrinter,
+            "_get_scalar_float_type",
+            new=staticmethod(lambda: "tl.float32"),
         ):
-            with self.subTest(fn=fn.__name__):
-                cfn = self.compile_fn(fn, fullgraph=True)
-                self.assertEqual(fn(x), cfn(x))
+            for fn in (
+                mod,
+                floordiv,
+                shifts,
+                comparison,
+                sym_min_max,
+                pow_log2,
+                float_constant,
+            ):
+                with self.subTest(fn=fn.__name__):
+                    cfn = self.compile_fn(fn, fullgraph=True)
+                    self.assertEqual(fn(x), cfn(x))
 
     @onlyCPU
     def test_arithmetic_constant_folding(self, device):

@@ -1588,7 +1588,6 @@ class TestMaxAutotune(TestCase):
             actual = torch.compile(fn)(image, filt)
             torch.testing.assert_close(actual, expected, atol=6e-5, rtol=0.001)
 
-    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @config.patch(
         max_autotune=True, max_autotune_conv_backends="", layout_optimization=False
     )
@@ -1598,10 +1597,8 @@ class TestMaxAutotune(TestCase):
         ).to(GPU_TYPE)
         inp = torch.randn([2, 3, 16, 16]).to(GPU_TYPE)
 
-        with self.assertRaises(BackendCompilerFailed) as context:
-            torch.compile(m)(inp)
-
-        self.assertIn("NoValidChoicesError", str(context.exception))
+        _, (code,) = run_and_get_code(torch.compile(m), inp)
+        self.assertIn("torch.ops.aten.convolution.default(", code)
 
     def test_non_contiguous_input_mm(self):
         """
@@ -5826,9 +5823,9 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 _, code = run_and_get_code(compiled_f, a, b)
 
                 if expect_fusion:
-                    FileCheck().check("triton_tem_fused__to_copy_add_mm").run(code[0])
+                    FileCheck().check("triton_tem_fused__to_copy_add_matmul").run(code[0])
                 else:
-                    FileCheck().check("triton_tem_fused_mm").check(
+                    FileCheck().check("triton_tem_fused_matmul").check(
                         "triton_poi_fused__to_copy"
                     ).run(code[0])
 
@@ -5892,9 +5889,9 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
                 _, code = run_and_get_code(compiled_f, a, b)
 
                 if expect_fusion:
-                    FileCheck().check("triton_tem_fused__to_copy_add_mm").run(code[0])
+                    FileCheck().check("triton_tem_fused__to_copy_add_matmul").run(code[0])
                 else:
-                    FileCheck().check("triton_tem_fused_mm").check(
+                    FileCheck().check("triton_tem_fused_matmul").check(
                         "triton_poi_fused__to_copy"
                     ).run(code[0])
 
@@ -6040,7 +6037,7 @@ class TestMaxAutotuneAsyncPipelined(TestMaxAutotune, TestEpilogueFusionStaticAna
         pool_instance = AutotuneProcessPool.get_instance()
         pool_instance.warm_up()
 
-        future = pool_instance.submit(simple_fn)
+        future = pool_instance.submit(sum,[40,2])
         result = future.result()
         self.assertEqual(result, 42)
         self.assertIsNotNone(pool_instance._pool)

@@ -1680,38 +1680,40 @@ class CudaReproTests(TestCase):
             gc.collect()
 
     @unittest.skipIf(
-        not PLATFORM_SUPPORTS_FLASH_ATTENTION, "flash attention not supported"
+        not PLATFORM_SUPPORTS_FLASH_ATTENTION and not torch.npu.is_available(),
+        "flash attention not supported",
     )
     def test_flash_attention_dynamic(self):
+        from contextlib import nullcontext
+
         class Model(nn.Module):
             def __init__(self, *args, **kwargs) -> None:
                 super().__init__(*args, **kwargs)
-
                 self.q = nn.Linear(1024, 1024)
                 self.k = nn.Linear(1024, 1024)
                 self.v = nn.Linear(1024, 1024)
 
             def forward(self, x):
                 batch_size, seq_len, _ = x.size()
-
                 queries = self.q(x).view(batch_size, seq_len, 8, 128).transpose(2, 1)
                 keys = self.k(x).view(batch_size, seq_len, 8, 128).transpose(2, 1)
                 values = self.v(x).view(batch_size, seq_len, 8, 128).transpose(2, 1)
-
-                attn = F.scaled_dot_product_attention(
-                    queries,
-                    keys,
-                    values,
-                )
-
-                return attn
+                if x.device.type == "npu":
+                    # Match SDPA's scale, no mask, no dropout, non-causal semantics.
+                    return torch_npu.npu_fusion_attention(
+                        queries, keys, values, 8, "BNSD",
+                        scale=128**-0.5, keep_prob=1.0,
+                    )[0]
+                return F.scaled_dot_product_attention(queries, keys, values)
 
         cnts = torch._dynamo.testing.CompileCounterWithBackend("inductor")
+        eager_model = Model().to(device_type).half()
+        is_npu = next(eager_model.parameters()).device.type == "npu"
+        model = torch.compile(eager_model, backend=cnts, dynamic=True, fullgraph=is_npu)
 
-        model = Model().to(device_type).half()
-        model = torch.compile(model, backend=cnts, dynamic=True)
-
-        with sdpa_kernel(SDPBackend.FLASH_ATTENTION):
+        with config.patch({
+            "implicit_fallbacks": True if is_npu else config.implicit_fallbacks
+        }), (nullcontext() if is_npu else sdpa_kernel(SDPBackend.FLASH_ATTENTION)):
             input1 = torch.rand(5, 512, 1024, device=device_type, dtype=torch.float16)
             input2 = torch.rand(5, 513, 1024, device=device_type, dtype=torch.float16)
             input3 = torch.rand(5, 514, 1024, device=device_type, dtype=torch.float16)
@@ -1719,8 +1721,14 @@ class CudaReproTests(TestCase):
             out1 = model(input1)
             out2 = model(input2)
             out3 = model(input3)
+            if is_npu:
+                self.assertEqual(out1, eager_model(input1))
+                self.assertEqual(out2, eager_model(input2))
+                self.assertEqual(out3, eager_model(input3))
 
-        self.assertEqual(cnts.frame_count, 2)
+        # The native NPU path has no CUDA alignment-based FA dispatch split.
+        # Require full sequence-length reuse, rather than accepting 3 compilations.
+        self.assertEqual(cnts.frame_count, 1 if is_npu else 2)
 
     @config.patch({"triton.cudagraphs": True})
     def test_index_put_no_fallback_cudagraph(self):
@@ -2727,7 +2735,11 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
 
         out, (_, bw_code) = run_fw_bw_and_get_code(lambda: torch.compile(f)(x, y))
         fc = FileCheck()
-        fc.check("tl.atomic_add")
+        if x.device.type == "npu":
+            # fc.check("tl.atomic_add")  # NPU uses native index_add; GPU uses Triton atomic_add.
+            fc.check("aten.index_add.default")
+        else:
+            fc.check("tl.atomic_add")
         fc.run(bw_code)
 
         self.assertEqual(f(x_ref, y_ref), out)
@@ -3271,10 +3283,7 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
         self.assertNotEqual(eager_div, compiled_div)
         self.assertTrue("div_rn" not in code)
 
-    @config.patch({"eager_numerics.disable_ftz": True})
     def test_disabling_ftz_yields_subnormals(self):
-        if torch.npu.is_available():
-            self.skipTest('TA不支持本例disable_ftz关闭FTZ编译选项')
         from decimal import Decimal
 
         x = -127.0
@@ -3283,10 +3292,18 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
         def fn(x):
             return 2.0**x
 
-        compile_out = torch.compile(fn)(x_ten)
-        compile_decimal = Decimal(compile_out.item())
+        is_npu = x_ten.device.type == "npu"
+        # TA has no disable_ftz option; NPU checks its default FTZ behavior.
+        with config.patch({"eager_numerics.disable_ftz": not is_npu}):
+            cfn = torch.compile(fn)
+            compile_out = cfn(x_ten)
+            compile_decimal = Decimal(compile_out.item())
 
-        self.assertTrue(compile_decimal > Decimal(0))
+            if is_npu:
+                self.assertEqual(compile_decimal, Decimal(0))
+                self.assertEqual(compile_decimal, Decimal(fn(x_ten).item()))
+            else:
+                self.assertTrue(compile_decimal > Decimal(0))
 
     @skipIfXpu(msg="Decimal object comparison failed - torch-xpu-ops: 2810")
     @skipIfRocm(msg="ROCm preserves subnormals by default")

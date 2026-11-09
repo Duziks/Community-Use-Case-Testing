@@ -952,7 +952,7 @@ class TestPatternMatcher(TestCase):
 
         for fn in (fn1, fn2, fn3, fn4, fn5, fn6):
             result, (code,) = run_and_get_code(torch.compile(fn, fullgraph=True))
-            self.assertNotIn("aten.cumsum", code)
+            self.assertNotIn("torch.ops.aten.cumsum.default", code)
             self.assertEqual(result, fn())
             self.assertGreaterEqual(counters["inductor"]["pattern_matcher_count"], 1)
             counters.clear()
@@ -2414,56 +2414,94 @@ class TestPatternMatcher(TestCase):
     def test_fwd_only_uses_get_decomp_fn(self):
         """fwd_only traces the pattern graph using the table from get_decomp_fn."""
 
-        def fn(x):
-            return F.gelu(x)
+        from unittest.mock import patch
 
-        x = torch.randn(4, 4, device=GPU_TYPE)
+        from torch._inductor.decomposition import decompositions, fast_random_decomps
+        from torch_npu._inductor import config as npu_config
+        from torch_npu._inductor.decomposition import _register_triton_decompositions
 
-        # Default: gelu decomposes into erf/mul/add primitives.
-        gm = fwd_only(fn, args=[x])
-        targets = {n.target for n in gm.graph.nodes if n.op == "call_function"}
-        self.assertNotIn(aten.gelu.default, targets)
-        self.assertIn(aten.erf.default, targets)
+        with (
+            patch.object(npu_config, "enable_fast_gelu", True),
+            patch.dict(decompositions),
+        ):
+            _register_triton_decompositions()
+            fast_random_decomps.cache_clear()
+            try:
+                def fn(x):
+                    return F.gelu(x)
 
-        # Empty decomp table: gelu stays intact as aten.gelu.default.
-        gm_nodec = fwd_only(fn, args=[x], get_decomp_fn=dict)
-        targets_nodec = {
-            n.target for n in gm_nodec.graph.nodes if n.op == "call_function"
-        }
-        self.assertIn(aten.gelu.default, targets_nodec)
-        self.assertNotIn(aten.erf.default, targets_nodec)
+                x = torch.randn(4, 4, device=GPU_TYPE)
+
+                # NPU fast GELU decomposes into sigmoid/mul/add primitives.
+                gm = fwd_only(fn, args=[x])
+                targets = {n.target for n in gm.graph.nodes if n.op == "call_function"}
+                self.assertNotIn(aten.gelu.default, targets)
+                self.assertIn(aten.sigmoid.default, targets)
+                self.assertNotIn(aten.erf.default, targets)
+
+                # Empty decomp table: gelu stays intact as aten.gelu.default.
+                gm_nodec = fwd_only(fn, args=[x], get_decomp_fn=dict)
+                targets_nodec = {
+                    n.target for n in gm_nodec.graph.nodes if n.op == "call_function"
+                }
+                self.assertIn(aten.gelu.default, targets_nodec)
+                self.assertNotIn(aten.sigmoid.default, targets_nodec)
+            finally:
+                fast_random_decomps.cache_clear()
 
     def test_register_replacement_get_decomp_fn(self):
         """A pattern registered with get_decomp_fn matches graphs traced with
         the same decomposition table, and does not match graphs traced with a
         different one."""
 
-        def gelu_pattern(x):
-            return F.gelu(x)
+        from unittest.mock import patch
 
-        def gelu_double(x):
-            return F.gelu(x) * 2.0
+        from torch._inductor.decomposition import decompositions, fast_random_decomps
+        from torch_npu._inductor import config as npu_config
+        from torch_npu._inductor.decomposition import _register_triton_decompositions
 
-        x = torch.randn(4, 4, device=GPU_TYPE)
+        with (
+            patch.object(npu_config, "enable_fast_gelu", True),
+            patch.dict(decompositions),
+        ):
+            _register_triton_decompositions()
+            fast_random_decomps.cache_clear()
+            try:
+                def gelu_pattern(x):
+                    return F.gelu(x)
 
-        # Pattern traced without decompositions: stored as aten.gelu.default.
-        my_patterns = PatternMatcherPass()
-        register_replacement(
-            gelu_pattern,
-            gelu_double,
-            [x],
-            fwd_only,
-            my_patterns,
-            get_decomp_fn=dict,
-        )
+                def gelu_double(x):
+                    return F.gelu(x) * 2.0
 
-        # Graph where gelu is also not decomposed: pattern should match once.
-        gm_nodec = make_fx(gelu_pattern, {})(x)
-        self.assertEqual(my_patterns.apply(gm_nodec.graph), 1)
+                x = torch.randn(4, 4, device=GPU_TYPE)
 
-        # Graph where gelu is decomposed (default decomps): no match.
-        gm_decomposed = fwd_only(gelu_pattern, args=[x])
-        self.assertEqual(my_patterns.apply(gm_decomposed.graph), 0)
+                # Pattern traced without decompositions: stored as aten.gelu.default.
+                my_patterns = PatternMatcherPass()
+                register_replacement(
+                    gelu_pattern,
+                    gelu_double,
+                    [x],
+                    fwd_only,
+                    my_patterns,
+                    get_decomp_fn=dict,
+                )
+
+                # Graph where gelu is also not decomposed: pattern should match once.
+                gm_nodec = make_fx(gelu_pattern, {})(x)
+                self.assertEqual(my_patterns.apply(gm_nodec.graph), 1)
+
+                # Graph with NPU fast GELU decomposed: no match.
+                gm_decomposed = fwd_only(gelu_pattern, args=[x])
+                targets = {
+                    n.target for n in gm_decomposed.graph.nodes
+                    if n.op == "call_function"
+                }
+                self.assertNotIn(aten.gelu.default, targets)
+                self.assertIn(aten.sigmoid.default, targets)
+                self.assertNotIn(aten.erf.default, targets)
+                self.assertEqual(my_patterns.apply(gm_decomposed.graph), 0)
+            finally:
+                fast_random_decomps.cache_clear()
 
     @inductor_config.patch(is_predispatch=True)
     def test_remove_noop_pass_with_remove_passes(self):

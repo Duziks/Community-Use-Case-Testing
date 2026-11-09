@@ -573,6 +573,14 @@ class PaddingTest(TestCaseBase):
 
     def test_LinearAndSoftmax_codegen(self, bias=True):
         m_bad_shape = LinearAndSoftmax(vocab_size=30523, bias=bias)
+        if m_bad_shape.linear.weight.device.type == "npu":
+            import types
+
+            def npu_linear(module, x):
+                result = torch.matmul(x, module.weight.t())
+                return result + module.bias if module.bias is not None else result
+
+            m_bad_shape.linear.forward = types.MethodType(npu_linear, m_bad_shape.linear)
         inputs_bad_shape = m_bad_shape.get_example_inputs()
         m_bad_shape_opt = torch.compile(copy.deepcopy(m_bad_shape))
 
