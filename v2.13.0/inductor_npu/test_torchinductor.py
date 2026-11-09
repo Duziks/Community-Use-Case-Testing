@@ -13627,25 +13627,27 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @skip_if_not_triton
     @config.patch({"force_disable_caches": True})
     def test_mark_dynamic_with_hint_override(self):
-        @torch.compile
-        def no_override(x):
-            return x.sum(dim=0)
+        # Avoid timing-dependent autotuning while comparing size hints.
+        with DeterministicGuard(True, warn_only=True):
+            @torch.compile
+            def no_override(x):
+                return x.sum(dim=0)
 
-        @torch.compile
-        def override(x):
-            return x.sum(dim=0)
+            @torch.compile
+            def override(x):
+                return x.sum(dim=0)
 
-        x_small = torch.randn(4096, 512, device=GPU_TYPE)
-        torch._dynamo.decorators.mark_dynamic(x_small, 0)
-        code1 = run_and_get_triton_code(no_override, x_small)
+            x_small = torch.randn(4096, 512, device=GPU_TYPE)
+            torch._dynamo.decorators.mark_dynamic(x_small, 0)
+            code1 = run_and_get_triton_code(no_override, x_small)
 
-        torch._dynamo.reset_code_caches()
+            torch._dynamo.reset_code_caches()
 
-        torch._dynamo.decorators.mark_dynamic(x_small, 0, hint_override=4096 * 10)
-        code2 = run_and_get_triton_code(override, x_small)
-        self.assertNotEqual(code1, code2)
+            torch._dynamo.decorators.mark_dynamic(x_small, 0, hint_override=4096 * 10)
+            code2 = run_and_get_triton_code(override, x_small)
+            self.assertNotEqual(code1, code2)
 
-        self.assertEqual(no_override(x_small), override(x_small))
+            self.assertEqual(no_override(x_small), override(x_small))
 
     @requires_gpu()
     @skip_if_not_triton
