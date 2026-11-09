@@ -514,7 +514,6 @@ class TestKernelBenchmark(TestCase):
         # 20000 * 5000 * 4 = 200MB for a
         self.check_bandwidth(compiled_module, "0.200")
 
-    @unittest.skip
     def test_split_scan(self):
         @torch.compile
         def f(a):
