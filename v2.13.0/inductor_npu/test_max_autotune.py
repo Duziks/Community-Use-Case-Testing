@@ -1588,7 +1588,6 @@ class TestMaxAutotune(TestCase):
             actual = torch.compile(fn)(image, filt)
             torch.testing.assert_close(actual, expected, atol=6e-5, rtol=0.001)
 
-    @unittest.skip("Temporarily disabled pending TorchNPU Inductor compatibility fixes")
     @config.patch(
         max_autotune=True, max_autotune_conv_backends="", layout_optimization=False
     )
@@ -1598,10 +1597,8 @@ class TestMaxAutotune(TestCase):
         ).to(GPU_TYPE)
         inp = torch.randn([2, 3, 16, 16]).to(GPU_TYPE)
 
-        with self.assertRaises(BackendCompilerFailed) as context:
-            torch.compile(m)(inp)
-
-        self.assertIn("NoValidChoicesError", str(context.exception))
+        _, (code,) = run_and_get_code(torch.compile(m), inp)
+        self.assertIn("torch.ops.aten.convolution.default(", code)
 
     def test_non_contiguous_input_mm(self):
         """
@@ -1613,7 +1610,7 @@ class TestMaxAutotune(TestCase):
         )
         y = rand_strided((2048, 768), (768, 1), dtype=torch.bfloat16, device=GPU_TYPE)
 
-        @torch.compile(mode="max-autotune")
+        @torch.compile(mode="max-autotune-no-cudagraphs")
         def f(x, y):
             return x @ y
 
@@ -1628,7 +1625,7 @@ class TestMaxAutotune(TestCase):
         )
         y = rand_strided((2048, 768), (768, 1), dtype=torch.bfloat16, device=GPU_TYPE)
 
-        @torch.compile(mode="max-autotune")
+        @torch.compile(mode="max-autotune-no-cudagraphs")
         def f(x, y):
             return torch.addmm(b, x, y)
 
@@ -1644,7 +1641,7 @@ class TestMaxAutotune(TestCase):
             (1, 2048, 768), (0, 768, 1), dtype=torch.bfloat16, device=GPU_TYPE
         )
 
-        @torch.compile(mode="max-autotune")
+        @torch.compile(mode="max-autotune-no-cudagraphs")
         def f(x, y):
             return torch.bmm(x, y)
 
@@ -1663,7 +1660,7 @@ class TestMaxAutotune(TestCase):
         x2 = rand_strided((50257, 2048), (1, 50304), device=GPU_TYPE)
         y2 = rand_strided((2048, 768), (768, 1), device=GPU_TYPE)
 
-        @torch.compile(mode="max-autotune")
+        @torch.compile(mode="max-autotune-no-cudagraphs")
         def f(x1, y1, x2, y2):
             return x1 @ y1 + x2 @ y2
 
@@ -5241,10 +5238,16 @@ class TestEpilogueFusionStaticAnalysis(TestCase):
             ),
         ]
 
-        def single_npu_mm_configs(m, n, k, *, max_block_dim=256):
+        def single_npu_mm_configs(m, n, k, **kwargs):
             # The real generator yields ~100 configs, all of which would be
             # precompiled; keep the smallest tile to limit register pressure.
-            configs = _get_npu_mm_configs(m, n, k, max_block_dim=max_block_dim)
+            # Forward every keyword instead of pinning the signature: tuned_mm
+            # now passes dtype / is_a_trans / is_b_trans / has_bias (and addmm
+            # additionally max_block_dim), and a pinned signature made this
+            # mock raise TypeError inside tuned_mm's try/except, which silently
+            # dropped every NPU triton choice so the matmul fell back to
+            # extern_kernels.mm.
+            configs = _get_npu_mm_configs(m, n, k, **kwargs)
             if not configs:
                 return []
             return [dict(min(configs, key=lambda c: c["BLOCK_M"] * c["BLOCK_N"]))]
@@ -5958,7 +5961,6 @@ class TestMaxAutotuneAsyncPipelined(TestMaxAutotune, TestEpilogueFusionStaticAna
 
     SKIP_TESTS = {
         "test_inf_timing": "Logs not consistent with async pipelined autotuning",
-        "test_non_contiguous_input_mm_plus_mm": "Flaky on trunk",
         "test_autotune_device_guard": "Flaky on trunk",
         "test_template_bad_epilogue_fusion": "Benchmarking path is different",
         "test_persistent_tma_epilogue_fusion_store_cache": "Epilogue fusion disabled in async pipelining",
