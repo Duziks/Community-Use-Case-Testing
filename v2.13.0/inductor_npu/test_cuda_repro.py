@@ -443,9 +443,30 @@ class CudaReproTests(TestCase):
             # XPU fp16 SDPA compile-vs-eager can drift ~1% relative.
             tol_kwargs = {"atol": 1e-4, "rtol": 1e-2}
 
-        self.assertEqual(compiled_out, eager_out, **tol_kwargs)
-        self.assertEqual(compiled_q.grad, eager_q.grad, **tol_kwargs)
-        self.assertEqual(compiled_kv.grad, eager_kv.grad, **tol_kwargs)
+        if device_type == "npu":
+            # Compare NPU eager/compiled errors against the same CPU FP64 reference.
+            reference = copy.deepcopy(eager).cpu().double()
+            reference_q = q.detach().cpu().double().requires_grad_(True)
+            reference_kv = kv.detach().cpu().double().requires_grad_(True)
+            with sdpa_kernel(SDPBackend.MATH):
+                reference_out = reference(
+                    reference_q, reference_kv, reference_kv,
+                    key_padding_mask=mask.cpu(), need_weights=False,
+                )[0]
+                reference_out.sum().backward()
+            for eager_value, compiled_value, golden in (
+                (eager_out, compiled_out, reference_out),
+                (eager_q.grad, compiled_q.grad, reference_q.grad),
+                (eager_kv.grad, compiled_kv.grad, reference_kv.grad),
+            ):
+                self.assertLessEqual(
+                    (compiled_value.detach().cpu().double() - golden.detach()).abs().max().item(),
+                    (eager_value.detach().cpu().double() - golden.detach()).abs().max().item(),
+                )
+        else:
+            self.assertEqual(compiled_out, eager_out, **tol_kwargs)
+            self.assertEqual(compiled_q.grad, eager_q.grad, **tol_kwargs)
+            self.assertEqual(compiled_kv.grad, eager_kv.grad, **tol_kwargs)
 
     def test_input_channels_last(self):
         if torch.npu.is_available():
