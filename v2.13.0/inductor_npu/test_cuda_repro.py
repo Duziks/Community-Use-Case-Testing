@@ -443,9 +443,63 @@ class CudaReproTests(TestCase):
             # XPU fp16 SDPA compile-vs-eager can drift ~1% relative.
             tol_kwargs = {"atol": 1e-4, "rtol": 1e-2}
 
-        self.assertEqual(compiled_out, eager_out, **tol_kwargs)
-        self.assertEqual(compiled_q.grad, eager_q.grad, **tol_kwargs)
-        self.assertEqual(compiled_kv.grad, eager_kv.grad, **tol_kwargs)
+        if device_type == "npu":
+            # Use the same quantized inputs/weights, promoted before CPU computation.
+            # Keep K and V aliased: this test checks the combined dKV gradient.
+            reference = copy.deepcopy(eager).cpu().to(dtype=torch.float64)
+            reference_q = q.detach().cpu().to(dtype=torch.float64).requires_grad_(True)
+            reference_kv = kv.detach().cpu().to(dtype=torch.float64).requires_grad_(True)
+            reference_mask = mask.detach().cpu()
+            for tensor in (*reference.parameters(), reference_q, reference_kv):
+                self.assertEqual(tensor.device.type, "cpu")
+                self.assertEqual(tensor.dtype, torch.float64)
+            with sdpa_kernel(SDPBackend.MATH):
+                reference_out = reference(
+                    query=reference_q,
+                    key=reference_kv,
+                    value=reference_kv,
+                    key_padding_mask=reference_mask,
+                    attn_mask=None,
+                    need_weights=False,
+                )[0]
+                reference_out.sum().backward()
+
+            # Compare both NPU paths against a CPU FP64 reference. Low-precision
+            # eager and compiled may round differently without losing accuracy.
+            comparisons = (
+                ("Out", eager_out, compiled_out, reference_out),
+                ("dQ", eager_q.grad, compiled_q.grad, reference_q.grad),
+                ("dKV", eager_kv.grad, compiled_kv.grad, reference_kv.grad),
+            )
+            for name, eager_value, compiled_value, reference_value in comparisons:
+                with self.subTest(output=name):
+                    self.assertIsNotNone(eager_value, name)
+                    self.assertIsNotNone(compiled_value, name)
+                    self.assertIsNotNone(reference_value, name)
+                    self.assertEqual(reference_value.device.type, "cpu")
+                    self.assertEqual(reference_value.dtype, torch.float64)
+                    eager_cpu = eager_value.detach().cpu()
+                    compiled_cpu = compiled_value.detach().cpu()
+                    expected = reference_value.detach()
+                    for value in (eager_cpu, compiled_cpu, expected):
+                        self.assertTrue(torch.isfinite(value).all().item(), name)
+                    # tol=0 avoids an absolute-tolerance shortcut: nonidentical
+                    # results use same()'s upstream FP64-relative RMSE criterion.
+                    self.assertTrue(
+                        same(eager_cpu, compiled_cpu, fp64_ref=expected, tol=0.0),
+                        msg=f"{name}: compiled error increased relative to CPU FP64",
+                    )
+                    # Also guard against a larger worst-case error, which a
+                    # tensor-wide RMSE comparison alone could hide.
+                    self.assertLessEqual(
+                        (compiled_cpu.to(torch.float64) - expected).abs().max().item(),
+                        (eager_cpu.to(torch.float64) - expected).abs().max().item(),
+                        msg=f"{name}: compiled max error exceeds eager vs CPU FP64",
+                    )
+        else:
+            self.assertEqual(compiled_out, eager_out, **tol_kwargs)
+            self.assertEqual(compiled_q.grad, eager_q.grad, **tol_kwargs)
+            self.assertEqual(compiled_kv.grad, eager_kv.grad, **tol_kwargs)
 
     def test_input_channels_last(self):
         if torch.npu.is_available():
