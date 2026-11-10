@@ -209,7 +209,14 @@ if (HAS_GPU or HAS_MPS) and not TEST_WITH_ASAN:
 
 
 class TestInductorDynamic(DynamicShapesTestCase):
-    compile_fn = partial(torch.compile, dynamic=True)
+    # NOTE: do NOT replace this with a class-level `partial(torch.compile,
+    # dynamic=True)` — Python 3.14+ makes partial a descriptor, so
+    # `self.compile_fn(fn)` would bind `self` as the first positional arg and
+    # then pass two positional args to torch.compile, triggering
+    #   TypeError: compile() takes from 0 to 1 positional arguments but
+    #   2 positional arguments (and 1 keyword-only argument) were given
+    def compile_fn(self, fn, **kwargs):
+        return torch.compile(fn, dynamic=True, **kwargs)
 
     def setUp(self):
         # HAS_CUDA_AND_TRITON also checks compute capability to skip tests

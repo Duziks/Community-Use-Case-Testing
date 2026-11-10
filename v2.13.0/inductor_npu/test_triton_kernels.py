@@ -2943,9 +2943,13 @@ def forward(self, arg0_1, arg1_1):
             return y
 
         # make sure FLOAT_CONSTANT_C is NOT annotated
-        self.assertFalse("FLOAT_CONSTANT_C" in globals().get("__annotations__", {}))
+        # Note: do NOT use globals().get("__annotations__") here —
+        # Python 3.14's PEP 649/749 defers annotation evaluation, so
+        # __annotations__ is no longer eagerly populated in globals().
+        annotations = sys.modules[__name__].__annotations__
+        self.assertFalse("FLOAT_CONSTANT_C" in annotations)
         # sanity check: STRING_CONSTANT_C _should_ be annotated
-        self.assertTrue("STRING_CONSTANT_C" in globals().get("__annotations__", {}))
+        self.assertTrue("STRING_CONSTANT_C" in annotations)
 
         x = torch.randn(512, device=GPU_TYPE)
         expected = x + 3.14
