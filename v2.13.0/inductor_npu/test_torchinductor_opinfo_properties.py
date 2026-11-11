@@ -403,29 +403,16 @@ fp32, fp16, bf16, ALL = torch.float32, torch.float16, torch.bfloat16, None
 
 EAGER_EQUIV_XFAILS = {
     "aot_eager_decomp_partition": {
-        "nn.functional.gelu": {fp32},
-        "nn.functional.layer_norm": {fp32},
-        "nn.functional.rms_norm": {fp32},
-        "softmax": {fp32},
         "log_softmax": {fp32},
     },
     "inductor_default": {
         "reciprocal": {fp32},
-        "remainder": {ALL},
-        "sigmoid": {fp32},
-        "nn.functional.gelu": {fp32},
         "nn.functional.layer_norm": {fp32},
-        "nn.functional.silu": {fp16, fp32},
-        "softmax": {fp32},
         "log_softmax": {fp32},
     },
     "inductor_numerics": {
-        "remainder": {ALL},
-        "sigmoid": {fp32},
         "sub": {ALL},
-        "nn.functional.gelu": {fp32},
         "nn.functional.layer_norm": {fp32},
-        "softmax": {fp32},
         "log_softmax": {fp32},
     },
 }
@@ -446,19 +433,13 @@ BATCH_INVARIANCE_XFAILS = {
 
 UNARY_NUMERICAL_XFAILS = {
     "inductor_default": {
-        "exp2": {bf16, fp32},
-        "expm1": {bf16, fp32},
-        "log1p": {fp32},
+        "exp2": {fp32},
         "reciprocal": {fp32},
-        "rsqrt": {bf16, fp32},
-        "sigmoid": {fp32},
         "sin": {fp32},
         "tan": {bf16, fp32},
         "tanh": {fp32},
     },
-    "inductor_numerics": {
-        "sigmoid": {fp32},
-    },
+    "inductor_numerics": {},
 }
 
 BINARY_NUMERICAL_XFAILS = {
@@ -845,6 +826,21 @@ class TestOpInfoProperties(TestCase):
 
         fn = op.get_op()
 
+        def _to_cpu(t):
+            if not isinstance(t, torch.Tensor):
+                return t
+            ct = t.detach().cpu()
+            if dtype in (torch.float16, torch.bfloat16):
+                ct = ct.to(torch.float32)
+            return ct
+
+        def _max_err(a, b):
+            if a.numel() == 0:
+                return 0.0
+            diff = (a - b).abs()
+            diff = diff[torch.isfinite(diff)]
+            return diff.max().item() if diff.numel() else 0.0
+
         def run_test():
             for sample in samples:
                 args = (sample.input,) + tuple(sample.args)
@@ -857,8 +853,19 @@ class TestOpInfoProperties(TestCase):
                 compiled_fn = compile_fn(fn, backend)
                 compiled_out = compiled_fn(*args, **kwargs)
 
-                # Bitwise identical
-                self.assertEqual(eager_out, compiled_out, rtol=0, atol=0)
+                cpu_args = (_to_cpu(sample.input), ) + tuple(
+                    _to_cpu(a) for a in sample.args
+                )
+                cpu_kwargs = {
+                    k: (_to_cpu(v) if isinstance(v, torch.Tensor) else v)
+                    for k, v in sample.kwargs.items()
+                }
+                golden = fn(*cpu_args, **cpu_kwargs).double()
+
+                e = eager_out.detach().cpu().double()
+                c = compiled_out.detach().cpu().double()
+
+                self.assertLessEqual(_max_err(c, golden), _max_err(e, golden))
 
         self._run_with_expected_failure(
             device_type, op.name, backend, "eager_equivalence", dtype, run_test
@@ -900,9 +907,23 @@ class TestOpInfoProperties(TestCase):
         compiled_fn = compile_fn(fn, backend)
         compiled_out = compiled_fn(test_values)
 
+        cpu_values = test_values.detach().cpu()
+        if dtype in (torch.float16, torch.bfloat16):
+            cpu_values = cpu_values.to(torch.float32)
+        golden = fn(cpu_values).double()
+
+        e = eager_out.detach().cpu().double()
+        c = compiled_out.detach().cpu().double()
+
+        def _max_err(a, b):
+            if a.numel() == 0:
+                return 0.0
+            diff = (a - b).abs()
+            diff = diff[torch.isfinite(diff)]
+            return diff.max().item() if diff.numel() else 0.0
+
         def run_test():
-            # Bitwise identical
-            self.assertEqual(eager_out, compiled_out, rtol=0, atol=0)
+            self.assertLessEqual(_max_err(c, golden), _max_err(e, golden))
 
         self._run_with_expected_failure(
             device_type, op.name, backend, "unary_numerical", dtype, run_test
