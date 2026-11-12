@@ -5900,8 +5900,7 @@ class TestUserKernelEpilogueFusion(torch._inductor.test_case.TestCase):
             [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7], dtype=torch.float32, device="cuda"
         )
 
-        out_fn = torch.compile(fn, options={"force_pointwise_cat":True})
-        out, code = run_and_get_code(out_fn, a, b)
+        out, code = run_and_get_code(torch.compile(fn), a, b)
         self.assertEqual(out, fn(a, b), atol=0.05, rtol=0.05)
         # no fusion, so 3 kernels: concat, add_kernel, relu
         self.check_code(code[0], num_kernels=3, num_allocs=2, num_deallocs=3)

@@ -870,7 +870,7 @@ class PaddingTest(TestCaseBase):
 
         output_shape = (shape[0] * num_inputs, shape[1])
         output_stride = input_tensors[0].stride()
-        output_line = f"buf12 = empty_strided({output_shape}, {output_stride}, device='{GPU_TYPE}', dtype=torch.float32)"
+        output_line = f"buf12 = empty_strided_{GPU_TYPE}({output_shape}, {output_stride}, torch.float32)"
         self.assertTrue(output_line in code[0])
 
     @requires_gpu()

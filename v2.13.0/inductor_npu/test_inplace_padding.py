@@ -87,7 +87,7 @@ class InplacePaddingTest(TestCase):
         check_model(self, f, (x, y), atol=1e-2, rtol=1e-2)
 
         self.assertEqual(num_inplace_padding(), 0)
-
+    @inductor_config.patch(comprehensive_padding=True)
     def test_pad_non_zero(self):
         def f(x):
             x = x + 1
@@ -119,6 +119,7 @@ class InplacePaddingTest(TestCase):
         self.assertTrue(torch.allclose(ref, act, atol=1e-2, rtol=1e-2))
         self.assertEqual(num_inplace_padding(), 1)
 
+    @inductor_config.patch(comprehensive_padding=True)
     @inductor_config.patch(cpp_wrapper=True)
     @inductor_config.patch("triton.autotune_at_compile_time", True)
     def test_pad_non_zero_cpp_wrapper(self):
