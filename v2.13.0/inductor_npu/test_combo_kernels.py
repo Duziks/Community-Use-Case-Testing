@@ -3,6 +3,8 @@ import torch_npu
 from torch_npu.contrib import transfer_to_npu
 from torch_npu.utils import _dynamo
 _dynamo.use_jit_script = True
+# Restore Triton discovery before importing test gates.
+_dynamo.patch_has_triton()
 torch.cuda.get_device_capability = lambda :(10, 0)
 import torch_npu.testing
 
@@ -635,6 +637,32 @@ class ComboKernelTests(TestCase):
         fn_c = torch.compile(fn)
 
         def get_grid(x, y):
+            if GPU_TYPE == "npu":
+                from triton.compiler import CompiledKernel
+
+                from torch._inductor.runtime.triton_compat import knobs
+
+                grids = []
+                launch_metadata = CompiledKernel.launch_metadata
+
+                def record_grid(kernel, grid, stream, *args):
+                    grids.append(tuple(grid))
+                    return launch_metadata(kernel, grid, stream, *args)
+
+                hooks = knobs.runtime if knobs else CompiledKernel
+                with (
+                    patch.object(hooks, "launch_enter_hook", lambda metadata: None),
+                    patch.object(CompiledKernel, "launch_metadata", record_grid),
+                    torch._inductor.config.patch(compile_threads=1),
+                ):
+                    # Compile and autotune with the hook installed, then inspect
+                    # only the actual execution, excluding benchmark launches.
+                    fn_c(x, y)
+                    grids.clear()
+                    out = fn_c(x, y)
+                self.assertEqual(len(grids), 1, "Expected one actual NPU Combo launch")
+                self.assertEqual(grids[0][1:], (1, 1))
+                return grids[0], out
             with tempfile.NamedTemporaryFile(suffix=".json") as trace_file:
                 trace_path = trace_file.name
                 activity = getattr(ProfilerActivity, GPU_TYPE.upper())
@@ -668,7 +696,7 @@ class ComboKernelTests(TestCase):
         self.assertEqual(out1, eager_out1)
         self.assertEqual(out2, eager_out2)
 
-        if torch._inductor.config.combo_kernel_per_subkernel_blocks:
+        if GPU_TYPE != "npu" and torch._inductor.config.combo_kernel_per_subkernel_blocks:
             self.assertEqual(grid1[1], 1)
             self.assertEqual(grid2[1], 1)
 
