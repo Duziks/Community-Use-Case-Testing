@@ -589,7 +589,15 @@ class ComboKernelTests(TestCase):
         out_eager = fn(*inps)
         fn_c = torch.compile(fn)
         out_compiled, code = run_and_get_code(fn_c, *inps)
-        self.assertEqual(out_eager, out_compiled)
+        if GPU_TYPE == "npu":
+            # Independent FP32 reduction orders can round to opposite sides of
+            # the reference near zero. Check both against the same FP64 sum.
+            reference = fn(*(inp.cpu().double() for inp in inps))
+            for expected, eager, actual in zip(reference, out_eager, out_compiled):
+                self.assertEqual(expected.float(), eager.cpu())
+                self.assertEqual(expected.float(), actual.cpu())
+        else:
+            self.assertEqual(out_eager, out_compiled)
         # 2D reduction kernels (r0_, r1_) are separated from combo kernels
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 2)
 
