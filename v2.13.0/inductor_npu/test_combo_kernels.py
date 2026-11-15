@@ -1942,15 +1942,74 @@ class ComboKernelTestsMaxAutotune(TestCase):
             torch.rand(32, 256, device=GPU_TYPE),
             torch.rand(32, 1024, device=GPU_TYPE),
         ]
-        with torch._inductor.config.patch(
-            {"combo_kernel_per_subkernel_blocks": per_subkernel}
-        ):
+        budgets = []
+        with contextlib.ExitStack() as stack:
+            if GPU_TYPE == "npu" and not per_subkernel:
+                from torch_npu._inductor.runtime.combo_tile_generator import ComboTileGenerator
+
+                original = ComboTileGenerator.descend_split_tiling
+
+                def record_configs(generator):
+                    configs = original(generator)
+                    budgets.append(
+                        (
+                            generator.max_numel_threshold,
+                            generator.max_programs,
+                            [
+                                (
+                                    generator.calculate_config_numel(cfg.kwargs),
+                                    generator.calculate_total_programs(
+                                        [
+                                            cfg.kwargs.get(f"{name.upper()}BLOCK", extent)
+                                            for name, extent in zip(generator.axis_name, generator.numels)
+                                        ]
+                                    ),
+                                )
+                                for cfg in configs
+                            ],
+                        )
+                    )
+                    return configs
+
+                stack.enter_context(patch.object(ComboTileGenerator, "descend_split_tiling", record_configs))
+            stack.enter_context(
+                torch._inductor.config.patch({"combo_kernel_per_subkernel_blocks": per_subkernel})
+            )
             out_eager = fn(*inps)
             out_compiled, code = run_and_get_code(torch.compile(fn), *inps)
         self.assertEqual(out_eager, out_compiled)
         joined = " ".join(code)
         if per_subkernel:
             self.assertNotIn("'max_persistent_rblock'", joined)
+        elif GPU_TYPE == "npu":
+            # HIP limits XBLOCK * R to avoid pathological compile times. NPU
+            # bounds resident subtiles and programs instead of exporting that key.
+            (kernel, heuristic, kwargs), = _triton_kernels(code)
+            self.assertEqual(heuristic, "persistent_reduction")
+            meta = kwargs["inductor_meta"]
+            self.assertEqual(
+                ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")), ("X0BLOCK",)
+            )
+            self.assertEqual(
+                [arg.arg for arg in kernel.args.args if "BLOCK" in arg.arg], ["X0BLOCK", "X0BLOCK_SUB"]
+            )
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 32, "r1": 256}, {"x0": 32, "r1": 1024}],
+            )
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members],
+                [True, True],
+            )
+            self.assertTrue(budgets)
+            for tile_limit, program_limit, configs in budgets:
+                self.assertGreater(tile_limit, 0)
+                self.assertGreater(program_limit, 0)
+                self.assertTrue(configs)
+                for resident_numel, programs in configs:
+                    self.assertLessEqual(resident_numel, tile_limit)
+                    self.assertLessEqual(programs, program_limit)
         else:
             self.assertIn("'max_persistent_rblock': 1024", joined)
 
