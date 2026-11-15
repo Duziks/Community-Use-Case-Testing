@@ -874,6 +874,7 @@ class ComboKernelTests(TestCase):
     @unittest.skipIf(not SM90OrLater, "Avoid oom on CI")
     def test_combo_kernel_yz_overflow(self):
         from torch.profiler import ProfilerActivity
+        from torch_npu._inductor.runtime.triton_heuristics import NPUCachingAutotuner
 
         def fn(a, b):
             a_permute = a.permute(0, 2, 1)
@@ -892,6 +893,33 @@ class ComboKernelTests(TestCase):
 
         out_eager = fn(*inps)
         fn_c = torch.compile(fn)
+        # Warm up before recording so candidate benchmarks are not counted as
+        # the final launch. NPU profiler events do not carry CUDA's grid field.
+        out_compiled, code = run_and_get_code(fn_c, *inps)
+        self.assertEqual(out_eager, out_compiled)
+        self.assertEqual(len(_triton_kernels(code)), 1)
+        launches = []
+        original_run = NPUCachingAutotuner.run
+
+        def record_run(autotuner, *args, **kwargs):
+            launcher = autotuner.best_launcher
+            self.assertIsNotNone(launcher)
+            combo = autotuner.inductor_meta["combo_grid_meta"]
+            self.assertEqual(combo["num_kernels"], 2)
+            self.assertEqual(len(combo["split_numels"]), 2)
+            self.assertEqual(combo["no_split"], [False, False])
+            blocks = dict(zip(autotuner.runtime_block_arg_names, autotuner.best_runtime_blocks))
+            block = blocks[combo["split_block"]]
+            expected_x = sum((numel + block - 1) // block for numel in combo["split_numels"])
+            runner = launcher.__globals__["runner"]
+
+            def record_launch(*launch_args):
+                launches.append((autotuner.inductor_meta["kernel_name"], tuple(launch_args[:3]), expected_x))
+                return runner(*launch_args)
+
+            # Observe the exact grid passed to the driver and delegate unchanged.
+            with patch.dict(launcher.__globals__, runner=record_launch):
+                return original_run(autotuner, *args, **kwargs)
 
         with tempfile.NamedTemporaryFile(suffix=".json") as trace_file:
             trace_path = trace_file.name
@@ -901,23 +929,20 @@ class ComboKernelTests(TestCase):
                 activities=[activity],
                 record_shapes=True,
             ) as prof:
-                out_compiled, code = run_and_get_code(fn_c, *inps)
+                with patch.object(NPUCachingAutotuner, "run", record_run):
+                    out_compiled = fn_c(*inps)
 
             prof.export_chrome_trace(trace_path)
 
             with open(trace_path) as f:
                 trace_json = json.load(f)
 
-            triton_events = [
-                event
-                for event in trace_json["traceEvents"]
-                if "triton_poi_fused_0" in event["name"]
-            ]
-
-            if torch._inductor.config.combo_kernel_per_subkernel_blocks:
-                self.assertEqual([83660, 1, 1], triton_events[0]["args"]["grid"])
-            else:
-                self.assertEqual([4, 45260, 2], triton_events[0]["args"]["grid"])
+            events = trace_json if isinstance(trace_json, list) else trace_json["traceEvents"]
+            self.assertEqual(len(launches), 1)
+            kernel_name, grid, expected_x = launches[0]
+            self.assertGreater(expected_x, 0)
+            self.assertEqual(grid, (expected_x, 1, 1))
+            self.assertTrue(any(kernel_name in event.get("name", "") for event in events))
 
         self.assertEqual(out_eager, out_compiled)
 
