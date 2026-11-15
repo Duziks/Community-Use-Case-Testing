@@ -493,9 +493,33 @@ class ComboKernelTests(TestCase):
                 "R0_BLOCK_1: tl.constexpr = 512"
             ).run(code[0])
         else:
-            FileCheck().check("XBLOCK : tl.constexpr").check_not(
-                "XBLOCK_0 : tl.constexpr"
-            ).run(code[0])
+            (kernel, heuristic, kwargs), = _triton_kernels(code)
+            self.assertEqual(heuristic, "persistent_reduction")
+            meta = kwargs["inductor_meta"]
+            # The shared NPU block has a runtime extent and a constexpr subtile.
+            self.assertEqual(
+                ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")),
+                ("X0BLOCK",),
+            )
+            self.assertEqual(
+                [arg.arg for arg in kernel.args.args if "BLOCK" in arg.arg],
+                ["X0BLOCK", "X0BLOCK_SUB"],
+            )
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 1024, "r1": 64}, {"x0": 1024, "r1": 512}],
+            )
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members],
+                [True, True],
+            )
+            rblocks = [
+                ast.literal_eval(node.value)
+                for node in ast.walk(kernel)
+                if isinstance(node, ast.AnnAssign) and node.target.id == "R1BLOCK_SUB"
+            ]
+            self.assertEqual(rblocks, [64, 512])
 
     @requires_gpu_and_triton
     def test_combo_kernel_per_config_subkernel_red_per(self):
