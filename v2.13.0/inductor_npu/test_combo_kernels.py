@@ -662,8 +662,28 @@ class ComboKernelTests(TestCase):
                 self.assertEqual(expected.float(), actual.cpu())
         else:
             self.assertEqual(out_eager, out_compiled)
-        # 2D reduction kernels (r0_, r1_) are separated from combo kernels
-        self.assertEqual(torch._inductor.metrics.generated_kernel_count, 2)
+        if GPU_TYPE == "npu" and not torch._inductor.config.combo_kernel_per_subkernel_blocks:
+            # Native multi-axis stores now compile, so both reductions share one Combo.
+            kernels = _triton_kernels(code)
+            self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
+            self.assertEqual(len(kernels), 1)
+            kernel, heuristic, kwargs = kernels[0]
+            self.assertEqual(heuristic, "persistent_reduction")
+            meta = kwargs["inductor_meta"]
+            self.assertEqual(ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")), ("X0BLOCK",))
+            self.assertIn("X0BLOCK", [arg.arg for arg in kernel.args.args])
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(len(members), 2)
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 16, "r2": 32, "r1": 64}] * 2,
+            )
+            self.assertTrue(
+                all(ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members)
+            )
+        else:
+            # 2D reduction kernels (r0_, r1_) are separated from combo kernels.
+            self.assertEqual(torch._inductor.metrics.generated_kernel_count, 2)
 
     @requires_gpu_and_triton
     @torch._inductor.config.patch(
