@@ -10,6 +10,7 @@ import torch_npu.testing
 
 # Owner(s): ["module: inductor"]
 
+import ast
 import contextlib
 import json
 import logging
@@ -56,6 +57,34 @@ except (unittest.SkipTest, ImportError) as e:
         sys.exit(0)
     raise
 import torch_npu._inductor
+
+
+def _triton_kernels(code):
+    kernels = []
+    for node in ast.walk(ast.parse("\n".join(code))):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "async_compile"
+            and node.func.attr == "triton"
+        ):
+            continue
+        source = ast.parse(ast.literal_eval(node.args[1]))
+        for kernel in source.body:
+            if not isinstance(kernel, ast.FunctionDef):
+                continue
+            for decorator in kernel.decorator_list:
+                if isinstance(decorator, ast.Call):
+                    kwargs = {keyword.arg: keyword.value for keyword in decorator.keywords}
+                    if "inductor_meta" in kwargs:
+                        kernels.append((kernel, decorator.func.attr, kwargs))
+    return kernels
+
+
+def _ast_dict_value(node, name):
+    return next(value for key, value in zip(node.keys, node.values) if ast.literal_eval(key) == name)
+
 
 @instantiate_parametrized_tests
 class ComboKernelTests(TestCase):
@@ -238,9 +267,30 @@ class ComboKernelTests(TestCase):
         out_eager = fn(*inps)
         fn_c = torch.compile(fn)
         out_compiled, code = run_and_get_code(fn_c, *inps)
-        FileCheck().check("triton_heuristics.persistent_reduction").check(
-            "size_hints={'x': 1024, 'r0_': 32}"
-        ).run(code[0])
+        (kernel, heuristic, kwargs), = _triton_kernels(code)
+        self.assertEqual(heuristic, "persistent_reduction")
+        # NPU packs the two member X extents and keeps each member's full R.
+        self.assertEqual(ast.literal_eval(kwargs["size_hints"]), {"x0": 1536, "r1": 32})
+        members = _ast_dict_value(kwargs["inductor_meta"], "combo_subkernel_meta").elts
+        self.assertEqual(
+            [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+            [{"x0": 768, "r1": 16}, {"x0": 768, "r1": 32}],
+        )
+        self.assertEqual(
+            [ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members],
+            [True, True],
+        )
+        rblocks = [
+            ast.literal_eval(node.value)
+            for node in ast.walk(kernel)
+            if isinstance(node, ast.AnnAssign) and node.target.id == "R1BLOCK_SUB"
+        ]
+        self.assertEqual(rblocks, [16, 32])
+        self.assertFalse(any(
+            isinstance(node, ast.For) and node.target.id.startswith("loop_r")
+            for node in ast.walk(kernel)
+        ))
+        self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
         self.assertEqual(out_eager, out_compiled)
 
     @requires_cuda_and_triton
