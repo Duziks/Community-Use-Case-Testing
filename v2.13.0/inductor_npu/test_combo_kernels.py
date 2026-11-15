@@ -465,6 +465,45 @@ class ComboKernelTests(TestCase):
         fn_c = torch.compile(fn)
         out_compiled, code = run_and_get_code(fn_c, *inps)
         self.assertEqual(out_eager, out_compiled)
+        if GPU_TYPE == "npu" and not torch._inductor.config.combo_kernel_per_subkernel_blocks:
+            # Native partitioning separates these 1024x different iteration sizes.
+            kernels = _triton_kernels(code)
+            self.assertEqual(torch._inductor.metrics.generated_kernel_count, 2)
+            self.assertEqual(len(kernels), 2)
+            for _, heuristic, kwargs in kernels:
+                self.assertEqual(heuristic, "pointwise")
+                self.assertNotIn(
+                    "combo_subkernel_meta",
+                    [ast.literal_eval(key) for key in kwargs["inductor_meta"].keys],
+                )
+
+            # Also exercise a real shared-block Combo with moderately different sizes.
+            inps = [
+                torch.randn(65536, device=GPU_TYPE),
+                torch.randn(524288, device=GPU_TYPE),
+            ]
+            torch._dynamo.reset()
+            torch._inductor.metrics.reset()
+            out_compiled, code = run_and_get_code(torch.compile(fn), *inps)
+            self.assertEqual(fn(*inps), out_compiled)
+            kernels = _triton_kernels(code)
+            self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
+            self.assertEqual(len(kernels), 1)
+            kernel, heuristic, kwargs = kernels[0]
+            self.assertEqual(heuristic, "pointwise")
+            meta = kwargs["inductor_meta"]
+            self.assertEqual(ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")), ("X0BLOCK",))
+            self.assertIn("X0BLOCK", [arg.arg for arg in kernel.args.args])
+            self.assertEqual(
+                ast.literal_eval(_ast_dict_value(_ast_dict_value(meta, "combo_grid_meta"), "num_kernels")), 2
+            )
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(len(members), 2)
+            self.assertCountEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 65536}, {"x0": 524288}],
+            )
+            return
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
         if torch._inductor.config.combo_kernel_per_subkernel_blocks:
             FileCheck().check("XBLOCK_0 : tl.constexpr").check(
