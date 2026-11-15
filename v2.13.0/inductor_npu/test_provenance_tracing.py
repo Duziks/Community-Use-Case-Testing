@@ -377,7 +377,12 @@ class TestProvenanceTracingArtifact(TestCase):
             m = re.match(r"WARNING.* debug trace: (.*)", cm.output[0])
             self.assertTrue(m)
             filepath = Path(m.group(1)).resolve()
-            expected_data = {"triton_poi_fused_0:1": ["relu", "sigmoid", "tanh"]}
+            kernel_name = (
+                "triton_poi_fused_relu_sigmoid_tanh_0"
+                if GPU_TYPE == "npu"
+                else "triton_poi_fused_0"
+            )
+            expected_data = {f"{kernel_name}:1": ["relu", "sigmoid", "tanh"]}
             self._check_provenance_tracing_kernel_to_post_grad(filepath, expected_data)
 
     @requires_gpu_and_triton
