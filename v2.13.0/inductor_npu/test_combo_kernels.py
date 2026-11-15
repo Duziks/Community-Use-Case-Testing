@@ -560,7 +560,32 @@ class ComboKernelTests(TestCase):
         out_compiled, code = run_and_get_code(fn_c, *inps)
         torch.testing.assert_close(out_eager, out_compiled, atol=1e-4, rtol=1e-4)
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
-        if torch._inductor.config.combo_kernel_per_subkernel_blocks:
+        if GPU_TYPE == "npu" and not torch._inductor.config.combo_kernel_per_subkernel_blocks:
+            (kernel, heuristic, kwargs), = _triton_kernels(code)
+            self.assertEqual(heuristic, "persistent_reduction")
+            meta = kwargs["inductor_meta"]
+            self.assertEqual(
+                ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")), ("X0BLOCK",)
+            )
+            self.assertEqual([arg.arg for arg in kernel.args.args if "BLOCK" in arg.arg], ["X0BLOCK"])
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 64, "r2": 32, "r1": 128}] * 2,
+            )
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members],
+                [True, True],
+            )
+            rblocks = {
+                (node.target.id, ast.literal_eval(node.value))
+                for node in ast.walk(kernel)
+                if isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id in {"R2BLOCK_SUB", "R1BLOCK_SUB"}
+            }
+            self.assertEqual(rblocks, {("R2BLOCK_SUB", 32), ("R1BLOCK_SUB", 128)})
+        elif torch._inductor.config.combo_kernel_per_subkernel_blocks:
             FileCheck().check(
                 " XBLOCK_0 : tl.constexpr, R0_BLOCK_0 : tl.constexpr"
             ).check("XBLOCK_1 : tl.constexpr, R0_BLOCK_1 : tl.constexpr").run(code[0])
