@@ -396,8 +396,9 @@ class ComboKernelTests(TestCase):
             )
             # Verify kernels are regular pointwise, not combo kernels
             FileCheck().check("triton_heuristics.pointwise").check(
-                "'grid_type': 'Grid1D'"
+                "'grid_type': 'GridNpu'"
             ).check_not("combo_grid_meta").run(code[0])
+            self.assertEqual(code[0].count(" = async_compile.triton("), 2)
 
     @requires_gpu_and_triton
     def test_combo_kernel_per_config_subkernel_poi(self):
