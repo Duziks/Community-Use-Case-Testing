@@ -2578,6 +2578,9 @@ class ComboKernelPeakMemoryTests(InductorTestCase):
         combo_kernel_max_distance so the windowing behavior is identical
         and the only difference is whether the gate rejects oversized
         combos."""
+        if GPU_TYPE == "npu":
+            return self._check_npu_residual_branch_peak_memory()
+
         model = ComboKernelPeakMemoryTests._make_wide_resnet_like().to(GPU_TYPE).eval()
         x = torch.randn(1, 3, 224, 224, device=GPU_TYPE)
 
@@ -2613,6 +2616,77 @@ class ComboKernelPeakMemoryTests(InductorTestCase):
             f"tight threshold did not reduce runtime peak memory "
             f"(tight={peak_tight}, disabled={peak_disabled})",
         )
+
+    def _check_npu_residual_branch_peak_memory(self):
+        from torch._inductor.scheduler import Scheduler
+
+        # WRN's parallel convolutions remain extern kernels on NPU. Preserve
+        # the residual-branch lifetime pattern with combinable pointwise
+        # producers and extern linear consumers that release the wide tensors.
+        class ResidualBranches(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.projection = torch.nn.Linear(1024, 16, bias=False)
+
+            def forward(self, a, b):
+                left = self.projection(torch.relu(a + 0.25))
+                right = self.projection(torch.relu(b - 0.25))
+                return left + right
+
+        model = ResidualBranches().to(GPU_TYPE).eval()
+        inps = [torch.randn(4096, 1024, device=GPU_TYPE) for _ in range(2)]
+        with torch.no_grad():
+            expected = model(*inps).cpu()
+
+        def measure(abs_threshold):
+            torch._dynamo.reset()
+            torch._inductor.metrics.reset()
+            torch.npu.synchronize()
+            torch.npu.empty_cache()
+            decisions = []
+            original = Scheduler._try_combo_with_memory_check
+
+            def observe_gate(scheduler, *args, **kwargs):
+                result = original(scheduler, *args, **kwargs)
+                decisions.append(result[0] is not None)
+                return result
+
+            with (
+                fresh_cache(),
+                torch._inductor.config.patch(
+                    **self._thresholds(abs_thr_gb=abs_threshold, max_distance=32),
+                    combo_kernel_per_subkernel_blocks=False,
+                ),
+                patch.object(Scheduler, "_try_combo_with_memory_check", observe_gate),
+                torch.no_grad(),
+            ):
+                compiled = torch.compile(model)
+                warm, code = run_and_get_code(compiled, *inps)
+                self.assertEqual(expected, warm.cpu())
+                del warm
+                torch.npu.synchronize()
+                torch.npu.reset_peak_memory_stats()
+                actual = compiled(*inps)
+                torch.npu.synchronize()
+                peak = torch.npu.max_memory_allocated()
+                self.assertEqual(expected, actual.cpu())
+                combos = sum(
+                    any(ast.literal_eval(key) == "combo_subkernel_meta" for key in kwargs["inductor_meta"].keys)
+                    for _, _, kwargs in _triton_kernels(code)
+                )
+            logging.getLogger(__name__).info(
+                "NPU memory gate: threshold=%s, decisions=%s, combos=%s, warm_peak=%s",
+                abs_threshold, decisions, combos, peak,
+            )
+            return peak, combos, decisions
+
+        peak_disabled, combos_disabled, disabled_decisions = measure(None)
+        peak_tight, combos_tight, tight_decisions = measure(1.0 / 1024)
+        self.assertFalse(disabled_decisions)
+        self.assertGreater(combos_disabled, 0)
+        self.assertIn(False, tight_decisions, "The tight threshold must reject a real combo candidate")
+        self.assertLess(combos_tight, combos_disabled)
+        self.assertLess(peak_tight, peak_disabled)
 
     def test_estimate_region_peak_memory(self):
         from torch._inductor import memory as mem_mod
