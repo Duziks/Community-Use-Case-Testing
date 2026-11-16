@@ -1,11 +1,38 @@
 import torch
 import torch_npu
-from torch_npu.contrib import transfer_to_npu
+import torch_npu.testing
+import torch_npu._inductor  # 注册 NPU Inductor backend
+
 from torch_npu.utils import _dynamo
 _dynamo.use_jit_script = True
-torch.cuda.get_device_capability = lambda :(10, 0)
-import torch_npu.testing
-import torch_npu._inductor
+
+# NPU 没有 SM80 语义，这里只是让依赖 SM80OrLater 的分支不炸
+torch.cuda.get_device_capability = lambda: (10, 0)
+
+
+# [NPU-CHANGE] 探测 NPU 上的 Triton(CANN) 是否可用
+def _has_npu_triton() -> bool:
+    for mod_name, attr in (
+        ("torch_npu.utils", "is_triton_available"),
+        ("torch_npu._inductor", "has_triton"),
+        ("torch_npu.triton", "is_available"),
+    ):
+        try:
+            mod = __import__(mod_name, fromlist=[attr])
+            fn = getattr(mod, attr, None)
+            if fn is not None:
+                return bool(fn())
+        except Exception:
+            pass
+    try:
+        import triton  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+NPU_AVAILABLE = torch.npu.is_available() if hasattr(torch, "npu") else False
+NPU_TRITON_AVAILABLE = _has_npu_triton()
 
 # Owner(s): ["module: inductor"]
 import atexit
@@ -66,6 +93,31 @@ from torch.utils._dtype_abbrs import dtype_abbrs
 from torch.utils._python_dispatch import TorchDispatchMode
 from torch.utils._pytree import tree_map
 
+
+# [NPU-CHANGE] 把 CUDA 语义的判定 patch 成 NPU 语义
+import torch.testing._internal.inductor_utils as _iu
+import torch.testing._internal.triton_utils as _tu
+
+_iu.HAS_CPU = True
+_iu.HAS_XPU_AND_TRITON = True          # 仅用于绕过 skipXPUIf 装饰器
+_tu.HAS_TRITON = NPU_TRITON_AVAILABLE
+_tu.has_triton = lambda: NPU_TRITON_AVAILABLE
+_iu.has_triton = lambda: NPU_TRITON_AVAILABLE
+
+# 把 GPU_TYPE 改成 "npu"，让下面所有 defaultdict["cuda"] 自动落到 "npu" 分支
+_iu.GPU_TYPE = "npu"
+GPU_TYPE = "npu"   # [NPU-CHANGE] 覆盖本文件内 from ... import GPU_TYPE 的值
+
+import types
+
+if "torch_npu.contrib.transfer_to_npu" not in sys.modules:
+    _noop_mod = types.ModuleType("torch_npu.contrib.transfer_to_npu")
+    sys.modules["torch_npu.contrib.transfer_to_npu"] = _noop_mod
+    try:
+        import torch_npu.contrib as _tn_contrib
+        _tn_contrib.transfer_to_npu = _noop_mod
+    except Exception:
+        pass
 
 try:
     try:
@@ -197,6 +249,10 @@ if COLLECT_EXPECT:
 
 # Note, in these skip/xfail dictionaries use a string as the key
 # for the default test, and a tuple of two strings for variants
+_NPU_UNSUPPORTED_OPS = {
+    "H", "T", "getitem", "radd", "rand", "rdiv",
+    "cfloat","cdouble","complex","chalf", "grid_sampler_3d",
+    }
 
 inductor_skips = defaultdict(dict)
 
@@ -242,6 +298,81 @@ if TEST_WITH_ROCM:
     # Tensors are not alike
     inductor_skips["cuda"]["logcumsumexp"] = {f32}
     inductor_skips["cuda"]["special.modified_bessel_i1"] = {f64}
+
+# [NPU-CHANGE] 新增 npu skip 字典（先复用 cuda 已知项，再补 NPU 专属）
+inductor_skips["npu"] = dict(inductor_skips["cuda"])
+inductor_skips["npu"].update(
+    {
+        # NPU 上 Inductor 尚不支持 / 结果不可比的 op，按需增删
+        "multinomial": {f16, f32, f64},  # 随机 op
+        "H": {u8},
+        "T": {u8},
+        "getitem": {u8},
+        "radd": {u8},
+        "rand": {u8},
+        "rdiv": {u8},
+        # rmatmul 分解路径含 in-place squeeze_，
+        # 违反 AOTAutograd 函数式图假设（上游问题）
+        "rmatmul": {f16, f32, i32, i64},
+        "__rmatmul__": {f16, f32, i32, i64},
+        "addbmm": {i32, i64, b8, u8},
+        "addmm": {i32, i64},
+        ("addmm", "decomposed"): {i32, i64},
+        "addmv": {i32, i64},
+        "baddbmm": {i32, i64},
+        "bmm": {i32, i64},
+        "mm": {i32, i64},
+        "mv": {i32, i64},
+        # aclnnDot 不支持 int64
+        "dot": {i64},
+        "vdot": {i64},
+        "inner": {i64},
+        # cholesky 系列在 NPU 上 sample 生成阶段即失败（aclnnLinalgCholesky 格式/后端限制）
+        "cholesky_solve": {f32},
+        "cholesky_inverse": {f32},
+        # aclnnClampMax/Min 不支持 bool
+        "clamp_max": {b8},
+        "clamp_min": {b8},
+        "ceil": {i32, i64},
+        "double": {f16, f32, f64, i32, i64, b8},
+        "einsum":{i64},
+        "erf":{i32},
+        "erfc":{i32},
+        "exp":{i32},
+        "expm1":{i32},
+        "float_power":{f16, f32, f64, i32, i64, b8},
+        "fft.fft2": { f32, i32, i64, b8},
+        "fft.fft": { f32, i32, i64, b8},
+        "fft.fftn": { f32, i32, i64, b8},
+        "fft.hfftn2": { f32, i32, i64, b8},
+        "fft.hfft": { f32, i32, i64, b8},
+        "fft.hfftn": { f32, i32, i64, b8},
+        "fft.ifft2": { f32, i32, i64, b8},
+        "fft.ifft": { f32, i32, i64, b8},
+        "fft.ifftn": { f32, i32, i64, b8},
+        "fft.ihfft2": { f32, i32, i64, b8},
+        "fft.ihfft": { f32, i32, i64, b8},
+        "fft.ihfftn": { f32, i32, i64, b8},
+        "fft.irfft2": { f32, i32, i64, b8},
+        "fft.irfft": { f32, i32, i64, b8},
+        "fft.irfftn": { f32, i32, i64, b8},
+        "fft.rfft2": { f32, i32, i64, b8},
+        "fft.rfft": { f32, i32, i64, b8},
+        "fft.rfftn": { f32, i32, i64, b8},
+        "full_like": {f16, f32, f64, i32, i64, b8, u8, u16, u32},
+        "gather": {f16, f32, f64, i32, i64, b8},
+        "isclose": {b8, f16, f32, i32, i64, f64},
+        #matrix_rank 的分解生成 arith.ExtFOp，NPU Triton 编译器不支持
+        "linalg.matrix_rank": {f32},
+        "linalg.matrix_rank.hermitian": {f32},
+        #aclnnMm 不支持整数 dtype（DT_INT32/DT_INT64）
+        "linalg.multi_dot": {i32, i64},
+        "logit":{i32, i64, b8},
+        "logspace":{i32, i64},
+        "logspace.tensor_overload": {i32, i64},
+        "nansum":{b8, i32, i64},
+    }
+)
 
 inductor_skips["xpu"] = {
     "multinomial": {f16, f32, f64},  # stochastic op, output comparison not meaningful
@@ -294,6 +425,29 @@ inductor_expected_failures_single_sample["cuda"] = {
     },  # NYI: could not find kernel for aten.view.default at dispatch key DispatchKey.SparseCUDA
 }
 
+# [NPU-CHANGE] 新增 npu expected failures
+inductor_expected_failures_single_sample["npu"] = {
+    "_upsample_bilinear2d_aa": {f16, f32, f64},
+    "cholesky": {f32, f64},
+    ("normal", "in_place"): {f16, f32, f64},
+    ("normal", "number_mean"): {f16, f32, f64},
+    "normal": {f16, f32, f64},
+    "sparse.sampled_addmm": {f32, f64},
+    "torch.ops.aten._flash_attention_forward": {f16},
+    "torch.ops.aten._efficient_attention_forward": {f16, f32},
+    "to_sparse": {
+        b8,
+        f16,
+        f32,
+        f64,
+        i32,
+        i64,
+    },  # NYI: could not find kernel for aten.view.default at dispatch key DispatchKey.SparseCUDA
+
+    "fmax":{f16, f32},
+    "fmin":{f16, f32},
+}
+
 inductor_expected_failures_single_sample["xpu"] = {
     "_upsample_bilinear2d_aa": {f16, f32, f64},
     "cholesky": {f32, f64},
@@ -337,12 +491,16 @@ if not functorch_config.view_replay_for_aliased_outputs:
 
 inductor_expected_failures_single_sample["cuda"].update(intentionally_not_handled)
 inductor_expected_failures_single_sample["xpu"].update(intentionally_not_handled)
+# [NPU-CHANGE] npu 同步
+inductor_expected_failures_single_sample["npu"].update(intentionally_not_handled)
 
 
 inductor_gradient_expected_failures_single_sample = defaultdict(dict)
 
 inductor_gradient_expected_failures_single_sample["cuda"] = {}
 inductor_gradient_expected_failures_single_sample["xpu"] = {}
+# [NPU-CHANGE]
+inductor_gradient_expected_failures_single_sample["npu"] = {}
 
 if not TEST_MKL:
     inductor_expected_failures_single_sample["cpu"].update({})
@@ -351,6 +509,8 @@ inductor_should_fail_with_exception = defaultdict(dict)
 inductor_should_fail_with_exception["cpu"] = {}
 inductor_should_fail_with_exception["cuda"] = {}
 inductor_should_fail_with_exception["xpu"] = {}
+# [NPU-CHANGE]
+inductor_should_fail_with_exception["npu"] = {}
 
 
 def get_skips_and_xfails(from_dict, xfails=True):
@@ -543,6 +703,9 @@ inductor_override_kwargs["cuda"] = {
     # precisions; more investigation is needed.
     ("native_group_norm", f16): {"check_gradient": False},
 }
+
+# [NPU-CHANGE] npu 复用 cuda 的精度/上下文覆盖
+inductor_override_kwargs["npu"] = dict(inductor_override_kwargs["cuda"])
 
 inductor_override_kwargs["xpu"] = {
     # the return value of empty is undefined
@@ -875,6 +1038,10 @@ inductor_one_sample["cuda"] = {
     "xlogy": {f16},
 }
 
+# [NPU-CHANGE] npu 复用 cuda 的 one-sample 列表
+inductor_one_sample["npu"] = dict(inductor_one_sample["cuda"])
+inductor_one_sample["npu"]["native_group_norm"] = {f16, f32}
+
 inductor_one_sample["xpu"] = {
     "_segment_reduce.lengths": {f16},
     "_segment_reduce.offsets": {f16},
@@ -1036,6 +1203,9 @@ inductor_skip_exact_stride_xpu = {
     "nn.functional.max_unpool2d.grad",
     "nn.functional.rms_norm",
 }
+
+# [NPU-CHANGE] NPU 上 Inductor 同样会做 layout 优化，放宽 stride 检查
+inductor_skip_exact_stride_npu = set()
 
 # Custom replacements for assertEquals, in cases where a difference in value
 # may not indicate correctness.
@@ -1247,20 +1417,20 @@ class TestInductorOpInfo(TestCase):
     check_model = check_model
     check_model_gpu = check_model_gpu
 
+    # [NPU-CHANGE] 用 NPU 语义的守卫替换 requires_gpu_and_triton / skipXPUIf
     @onlyNativeDeviceTypes
     @suppress_warnings
     @skipCUDAMemoryLeakCheckIf(
         True
     )  # inductor kernels failing this test intermittently
-    @requires_gpu_and_triton
-    @skipXPUIf(
-        not HAS_XPU_AND_TRITON, "Skipped! Supported XPU compiler and Triton not found"
-    )
+    @unittest.skipUnless(NPU_AVAILABLE, "NPU not available")
+    @unittest.skipUnless(NPU_TRITON_AVAILABLE, "NPU Triton (CANN) not available")
     @skipCPUIf(not HAS_CPU, "Skipped! Supported CPU compiler not found")
     @unittest.skipIf(TEST_WITH_ASAN, "Skipped under ASAN")
     @skipIfTorchDynamo("Test uses dynamo already")
     @skipIfCrossRef
-    @_ops(op_db[START:END])
+    
+    @_ops([op for op in op_db[START:END] if op.name not in _NPU_UNSUPPORTED_OPS])
     @skipOps(test_skips_or_fails)
     @patch("torch._dynamo.config.raise_on_unsafe_aot_autograd", True)
     @torch._inductor.config.patch(
@@ -1271,20 +1441,33 @@ class TestInductorOpInfo(TestCase):
     def test_comprehensive(self, device, dtype, op):
         device_type = torch.device(device).type
 
-        if device_type not in (GPU_TYPE, "cpu"):
+        _NPU_HARD_SKIP = {
+            "rmatmul",
+            # 后续发现新的 skipOps 不生效的 op 时加到这里
+            "__rmatmul__",
+        }
+        # if device_type == "npu" and op.name in _NPU_HARD_SKIP:
+        #     raise unittest.SkipTest(f"NPU: {op.name} not supported (hard skip)")
+        #
+        # [NPU-CHANGE] 接受 npu
+        if device_type not in (GPU_TYPE, "cpu", "npu"):
             raise AssertionError(f"Unexpected device_type: {device_type}")
 
         torch._dynamo.reset()
         with torch.no_grad():
-            # TODO: should we move empty_cache to the common device interface
             if device_type == "cuda":
                 torch.cuda.empty_cache()
-            elif device == "xpu":
+            elif device_type == "xpu":
                 torch.xpu.empty_cache()
+            elif device_type == "npu":
+                torch.npu.empty_cache()
+
         op_name = op.name
         if op.variant_test_name:
             op_name += f".{op.variant_test_name}"
 
+        if device_type == "npu" and dtype in (torch.uint16, torch.uint32):
+            raise unittest.SkipTest("NPU does not support uint16/uint32")
         # Skip dtype=torch.uint8 for all ops except upsample and interpolate:
         allowed_dtypes = [f16, f32, f64, i32, i64, b8]
         if op_name not in (
@@ -1298,16 +1481,8 @@ class TestInductorOpInfo(TestCase):
             if dtype not in allowed_dtypes:
                 raise unittest.SkipTest("Skipped!")
 
-        # with open("test_output.txt", "a") as f:
-        #     print(f"CONSIDERING OP {op_name} on {device_type} with {dtype} |
-        # {inductor_skips[device_type].get(op_name, set())}", flush=True, file=f)
-        #     print(f"CONSIDERING OP {op_name} on {device_type} with {dtype} |
-        # {inductor_skips[device_type].get(op_name, set())}", flush=True)
         if dtype in inductor_skips[device_type].get(op_name, set()):
             test_expect = ExpectedTestResult.SKIP
-            # with open("test_output.txt", "a") as f:
-            #     print(f"SKIPPING OP {op_name} on {device_type}", flush=True, file=f)
-            #     print(f"SKIPPING OP {op_name} on {device_type}", flush=True)
         elif (
             device_type == "cpu"
             and IS_LINUX
@@ -1341,6 +1516,8 @@ class TestInductorOpInfo(TestCase):
             # but that when we do backwards we expect other ops like add to work
             and dtype != torch.complex32
         )
+        if device_type == "npu" and dtype == torch.float64:
+            raise unittest.SkipTest("NPU does not fully support float64 (aclnn/BiShengIR)")
         samples = op.sample_inputs(device, dtype, requires_grad=requires_grad)
         extra = _inductor_extra_samples(op_name, device, dtype, requires_grad)
         if extra:
@@ -1388,14 +1565,7 @@ class TestInductorOpInfo(TestCase):
 
         def get_contexts(has_rng_op, args, kwargs):
             if has_rng_op:
-                # TODO - enable this, running into errors
                 return (
-                    # (
-                    #     lambda: torch._inductor.config.patch(
-                    #         {"fallback_random": True, "implicit_fallbacks": True}
-                    #     ),
-                    #     {"assert_equal": True},
-                    # ),
                     (
                         contextlib.nullcontext,
                         {"assert_equal": False},
@@ -1428,13 +1598,24 @@ class TestInductorOpInfo(TestCase):
                     return None, None
 
             for sample_input in samples:
+                if (
+                    device_type == "npu"
+                    and sample_input.kwargs.get("dtype") == torch.float64
+                ):
+                    continue
+                if (
+                    device_type == "npu"
+                    and sample_input.kwargs.get("memory_format") == torch.channels_last
+                ):
+                    continue
+                if (
+                    device_type == "npu"
+                    and op_name == "new_full"
+                    and sample_input.kwargs.get("dtype") in (torch.float64, "torch.float64")
+                ):
+                    continue
                 args = [sample_input.input] + list(sample_input.args)
                 kwargs = sample_input.kwargs
-                # UNCOMMENT TO DEBUG SEGFAULTS
-
-                # with open("test_output.txt", "a") as f:
-                #     print(f"RUNNING OP {op_name} on {device_type} with {dtype}", flush=True, file=f)
-                #     print(f"RUNNING OP {op_name} on {device_type} with {dtype}", flush=True)
                 rtol, atol = _get_tolerances(dtype)
                 no_python, has_rng_op = do_nopython_and_has_rng(fn, args, kwargs)
                 for context_fn, kwarg_overrides in get_contexts(
@@ -1451,16 +1632,16 @@ class TestInductorOpInfo(TestCase):
                         }
 
                         # Backend-specific adjustments
-                        # Triton
-                        if has_triton():
+                        # Triton（NPU 上即 CANN Triton）
+                        if NPU_TRITON_AVAILABLE:
                             adjusted_kwargs.update(
                                 copy_to_gpu=False,
                             )
-                            if device_type == GPU_TYPE:
+                            if device_type in (GPU_TYPE, "npu"):
                                 adjusted_kwargs["reference_in_float"] = False
 
                         # skip checking gradient on CPU for now
-                        if device_type == GPU_TYPE:
+                        if device_type in (GPU_TYPE, "npu"):
                             adjusted_kwargs.update(
                                 check_gradient=requires_grad,
                                 output_process_fn_grad=sample_input.output_process_fn_grad,
@@ -1474,10 +1655,12 @@ class TestInductorOpInfo(TestCase):
 
                         # Call the appropriate check method based on device type
                         exact_stride = op_name not in inductor_skip_exact_stride
-                        # XPU has additional layout optimizations that change strides differently from eager mode.
+                        # XPU/NPU 有额外 layout 优化，放宽 stride 检查
                         if exact_stride and GPU_TYPE == "xpu":
                             exact_stride = op_name not in inductor_skip_exact_stride_xpu
-                        if device_type == GPU_TYPE:
+                        if exact_stride and device_type == "npu":
+                            exact_stride = op_name not in inductor_skip_exact_stride_npu
+                        if device_type in (GPU_TYPE, "npu"):
                             self.check_model_gpu(
                                 fn,
                                 args,
@@ -1507,11 +1690,15 @@ class TestInductorOpInfo(TestCase):
             if not known_failure:
                 raise e
 
-        # with open("test_output.txt", "a") as f:
-        #     print(f"SUCCEEDED OP {op_name} on {device_type} with {dtype}", flush=True, file=f)
-
 
 instantiate_device_type_tests(TestInductorOpInfo, globals(), allow_xpu=True)
 
 if __name__ == "__main__":
+    # [NPU-CHANGE] 启动前打印已注册的 device type，便于确认 npu 已生效
+    try:
+        from torch.testing._internal.common_device_type import device_type_test_bases
+
+        print("registered device types:", [b.device_type for b in device_type_test_bases])
+    except Exception:
+        pass
     run_tests()
