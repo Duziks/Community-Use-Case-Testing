@@ -1205,7 +1205,11 @@ inductor_skip_exact_stride_xpu = {
 }
 
 # [NPU-CHANGE] NPU 上 Inductor 同样会做 layout 优化，放宽 stride 检查
-inductor_skip_exact_stride_npu = set()
+# inductor_skip_exact_stride_npu = set()
+inductor_skip_exact_stride_npu = set(inductor_skip_exact_stride_xpu) | {
+    'linalg.pinv.hermitian',
+    'linalg.svd',
+}
 
 # Custom replacements for assertEquals, in cases where a difference in value
 # may not indicate correctness.
