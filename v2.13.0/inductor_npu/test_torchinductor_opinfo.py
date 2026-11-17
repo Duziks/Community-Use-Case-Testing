@@ -1210,7 +1210,8 @@ inductor_skip_exact_stride_npu = set(inductor_skip_exact_stride_xpu) | {
     'linalg.pinv.hermitian',
     'linalg.svd',
     "svd",
-    "qr"
+    "qr",
+    "linalg.vecdot",
 }
 
 # Custom replacements for assertEquals, in cases where a difference in value
@@ -1350,6 +1351,7 @@ _THREE_WAY_PRECISION_OPS = {
     "nn.functional.upsample_nearest",
     "masked.var",
     "masked.logaddexp",
+    "linalg.vecdot",
 }
 
 def _run_op_and_grad(fn, t, args, kwargs):
@@ -1387,6 +1389,8 @@ def _abs_err_vs_truth(actual, truth):
 def _compare_three_way(ind, eag, truth, label):
     err_i = _abs_err_vs_truth(ind, truth)
     err_e = _abs_err_vs_truth(eag, truth)
+    if err_i.numel() == 0:
+        return 0, 0, 0, 0.0, 0.0
     win = int((err_i < err_e).sum())
     tie = int((err_i == err_e).sum())
     lose = int((err_i > err_e).sum())
