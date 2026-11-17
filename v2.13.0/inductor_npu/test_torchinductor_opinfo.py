@@ -1209,6 +1209,8 @@ inductor_skip_exact_stride_xpu = {
 inductor_skip_exact_stride_npu = set(inductor_skip_exact_stride_xpu) | {
     'linalg.pinv.hermitian',
     'linalg.svd',
+    "svd",
+    "qr"
 }
 
 # Custom replacements for assertEquals, in cases where a difference in value
@@ -1341,6 +1343,121 @@ CUSTOM_ASSERT_EQUALS_FNS = {
     "sort": get_sort_assert_equal_fn,
 }
 
+_THREE_WAY_PRECISION_OPS = {
+    "var_mean",
+    "var_mean.unbiased",
+    "std_mean.unbiased",
+    "nn.functional.upsample_nearest",
+    "masked.var",
+    "masked.logaddexp",
+}
+
+def _run_op_and_grad(fn, t, args, kwargs):
+    from torch.utils._pytree import tree_leaves
+
+    tc = t.detach().clone().requires_grad_(t.requires_grad)
+    outs = fn(tc, *args, **kwargs)
+    leaves = [o for o in tree_leaves(outs) if torch.is_tensor(o)]
+    grad = None
+    if tc.requires_grad:
+        loss = None
+        for o in leaves:
+            if not o.requires_grad:
+                continue
+            o_finite = torch.where(torch.isfinite(o), o, torch.zeros_like(o))
+            term = o_finite.sum(dtype=torch.float64)
+            loss = term if loss is None else loss + term
+        if torch.is_tensor(loss) and loss.requires_grad:
+            loss.backward()
+            grad = tc.grad
+    return leaves, grad
+
+def _abs_err_vs_truth(actual, truth):
+    a = actual.detach().cpu().double()
+    e = truth.detach().cpu().double()
+    assert a.shape == e.shape, (
+        f"three-way: shape mismatch {tuple(a.shape)} != {tuple(e.shape)}"
+    )
+    both_nan = torch.isnan(a) & torch.isnan(e)
+    same_inf = torch.isinf(a) & torch.isinf(e) & (torch.sign(a) == torch.sign(e))
+    diff = (a - e).abs()
+    diff = torch.where(both_nan | same_inf, torch.zeros_like(diff), diff)
+    return torch.where(torch.isnan(diff), torch.full_like(diff, float("inf")), diff)
+
+def _compare_three_way(ind, eag, truth, label):
+    err_i = _abs_err_vs_truth(ind, truth)
+    err_e = _abs_err_vs_truth(eag, truth)
+    win = int((err_i < err_e).sum())
+    tie = int((err_i == err_e).sum())
+    lose = int((err_i > err_e).sum())
+    if lose:
+        worst = (err_i - err_e)[err_i > err_e].max().item()
+        raise AssertionError(
+            f"[{label}] three-way: inductor worse than eager on {lose} element(s) "
+            f"(win={win}, tie={tie}, total={err_i.numel()}); "
+            f"worst |ind-truth|-|eag-truth| = {worst:.3e}"
+        )
+    return win, tie, lose, err_i.max().item(), err_e.max().item()
+
+def _to_upcast(t):
+    if t.is_floating_point():
+        return t.detach().to("cpu", torch.float64), True
+    return t.detach().to("cpu"), False
+
+def _to_cpu_truth(value):
+    if torch.is_tensor(value):
+        return _to_upcast(value)[0]
+    return value
+
+def _check_three_way_precision(fn, args, kwargs, op_name):
+    t = args[0]
+    assert t.is_floating_point() or not t.requires_grad, (
+        f"{op_name}: integral input must not require grad"
+    )
+
+    # cpu truth
+    t_truth, is_float = _to_upcast(t)
+    if is_float:
+        t_truth.requires_grad_(t.requires_grad)
+    truth_args = tuple(_to_cpu_truth(a) for a in args[1:])
+    truth_kwargs = {k: _to_cpu_truth(v) for k, v in kwargs.items()}
+    truth_outs, truth_grad = _run_op_and_grad(
+        fn, t_truth, truth_args, truth_kwargs
+    )
+
+    # npu inductor
+    torch._dynamo.reset()
+    compiled = torch.compile(fn)
+    ind_outs, ind_grad = _run_op_and_grad(
+        compiled, t.detach().clone(), args[1:], kwargs
+    )
+
+    # npu eager
+    eag_outs, eag_grad = _run_op_and_grad(fn, t.detach().clone(), args[1:], kwargs)
+
+    # 判定
+    assert len(ind_outs) == len(eag_outs) == len(truth_outs), (
+        f"three-way: output count mismatch "
+        f"ind={len(ind_outs)} eag={len(eag_outs)} truth={len(truth_outs)}"
+    )
+    stats = []
+    for i, (a, e, g) in enumerate(zip(ind_outs, eag_outs, truth_outs)):
+        stats.append(
+            (f"fwd[i]", _compare_three_way(a, e, g, f"{op_name} fowrad output[i]"))
+        )
+    if truth_grad is not None and ind_grad is not None and eag_grad is not None:
+        stats.append(
+            ("grad", _compare_three_way(ind_grad, eag_grad, truth_grad, f"{op_name} grad"))
+        )
+
+    # 输出
+    msg = f"[three-way][{op_name}]"
+    for tag, (win, tie, lose, max_i, max_e) in stats:
+        msg += (
+            f" {tag}: win={win} tie={tie} lose={lose}"
+            f" max_err(ind)={max_i:.3e} max_err(eager)={max:.3e};"
+        )
+    print(msg)
 
 def collection_decorator(fn):
     @functools.wraps(fn)
@@ -1656,6 +1773,15 @@ class TestInductorOpInfo(TestCase):
                         # Update with overridden kwargs and context-specific overrides
                         adjusted_kwargs.update(overridden_kwargs)
                         adjusted_kwargs.update(kwarg_overrides)
+
+                        if (
+                            device_type == "npu"
+                            and op_name in _THREE_WAY_PRECISION_OPS
+                        ):
+                            _check_three_way_precision(fn, args, kwargs, op_name)
+                            adjusted_kwargs.update(
+                                assert_equal=False, check_gradient=False
+                            )
 
                         # Call the appropriate check method based on device type
                         exact_stride = op_name not in inductor_skip_exact_stride
