@@ -10,6 +10,7 @@ import torch_npu.testing
 
 # Owner(s): ["module: inductor"]
 
+import ast
 import contextlib
 import json
 import logging
@@ -37,7 +38,6 @@ from torch.testing._internal.inductor_utils import GPU_TYPE, HAS_CPU, HAS_GPU_AN
 from torch.testing._internal.triton_utils import (
     requires_cuda_and_triton,
     requires_gpu_and_triton,
-    requires_xpu_and_triton,
 )
 
 
@@ -57,6 +57,34 @@ except (unittest.SkipTest, ImportError) as e:
         sys.exit(0)
     raise
 import torch_npu._inductor
+
+
+def _triton_kernels(code):
+    kernels = []
+    for node in ast.walk(ast.parse("\n".join(code))):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "async_compile"
+            and node.func.attr == "triton"
+        ):
+            continue
+        source = ast.parse(ast.literal_eval(node.args[1]))
+        for kernel in source.body:
+            if not isinstance(kernel, ast.FunctionDef):
+                continue
+            for decorator in kernel.decorator_list:
+                if isinstance(decorator, ast.Call):
+                    kwargs = {keyword.arg: keyword.value for keyword in decorator.keywords}
+                    if "inductor_meta" in kwargs:
+                        kernels.append((kernel, decorator.func.attr, kwargs))
+    return kernels
+
+
+def _ast_dict_value(node, name):
+    return next(value for key, value in zip(node.keys, node.values) if ast.literal_eval(key) == name)
+
 
 @instantiate_parametrized_tests
 class ComboKernelTests(TestCase):
@@ -239,9 +267,30 @@ class ComboKernelTests(TestCase):
         out_eager = fn(*inps)
         fn_c = torch.compile(fn)
         out_compiled, code = run_and_get_code(fn_c, *inps)
-        FileCheck().check("triton_heuristics.persistent_reduction").check(
-            "size_hints={'x': 1024, 'r0_': 32}"
-        ).run(code[0])
+        (kernel, heuristic, kwargs), = _triton_kernels(code)
+        self.assertEqual(heuristic, "persistent_reduction")
+        # NPU packs the two member X extents and keeps each member's full R.
+        self.assertEqual(ast.literal_eval(kwargs["size_hints"]), {"x0": 1536, "r1": 32})
+        members = _ast_dict_value(kwargs["inductor_meta"], "combo_subkernel_meta").elts
+        self.assertEqual(
+            [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+            [{"x0": 768, "r1": 16}, {"x0": 768, "r1": 32}],
+        )
+        self.assertEqual(
+            [ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members],
+            [True, True],
+        )
+        rblocks = [
+            ast.literal_eval(node.value)
+            for node in ast.walk(kernel)
+            if isinstance(node, ast.AnnAssign) and node.target.id == "R1BLOCK_SUB"
+        ]
+        self.assertEqual(rblocks, [16, 32])
+        self.assertFalse(any(
+            isinstance(node, ast.For) and node.target.id.startswith("loop_r")
+            for node in ast.walk(kernel)
+        ))
+        self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
         self.assertEqual(out_eager, out_compiled)
 
     @requires_cuda_and_triton
@@ -397,8 +446,9 @@ class ComboKernelTests(TestCase):
             )
             # Verify kernels are regular pointwise, not combo kernels
             FileCheck().check("triton_heuristics.pointwise").check(
-                "'grid_type': 'Grid1D'"
+                "'grid_type': 'GridNpu'"
             ).check_not("combo_grid_meta").run(code[0])
+            self.assertEqual(code[0].count(" = async_compile.triton("), 2)
 
     @requires_gpu_and_triton
     def test_combo_kernel_per_config_subkernel_poi(self):
@@ -415,6 +465,45 @@ class ComboKernelTests(TestCase):
         fn_c = torch.compile(fn)
         out_compiled, code = run_and_get_code(fn_c, *inps)
         self.assertEqual(out_eager, out_compiled)
+        if GPU_TYPE == "npu" and not torch._inductor.config.combo_kernel_per_subkernel_blocks:
+            # Native partitioning separates these 1024x different iteration sizes.
+            kernels = _triton_kernels(code)
+            self.assertEqual(torch._inductor.metrics.generated_kernel_count, 2)
+            self.assertEqual(len(kernels), 2)
+            for _, heuristic, kwargs in kernels:
+                self.assertEqual(heuristic, "pointwise")
+                self.assertNotIn(
+                    "combo_subkernel_meta",
+                    [ast.literal_eval(key) for key in kwargs["inductor_meta"].keys],
+                )
+
+            # Also exercise a real shared-block Combo with moderately different sizes.
+            inps = [
+                torch.randn(65536, device=GPU_TYPE),
+                torch.randn(524288, device=GPU_TYPE),
+            ]
+            torch._dynamo.reset()
+            torch._inductor.metrics.reset()
+            out_compiled, code = run_and_get_code(torch.compile(fn), *inps)
+            self.assertEqual(fn(*inps), out_compiled)
+            kernels = _triton_kernels(code)
+            self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
+            self.assertEqual(len(kernels), 1)
+            kernel, heuristic, kwargs = kernels[0]
+            self.assertEqual(heuristic, "pointwise")
+            meta = kwargs["inductor_meta"]
+            self.assertEqual(ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")), ("X0BLOCK",))
+            self.assertIn("X0BLOCK", [arg.arg for arg in kernel.args.args])
+            self.assertEqual(
+                ast.literal_eval(_ast_dict_value(_ast_dict_value(meta, "combo_grid_meta"), "num_kernels")), 2
+            )
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(len(members), 2)
+            self.assertCountEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 65536}, {"x0": 524288}],
+            )
+            return
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
         if torch._inductor.config.combo_kernel_per_subkernel_blocks:
             FileCheck().check("XBLOCK_0 : tl.constexpr").check(
@@ -443,9 +532,33 @@ class ComboKernelTests(TestCase):
                 "R0_BLOCK_1: tl.constexpr = 512"
             ).run(code[0])
         else:
-            FileCheck().check("XBLOCK : tl.constexpr").check_not(
-                "XBLOCK_0 : tl.constexpr"
-            ).run(code[0])
+            (kernel, heuristic, kwargs), = _triton_kernels(code)
+            self.assertEqual(heuristic, "persistent_reduction")
+            meta = kwargs["inductor_meta"]
+            # The shared NPU block has a runtime extent and a constexpr subtile.
+            self.assertEqual(
+                ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")),
+                ("X0BLOCK",),
+            )
+            self.assertEqual(
+                [arg.arg for arg in kernel.args.args if "BLOCK" in arg.arg],
+                ["X0BLOCK", "X0BLOCK_SUB"],
+            )
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 1024, "r1": 64}, {"x0": 1024, "r1": 512}],
+            )
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members],
+                [True, True],
+            )
+            rblocks = [
+                ast.literal_eval(node.value)
+                for node in ast.walk(kernel)
+                if isinstance(node, ast.AnnAssign) and node.target.id == "R1BLOCK_SUB"
+            ]
+            self.assertEqual(rblocks, [64, 512])
 
     @requires_gpu_and_triton
     def test_combo_kernel_per_config_subkernel_red_per(self):
@@ -486,7 +599,32 @@ class ComboKernelTests(TestCase):
         out_compiled, code = run_and_get_code(fn_c, *inps)
         torch.testing.assert_close(out_eager, out_compiled, atol=1e-4, rtol=1e-4)
         self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
-        if torch._inductor.config.combo_kernel_per_subkernel_blocks:
+        if GPU_TYPE == "npu" and not torch._inductor.config.combo_kernel_per_subkernel_blocks:
+            (kernel, heuristic, kwargs), = _triton_kernels(code)
+            self.assertEqual(heuristic, "persistent_reduction")
+            meta = kwargs["inductor_meta"]
+            self.assertEqual(
+                ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")), ("X0BLOCK",)
+            )
+            self.assertEqual([arg.arg for arg in kernel.args.args if "BLOCK" in arg.arg], ["X0BLOCK"])
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 64, "r2": 32, "r1": 128}] * 2,
+            )
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members],
+                [True, True],
+            )
+            rblocks = {
+                (node.target.id, ast.literal_eval(node.value))
+                for node in ast.walk(kernel)
+                if isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id in {"R2BLOCK_SUB", "R1BLOCK_SUB"}
+            }
+            self.assertEqual(rblocks, {("R2BLOCK_SUB", 32), ("R1BLOCK_SUB", 128)})
+        elif torch._inductor.config.combo_kernel_per_subkernel_blocks:
             FileCheck().check(
                 " XBLOCK_0 : tl.constexpr, R0_BLOCK_0 : tl.constexpr"
             ).check("XBLOCK_1 : tl.constexpr, R0_BLOCK_1 : tl.constexpr").run(code[0])
@@ -515,9 +653,37 @@ class ComboKernelTests(TestCase):
         out_eager = fn(*inps)
         fn_c = torch.compile(fn)
         out_compiled, code = run_and_get_code(fn_c, *inps)
-        self.assertEqual(out_eager, out_compiled)
-        # 2D reduction kernels (r0_, r1_) are separated from combo kernels
-        self.assertEqual(torch._inductor.metrics.generated_kernel_count, 2)
+        if GPU_TYPE == "npu":
+            # Independent FP32 reduction orders can round to opposite sides of
+            # the reference near zero. Check both against the same FP64 sum.
+            reference = fn(*(inp.cpu().double() for inp in inps))
+            for expected, eager, actual in zip(reference, out_eager, out_compiled):
+                self.assertEqual(expected.float(), eager.cpu())
+                self.assertEqual(expected.float(), actual.cpu())
+        else:
+            self.assertEqual(out_eager, out_compiled)
+        if GPU_TYPE == "npu" and not torch._inductor.config.combo_kernel_per_subkernel_blocks:
+            # Native multi-axis stores now compile, so both reductions share one Combo.
+            kernels = _triton_kernels(code)
+            self.assertEqual(torch._inductor.metrics.generated_kernel_count, 1)
+            self.assertEqual(len(kernels), 1)
+            kernel, heuristic, kwargs = kernels[0]
+            self.assertEqual(heuristic, "persistent_reduction")
+            meta = kwargs["inductor_meta"]
+            self.assertEqual(ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")), ("X0BLOCK",))
+            self.assertIn("X0BLOCK", [arg.arg for arg in kernel.args.args])
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(len(members), 2)
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 16, "r2": 32, "r1": 64}] * 2,
+            )
+            self.assertTrue(
+                all(ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members)
+            )
+        else:
+            # 2D reduction kernels (r0_, r1_) are separated from combo kernels.
+            self.assertEqual(torch._inductor.metrics.generated_kernel_count, 2)
 
     @requires_gpu_and_triton
     @torch._inductor.config.patch(
@@ -800,6 +966,7 @@ class ComboKernelTests(TestCase):
     @unittest.skipIf(not SM90OrLater, "Avoid oom on CI")
     def test_combo_kernel_yz_overflow(self):
         from torch.profiler import ProfilerActivity
+        from torch_npu._inductor.runtime.triton_heuristics import NPUCachingAutotuner
 
         def fn(a, b):
             a_permute = a.permute(0, 2, 1)
@@ -818,6 +985,33 @@ class ComboKernelTests(TestCase):
 
         out_eager = fn(*inps)
         fn_c = torch.compile(fn)
+        # Warm up before recording so candidate benchmarks are not counted as
+        # the final launch. NPU profiler events do not carry CUDA's grid field.
+        out_compiled, code = run_and_get_code(fn_c, *inps)
+        self.assertEqual(out_eager, out_compiled)
+        self.assertEqual(len(_triton_kernels(code)), 1)
+        launches = []
+        original_run = NPUCachingAutotuner.run
+
+        def record_run(autotuner, *args, **kwargs):
+            launcher = autotuner.best_launcher
+            self.assertIsNotNone(launcher)
+            combo = autotuner.inductor_meta["combo_grid_meta"]
+            self.assertEqual(combo["num_kernels"], 2)
+            self.assertEqual(len(combo["split_numels"]), 2)
+            self.assertEqual(combo["no_split"], [False, False])
+            blocks = dict(zip(autotuner.runtime_block_arg_names, autotuner.best_runtime_blocks))
+            block = blocks[combo["split_block"]]
+            expected_x = sum((numel + block - 1) // block for numel in combo["split_numels"])
+            runner = launcher.__globals__["runner"]
+
+            def record_launch(*launch_args):
+                launches.append((autotuner.inductor_meta["kernel_name"], tuple(launch_args[:3]), expected_x))
+                return runner(*launch_args)
+
+            # Observe the exact grid passed to the driver and delegate unchanged.
+            with patch.dict(launcher.__globals__, runner=record_launch):
+                return original_run(autotuner, *args, **kwargs)
 
         with tempfile.NamedTemporaryFile(suffix=".json") as trace_file:
             trace_path = trace_file.name
@@ -827,23 +1021,20 @@ class ComboKernelTests(TestCase):
                 activities=[activity],
                 record_shapes=True,
             ) as prof:
-                out_compiled, code = run_and_get_code(fn_c, *inps)
+                with patch.object(NPUCachingAutotuner, "run", record_run):
+                    out_compiled = fn_c(*inps)
 
             prof.export_chrome_trace(trace_path)
 
             with open(trace_path) as f:
                 trace_json = json.load(f)
 
-            triton_events = [
-                event
-                for event in trace_json["traceEvents"]
-                if "triton_poi_fused_0" in event["name"]
-            ]
-
-            if torch._inductor.config.combo_kernel_per_subkernel_blocks:
-                self.assertEqual([83660, 1, 1], triton_events[0]["args"]["grid"])
-            else:
-                self.assertEqual([4, 45260, 2], triton_events[0]["args"]["grid"])
+            events = trace_json if isinstance(trace_json, list) else trace_json["traceEvents"]
+            self.assertEqual(len(launches), 1)
+            kernel_name, grid, expected_x = launches[0]
+            self.assertGreater(expected_x, 0)
+            self.assertEqual(grid, (expected_x, 1, 1))
+            self.assertTrue(any(kernel_name in event.get("name", "") for event in events))
 
         self.assertEqual(out_eager, out_compiled)
 
@@ -1354,7 +1545,7 @@ class ComboKernelDynamicShapesTests(TestCase):
 
         self.assertEqual(out_eager, out_compiled)
 
-    @requires_xpu_and_triton
+    @requires_gpu_and_triton
     @torch._dynamo.config.patch("automatic_dynamic_shapes", True)
     @torch._dynamo.config.patch("assume_static_by_default", True)
     @torch._inductor.config.patch("triton.autotune_at_compile_time", True)
@@ -1835,15 +2026,74 @@ class ComboKernelTestsMaxAutotune(TestCase):
             torch.rand(32, 256, device=GPU_TYPE),
             torch.rand(32, 1024, device=GPU_TYPE),
         ]
-        with torch._inductor.config.patch(
-            {"combo_kernel_per_subkernel_blocks": per_subkernel}
-        ):
+        budgets = []
+        with contextlib.ExitStack() as stack:
+            if GPU_TYPE == "npu" and not per_subkernel:
+                from torch_npu._inductor.runtime.combo_tile_generator import ComboTileGenerator
+
+                original = ComboTileGenerator.descend_split_tiling
+
+                def record_configs(generator):
+                    configs = original(generator)
+                    budgets.append(
+                        (
+                            generator.max_numel_threshold,
+                            generator.max_programs,
+                            [
+                                (
+                                    generator.calculate_config_numel(cfg.kwargs),
+                                    generator.calculate_total_programs(
+                                        [
+                                            cfg.kwargs.get(f"{name.upper()}BLOCK", extent)
+                                            for name, extent in zip(generator.axis_name, generator.numels)
+                                        ]
+                                    ),
+                                )
+                                for cfg in configs
+                            ],
+                        )
+                    )
+                    return configs
+
+                stack.enter_context(patch.object(ComboTileGenerator, "descend_split_tiling", record_configs))
+            stack.enter_context(
+                torch._inductor.config.patch({"combo_kernel_per_subkernel_blocks": per_subkernel})
+            )
             out_eager = fn(*inps)
             out_compiled, code = run_and_get_code(torch.compile(fn), *inps)
         self.assertEqual(out_eager, out_compiled)
         joined = " ".join(code)
         if per_subkernel:
             self.assertNotIn("'max_persistent_rblock'", joined)
+        elif GPU_TYPE == "npu":
+            # HIP limits XBLOCK * R to avoid pathological compile times. NPU
+            # bounds resident subtiles and programs instead of exporting that key.
+            (kernel, heuristic, kwargs), = _triton_kernels(code)
+            self.assertEqual(heuristic, "persistent_reduction")
+            meta = kwargs["inductor_meta"]
+            self.assertEqual(
+                ast.literal_eval(_ast_dict_value(meta, "runtime_block_arg_names")), ("X0BLOCK",)
+            )
+            self.assertEqual(
+                [arg.arg for arg in kernel.args.args if "BLOCK" in arg.arg], ["X0BLOCK", "X0BLOCK_SUB"]
+            )
+            members = _ast_dict_value(meta, "combo_subkernel_meta").elts
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "size_hints")) for member in members],
+                [{"x0": 32, "r1": 256}, {"x0": 32, "r1": 1024}],
+            )
+            self.assertEqual(
+                [ast.literal_eval(_ast_dict_value(member, "persistent_reduction")) for member in members],
+                [True, True],
+            )
+            self.assertTrue(budgets)
+            for tile_limit, program_limit, configs in budgets:
+                self.assertGreater(tile_limit, 0)
+                self.assertGreater(program_limit, 0)
+                self.assertTrue(configs)
+                for resident_numel, programs in configs:
+                    self.assertLessEqual(resident_numel, tile_limit)
+                    self.assertLessEqual(programs, program_limit)
         else:
             self.assertIn("'max_persistent_rblock': 1024", joined)
 
@@ -2412,6 +2662,9 @@ class ComboKernelPeakMemoryTests(InductorTestCase):
         combo_kernel_max_distance so the windowing behavior is identical
         and the only difference is whether the gate rejects oversized
         combos."""
+        if GPU_TYPE == "npu":
+            return self._check_npu_residual_branch_peak_memory()
+
         model = ComboKernelPeakMemoryTests._make_wide_resnet_like().to(GPU_TYPE).eval()
         x = torch.randn(1, 3, 224, 224, device=GPU_TYPE)
 
@@ -2447,6 +2700,77 @@ class ComboKernelPeakMemoryTests(InductorTestCase):
             f"tight threshold did not reduce runtime peak memory "
             f"(tight={peak_tight}, disabled={peak_disabled})",
         )
+
+    def _check_npu_residual_branch_peak_memory(self):
+        from torch._inductor.scheduler import Scheduler
+
+        # WRN's parallel convolutions remain extern kernels on NPU. Preserve
+        # the residual-branch lifetime pattern with combinable pointwise
+        # producers and extern linear consumers that release the wide tensors.
+        class ResidualBranches(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.projection = torch.nn.Linear(1024, 16, bias=False)
+
+            def forward(self, a, b):
+                left = self.projection(torch.relu(a + 0.25))
+                right = self.projection(torch.relu(b - 0.25))
+                return left + right
+
+        model = ResidualBranches().to(GPU_TYPE).eval()
+        inps = [torch.randn(4096, 1024, device=GPU_TYPE) for _ in range(2)]
+        with torch.no_grad():
+            expected = model(*inps).cpu()
+
+        def measure(abs_threshold):
+            torch._dynamo.reset()
+            torch._inductor.metrics.reset()
+            torch.npu.synchronize()
+            torch.npu.empty_cache()
+            decisions = []
+            original = Scheduler._try_combo_with_memory_check
+
+            def observe_gate(scheduler, *args, **kwargs):
+                result = original(scheduler, *args, **kwargs)
+                decisions.append(result[0] is not None)
+                return result
+
+            with (
+                fresh_cache(),
+                torch._inductor.config.patch(
+                    **self._thresholds(abs_thr_gb=abs_threshold, max_distance=32),
+                    combo_kernel_per_subkernel_blocks=False,
+                ),
+                patch.object(Scheduler, "_try_combo_with_memory_check", observe_gate),
+                torch.no_grad(),
+            ):
+                compiled = torch.compile(model)
+                warm, code = run_and_get_code(compiled, *inps)
+                self.assertEqual(expected, warm.cpu())
+                del warm
+                torch.npu.synchronize()
+                torch.npu.reset_peak_memory_stats()
+                actual = compiled(*inps)
+                torch.npu.synchronize()
+                peak = torch.npu.max_memory_allocated()
+                self.assertEqual(expected, actual.cpu())
+                combos = sum(
+                    any(ast.literal_eval(key) == "combo_subkernel_meta" for key in kwargs["inductor_meta"].keys)
+                    for _, _, kwargs in _triton_kernels(code)
+                )
+            logging.getLogger(__name__).info(
+                "NPU memory gate: threshold=%s, decisions=%s, combos=%s, warm_peak=%s",
+                abs_threshold, decisions, combos, peak,
+            )
+            return peak, combos, decisions
+
+        peak_disabled, combos_disabled, disabled_decisions = measure(None)
+        peak_tight, combos_tight, tight_decisions = measure(1.0 / 1024)
+        self.assertFalse(disabled_decisions)
+        self.assertGreater(combos_disabled, 0)
+        self.assertIn(False, tight_decisions, "The tight threshold must reject a real combo candidate")
+        self.assertLess(combos_tight, combos_disabled)
+        self.assertLess(peak_tight, peak_disabled)
 
     def test_estimate_region_peak_memory(self):
         from torch._inductor import memory as mem_mod

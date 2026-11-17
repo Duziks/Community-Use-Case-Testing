@@ -301,7 +301,6 @@ class InputDistanceTests(TestCase):
         self.assertEqual(min(all_min), 0)
         self.assertEqual(max(all_max), 1)
 
-    @unittest.skip("NPU does not support")
     def test_foreach_basic(self):
         """
         foreach_add on graph inputs should have depth 0.
@@ -317,7 +316,6 @@ class InputDistanceTests(TestCase):
             self.assertEqual(s.min_input_distance, 0)
             self.assertEqual(s.max_input_distance, 0)
 
-    @unittest.skip("NPU does not support")
     def test_foreach_after_extern(self):
         """
         mm (extern, depth 0) -> foreach_add (depth 1)
