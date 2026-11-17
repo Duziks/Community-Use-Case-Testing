@@ -1455,7 +1455,7 @@ def _check_three_way_precision(fn, args, kwargs, op_name):
     for tag, (win, tie, lose, max_i, max_e) in stats:
         msg += (
             f" {tag}: win={win} tie={tie} lose={lose}"
-            f" max_err(ind)={max_i:.3e} max_err(eager)={max:.3e};"
+            f" max_err(ind)={max_i:.3e} max_err(eager)={max_e:.3e};"
         )
     print(msg)
 
