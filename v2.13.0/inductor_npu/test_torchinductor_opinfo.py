@@ -1598,8 +1598,8 @@ class TestInductorOpInfo(TestCase):
             op_name += f".{op.variant_test_name}"
 
         if device_type == "npu" and op_name in _AUTOTUNE_POINTWISE_OPS:
-            _prev_autotune_pointwise = torch._inductor.triton.autotune_pointwise
-            torch._inductor.triton.autotune_pointwise = True
+            _prev_autotune_pointwise = torch._inductor.config.triton.autotune_pointwise
+            torch._inductor.config.triton.autotune_pointwise = True
             self.addCleanup(
                 setattr,
                 torch._inductor.config.triton,
