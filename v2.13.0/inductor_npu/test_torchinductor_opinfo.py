@@ -1353,6 +1353,11 @@ _THREE_WAY_PRECISION_OPS = {
     "masked.logaddexp",
     "linalg.vecdot",
     "nn.functional.multilabel_soft_margin_loss",
+    "nn.functional.unfold",
+}
+
+_AUTOTUNE_POINTWISE_OPS = {
+    "nn.functional.unfold",
 }
 
 def _run_op_and_grad(fn, t, args, kwargs):
@@ -1591,6 +1596,16 @@ class TestInductorOpInfo(TestCase):
         op_name = op.name
         if op.variant_test_name:
             op_name += f".{op.variant_test_name}"
+
+        if device_type == "npu" and op_name in _AUTOTUNE_POINTWISE_OPS:
+            _prev_autotune_pointwise = torch._inductor.triton.autotune_pointwise
+            torch._inductor.triton.autotune_pointwise = True
+            self.addCleanup(
+                setattr,
+                torch._inductor.config.triton,
+                "autotune_pointwise",
+                _prev_autotune_pointwise,
+            )
 
         if device_type == "npu" and dtype in (torch.uint16, torch.uint32):
             raise unittest.SkipTest("NPU does not support uint16/uint32")
