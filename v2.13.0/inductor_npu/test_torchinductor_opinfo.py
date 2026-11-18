@@ -1352,6 +1352,7 @@ _THREE_WAY_PRECISION_OPS = {
     "masked.var",
     "masked.logaddexp",
     "linalg.vecdot",
+    "nn.functional.multilabel_soft_margin_loss",
 }
 
 def _run_op_and_grad(fn, t, args, kwargs):
