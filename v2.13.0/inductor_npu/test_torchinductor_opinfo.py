@@ -372,6 +372,7 @@ inductor_skips["npu"].update(
         "logspace.tensor_overload": {i32, i64},
         "nansum":{b8, i32, i64},
         "native_dropout_backward": {b8, i32, i64, f16, f32},
+        "logaddexp":{f16,f32},
     }
 )
 
@@ -1355,6 +1356,11 @@ _THREE_WAY_PRECISION_OPS = {
     "linalg.vecdot",
     "nn.functional.multilabel_soft_margin_loss",
     "nn.functional.unfold",
+    "minimum",
+    "maximum",
+    "min.binary",
+    "max.binary",
+    "masked.norm",
 }
 
 _AUTOTUNE_POINTWISE_OPS = {
