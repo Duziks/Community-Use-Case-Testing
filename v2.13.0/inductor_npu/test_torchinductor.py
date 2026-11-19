@@ -4226,12 +4226,19 @@ for dtype in (torch.int32, torch.int64):
         def fn(a, b):
             return torch.floor_divide(a, b)
 
+        compiled = torch.compile(fn, backend="inductor", fullgraph=True)
         for dtype in [torch.int32, torch.int64]:
             # All-zero divisor: every element should be 0
             for dividend in [0, 1, -1, 5, -5]:
                 a = torch.full((8,), dividend, device=self.device, dtype=dtype)
                 b = torch.full((8,), 0, device=self.device, dtype=dtype)
-                self.common(fn, (a, b))
+                out = compiled(a, b)
+                self.assertEqual(
+                    out,
+                    torch.zeros_like(a),
+                    msg=f"floor_div({dividend}, 0) dtype={dtype}: "
+                    f"expected al zeros, got {out}",
+                )
 
     def test_floordiv_float_accuracy(self):
         # Triton uses an approximate reciprocal for fp32 division, so a naive
