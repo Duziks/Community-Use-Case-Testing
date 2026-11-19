@@ -371,6 +371,7 @@ inductor_skips["npu"].update(
         "logspace":{i32, i64},
         "logspace.tensor_overload": {i32, i64},
         "nansum":{b8, i32, i64},
+        "native_dropout_backward": {b8, i32, i64, f16, f32},
     }
 )
 
