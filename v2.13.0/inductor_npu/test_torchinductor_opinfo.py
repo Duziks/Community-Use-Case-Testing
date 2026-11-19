@@ -1367,6 +1367,15 @@ _AUTOTUNE_POINTWISE_OPS = {
     "nn.functional.unfold",
 }
 
+_IMPLICIT_FALLBACK_OPS = {
+    "nanquantile",
+    "quantile",
+    "nn.functional.l1_loss",
+    "nn.functional.multi_margin_loss",
+    "nn.functional.multilabel_margin_loss",
+    "nn.functional.smooth_l1_loss",
+}
+
 def _run_op_and_grad(fn, t, args, kwargs):
     from torch.utils._pytree import tree_leaves
 
@@ -1612,6 +1621,16 @@ class TestInductorOpInfo(TestCase):
                 torch._inductor.config.triton,
                 "autotune_pointwise",
                 _prev_autotune_pointwise,
+            )
+
+        if device_type == "npu" and op_name in _IMPLICIT_FALLBACK_OPS:
+            _prev_implicit_fallbacks = torch._inductor.config.implicit_fallbacks
+            torch._inductor.config.implicit_fallbacks = True
+            self.addCleanup(
+                setattr,
+                torch._inductor.config,
+                "implicit_fallbacks",
+                _prev_implicit_fallbacks,
             )
 
         if device_type == "npu" and dtype in (torch.uint16, torch.uint32):
