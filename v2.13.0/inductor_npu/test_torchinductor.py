@@ -16188,9 +16188,7 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
         torch._inductor.metrics.generated_kernel_count = 0
         x = torch.randn([1024], dtype=torch.float16, device=self.device)
         self.common(fn, (x,), reference_in_float=False)
-        # NPU: add kernel -> aten.view.dtype fallback -> multiply kernel.
-        expected_kernels = 2 if torch.device(self.device).type == "npu" else 1
-        assertGeneratedKernelCountEqual(self, expected_kernels)
+        assertGeneratedKernelCountEqual(self, 1)
 
     @expectedFailureCodegenDynamic
     def test_reinterpret_dtypeview(self):
