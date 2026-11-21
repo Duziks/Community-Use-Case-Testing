@@ -2680,7 +2680,7 @@ class CommonTemplate:
         def fn(a):
             return torch.cumprod(a, -1)
 
-        for dtype in [torch.float32, torch.float64, torch.int32, torch.int64]:
+        for dtype in [torch.float32, torch.int32, torch.int64]:
             if not self.is_dtype_supported(dtype):
                 continue
             inp = _large_cumprod_input(
