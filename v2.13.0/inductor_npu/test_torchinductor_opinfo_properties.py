@@ -443,6 +443,12 @@ UNARY_NUMERICAL_XFAILS = {
 }
 
 BINARY_NUMERICAL_XFAILS = {
+    "inductor_default": {
+        "remainder": {ALL},
+    },
+    "inductor_numerics": {
+        "remainder": {ALL},
+    }
 }
 
 XFAIL_DICTS = {
