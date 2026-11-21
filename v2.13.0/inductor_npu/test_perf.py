@@ -887,11 +887,7 @@ class MinCutPartitioningTests(TestCase):
         inp = (T(100, grad=True),)
         # We do not want to recompute the x.cos().view() chain, as it's
         # materialized in backwards
-        if self.device == "npu":
-            # one extra 100-element buffer access compared to the CUDA fusion
-            self.assertExpectedInline(count_numel_train(f, *inp), """1000""")
-        else:
-            self.assertExpectedInline(count_numel_train(f, *inp), """900""")
+        self.assertExpectedInline(count_numel_train(f, *inp), """900""")
 
     @patch.object(config, "pattern_matcher", False)
     def test_partitioning_long_chain_add(self):
