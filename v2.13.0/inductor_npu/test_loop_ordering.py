@@ -281,8 +281,7 @@ class LoopOrderingTest(TestCase):
         expected_num_bytes += A * A * 3  # for matmul
         expected_num_bytes *= x.itemsize
         self.assertEqual(expected_num_bytes, metrics.num_bytes_accessed)
-        
-    @unittest.skip("NPU does not support")
+
     def test_apbt_realize(self):
         M = 1024
         N = 2048
@@ -323,8 +322,7 @@ class LoopOrderingTest(TestCase):
         x = torch.randn(2, 4, 512, device=GPU_TYPE)
         self.do_acc_test(f, x)
         self.assertEqual(1, metrics.generated_kernel_count)
-        
-    @unittest.skip("NPU does not support")
+
     def test_pw_outer_red_2(self):
         """
         The pointwise kernel is a fused kernel
@@ -1231,7 +1229,6 @@ class MemoryCoalescingTest(MockSchedulerTest):
             )
 
     @parametrize("dynamic", (False, True))
-    @unittest.skip("NPU does not support")
     def test_reduction_pointwise(self, dynamic):
         # test one pw var, one red var
         from torch._inductor import tiling_utils
