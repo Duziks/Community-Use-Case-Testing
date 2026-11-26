@@ -11903,8 +11903,6 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
     @skip_if_gpu_halide  # rand
     @xfail_if_mps
     def test_philox_rand(self):
-        if torch.npu.is_available():
-            self.skipTest('functional RNG / Philox不支持NPU')
         if self.device == "cpu":
             raise unittest.SkipTest(
                 f"functionalization of rng ops supported only on {GPU_TYPE}"
