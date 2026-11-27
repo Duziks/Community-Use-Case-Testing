@@ -9,6 +9,19 @@ from torch._inductor import cudagraph_utils
 
 READY = torch.npu.is_available() and _dynamo.has_triton()
 
+# NPU 后端差异：不生成 tl.make_block_ptr / TMA 描述符，归约由 SIMT tile 承担；
+# Welford 由 torch_npu._inductor.config.enable_welford 控制（默认关闭，
+# 可通过 TORCHINDUCTOR_ENABLE_WELFORD=1 打开）。
+IS_NPU = torch.npu.is_available()
+NPU_WELFORD_ENABLED = False
+if IS_NPU:
+    try:
+        from torch_npu._inductor import config as _npu_inductor_config
+
+        NPU_WELFORD_ENABLED = bool(_npu_inductor_config.enable_welford)
+    except Exception:
+        NPU_WELFORD_ENABLED = False
+
 
 def _wrapper_check_lowering_disable_cudagraph(fn):
     @wraps(fn)
@@ -149,6 +162,12 @@ def xfail_if_use_tensor_descriptor(fn):
 
 class BlockDescriptorTestBase(InductorTestCase):
     block_descriptor_constructor_str = "tl.make_block_ptr"
+
+    def _assert_npu_reduction_ndims(self, code: str, num_dims: int) -> None:
+        """NPU 用 SIMT tile 命名：R1BLOCK_SUB 是内层归约维，R0BLOCK_SUB 是外层归约维。"""
+        self.assertIn("R1BLOCK_SUB", code)
+        if num_dims > 1:
+            self.assertIn("R0BLOCK_SUB", code)
 
     def _discontiguous_tensor(
         self, view_size: tuple[int, ...], device: torch.device | str
@@ -960,8 +979,12 @@ class CommonTemplate:
         doesn't generate a block pointer. Since tiling welford reductions depends on
         the block pointer analysis, those cases would fall back to 1D.
         """
-        if torch.npu.is_available():
-            self.skipTest('inductor不支持本用例要求的稳定Welford归约')
+        if IS_NPU:
+            # NPU 不发 block pointer，跳过该断言，改为判断 kernel 数量：
+            # welford 关闭时 var_mean 走 two-step（mean/var 各两级归约）= 4 个 kernel，
+            # 开启后合并为单 kernel。
+            expected_num_block_pointers = None
+            expected_num_triton_kernels = 1 if NPU_WELFORD_ENABLED else 4
         if torch.version.hip is not None and expected_num_triton_kernels == 2:
             size = (256, 256)
 
@@ -986,10 +1009,17 @@ class CommonTemplate:
         )
 
         # Check for a Welford reduction.
-        self.assertEqual("welford" in code, not expect_fallback)
+        if not IS_NPU or NPU_WELFORD_ENABLED:
+            self.assertEqual("welford" in code, not expect_fallback)
+        else:
+            # NPU 默认关闭 welford，two-step 实现不会出现 welford 代码。
+            self.assertNotIn("welford", code)
 
         # Check for 2 reduction dimensions.
-        self._assert_reduction_ndims(code, 2)
+        if IS_NPU:
+            self._assert_npu_reduction_ndims(code, 2)
+        else:
+            self._assert_reduction_ndims(code, 2)
 
     @test_torchinductor.skip_if_triton_cpu("Triton CPU: slow test")
     def test_welford_non_block_pointer(
@@ -1001,8 +1031,6 @@ class CommonTemplate:
         """
         # Use a "bad" size that's not evenly divisible by the launch grid.
         # This won't decompose into a block pointer.
-        if torch.npu.is_available():
-            self.skipTest('inductor不支持本用例要求的稳定Welford归约')
         view = self._discontiguous_tensor((259, 311), self.device)
 
         # We expect many block pointers for this one.
@@ -1021,6 +1049,12 @@ class CommonTemplate:
             expected_num_triton_kernels = 1
             expected_num_block_pointers = 0
 
+        if IS_NPU:
+            # NPU 不发 block pointer，跳过该断言，改为判断 kernel 数量：
+            # welford 关闭时走 two-step（4 个 kernel），开启后合并为单 kernel。
+            expected_num_block_pointers = None
+            expected_num_triton_kernels = 1 if NPU_WELFORD_ENABLED else 4
+
         result, (code,) = self._run_and_compare(
             torch.var_mean,
             view,
@@ -1030,10 +1064,16 @@ class CommonTemplate:
         )
 
         # Check for a Welford reduction.
-        self.assertIn("welford", code)
+        if not IS_NPU or NPU_WELFORD_ENABLED:
+            self.assertIn("welford", code)
+        else:
+            self.assertNotIn("welford", code)
 
         # Check for a single reduction dimension.
-        self._assert_reduction_ndims(code, 1)
+        if IS_NPU:
+            self._assert_npu_reduction_ndims(code, 1)
+        else:
+            self._assert_reduction_ndims(code, 1)
 
     def test_reduction_multiple_discontiguous_dims(self):
         """

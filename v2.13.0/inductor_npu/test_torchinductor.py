@@ -13214,7 +13214,15 @@ def forward(self, arg0_1: "Sym(s77)", arg1_1: "Sym(s27)", arg2_1: "Sym(s53)", ar
             ]
 
         kwargs = aot_graph_input_parser(forward, device=self.device)
-        self.common(forward, [], kwargs=kwargs)
+        if torch.npu.is_available() and self.device != "cpu":
+            # index 的每一行由同一批元素构成（_tensor_constant0 是非浮点常量，
+            # aot_graph_input_parser 按全 0 生成），该维方差 ~6e-14，
+            # rsqrt(var + 1e-5) 把误差放大约 316 倍：eager 与 inductor 归约顺序
+            # 不同带来的 ~1 ULP 均值差被放大到 ~1e-3（实测最大绝对差 8.5e-4）。
+            # 因此按 NPU 的实际数值行为放宽该用例的容差。
+            self.common(forward, [], kwargs=kwargs, atol=2e-3, rtol=1e-3)
+        else:
+            self.common(forward, [], kwargs=kwargs)
 
     @skip_if_gpu_halide
     @config.patch("halide.scheduler_cpu", "Mullapudi2016")
