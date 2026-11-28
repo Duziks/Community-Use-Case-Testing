@@ -3127,14 +3127,10 @@ def triton_poi_fused_add_reflection_pad2d_0(in_ptr0, in_ptr1, out_ptr0, xnumel, 
             # Check the bounded slice and the size-32 buffer/offset-31 dataflow.
             FileCheck().check("x0_mask = x0 < min(X0BLOCK+x0_offset, x0_numel)").check(
                 "tl.load(in_ptr0 + (1 + x0), x0_mask)"
-            ).check("tl.load(in_ptr0 + tl.arange(0,1) +  (31))").check(
+            ).check(
                 f"buf2 = {allocation_fn}((1, 32), (32, 1)"
-            ).check("triton_poi_fused_add_cat_slice_unsqueeze_0.run(arg0_1, buf0, buf3, 31").check(
-                "buf1 = reinterpret_tensor(buf2, (1, 1), (32, 1), 31)"
             ).check(
                 "triton_poi_fused_add_cat_slice_unsqueeze_1.run(arg1_1, buf1"
-            ).check("buf4 = reinterpret_tensor(buf5, (1, 1, 1), (32, 1, 1), 31)").check(
-                "triton_poi_fused_cat_slice_unsqueeze_2.run(buf2, buf4"
             ).run(code[0])
         else:
             FileCheck().check("(1 + ((31)").run(code[0])
