@@ -1360,7 +1360,6 @@ _THREE_WAY_PRECISION_OPS = {
     "maximum",
     "min.binary",
     "max.binary",
-    "masked.norm",
 }
 
 _AUTOTUNE_POINTWISE_OPS = {
